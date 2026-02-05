@@ -1,3 +1,4 @@
+import os
 import urllib.request, json, base64, os
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -10,8 +11,9 @@ from datetime import date
 from typing import List, Optional
 
 router = APIRouter()
-TELEGRAM_BOT_TOKEN = "8535946989:AAGgrIxaCBad8DS0yRac-lTehOi-8KNvAOE"
-ADMIN_CHAT_ID = "-1003781430639" 
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+print(f"--- DEBUG: TOKEN LOADED: {bool(TELEGRAM_BOT_TOKEN)}", flush=True)
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID") 
 
 class OrderItem(BaseModel):
     name: str
