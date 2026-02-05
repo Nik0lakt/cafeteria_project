@@ -1,5 +1,5 @@
 import os, pickle
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
@@ -8,9 +8,13 @@ from app.cv_utils import get_face_embedding
 from pydantic import BaseModel
 from datetime import date, timedelta
 from typing import List, Optional
+from dotenv import load_dotenv
 
 router = APIRouter()
 PHOTOS_DIR = "/app/static/photos"
+
+class LoginRequest(BaseModel):
+    password: str
 
 class EmployeeCreate(BaseModel):
     full_name: str
@@ -33,12 +37,22 @@ class SchedulePreset(BaseModel):
 class GlobalAction(BaseModel):
     target_date: date
     action_type: str 
-    target_role: str # "ALL" или название конкретной роли
+    target_role: str
 
 class RoleUpdate(BaseModel):
     role_name: str
     subsidy_rub: float
 
+# --- БЕЗОПАСНОСТЬ ---
+@router.post("/login")
+async def login(data: LoginRequest = Body(...)):
+    load_dotenv("/app/.env")
+    target_pass = os.getenv("ADMIN_PASSWORD", "admin123")
+    if data.password == target_pass:
+        return {"success": True}
+    return {"success": False}
+
+# --- СОТРУДНИКИ ---
 @router.get("/employees")
 def list_employees(db: Session = Depends(get_db)):
     emps = db.query(Employee).all()
@@ -56,14 +70,37 @@ def list_employees(db: Session = Depends(get_db)):
         })
     return results
 
-# --- Управление ролями ---
+@router.post("/employees")
+def create_employee(data: EmployeeCreate, db: Session = Depends(get_db)):
+    emp = Employee(full_name=data.full_name, role=data.role, month_limit_rub=data.month_limit_rub, telegram_id=data.telegram_id)
+    db.add(emp); db.commit(); db.refresh(emp)
+    db.add(Card(uid=data.card_uid.strip(), employee_id=emp.id)); db.commit()
+    return {"id": emp.id}
+
+@router.put("/employees/{emp_id}")
+def update_employee(emp_id: int, data: EmployeeUpdate, db: Session = Depends(get_db)):
+    emp = db.query(Employee).filter(Employee.id == emp_id).first()
+    if not emp: raise HTTPException(404, "Not found")
+    emp.full_name, emp.role, emp.month_limit_rub, emp.telegram_id = data.full_name, data.role, data.month_limit_rub, data.telegram_id
+    card = db.query(Card).filter(Card.employee_id == emp_id).first()
+    if card: card.uid = data.card_uid.strip()
+    db.commit(); return {"status": "success"}
+
+@router.delete("/employees/{emp_id}")
+def delete_employee(emp_id: int, db: Session = Depends(get_db)):
+    db.query(Transaction).filter(Transaction.employee_id == emp_id).delete()
+    db.query(Card).filter(Card.employee_id == emp_id).delete()
+    db.query(WorkDay).filter(WorkDay.employee_id == emp_id).delete()
+    db.query(Employee).filter(Employee.id == emp_id).delete()
+    db.commit(); return {"status": "success"}
+
+# --- РОЛИ ---
 @router.post("/role_settings")
 def add_role(data: RoleUpdate, db: Session = Depends(get_db)):
     if db.query(RoleSetting).filter(RoleSetting.role_name == data.role_name).first():
         raise HTTPException(400, "Role exists")
     db.add(RoleSetting(role_name=data.role_name, subsidy_rub=data.subsidy_rub))
-    db.commit()
-    return {"status": "success"}
+    db.commit(); return {"status": "success"}
 
 @router.get("/role_settings")
 def get_role_settings(db: Session = Depends(get_db)):
@@ -80,26 +117,21 @@ def delete_role(role_name: str, db: Session = Depends(get_db)):
     role = db.query(RoleSetting).filter(RoleSetting.role_name == role_name).first()
     if not role: raise HTTPException(404, "Role not found")
     db.delete(role)
-    db.commit()
-    return {"status": "success"}
+    db.commit(); return {"status": "success"}
 
-# --- Глобальное управление днями ---
+# --- ГЛОБАЛЬНОЕ УПРАВЛЕНИЕ ДНЯМИ ---
 @router.post("/schedule/global_action")
 def global_action(data: GlobalAction, db: Session = Depends(get_db)):
     q = db.query(Employee)
     if data.target_role != "ALL":
         q = q.filter(Employee.role == data.target_role)
-    
     for emp in q.all():
         ex = db.query(WorkDay).filter(WorkDay.employee_id == emp.id, WorkDay.date == data.target_date).first()
-        if data.action_type == "holiday" and ex: 
-            db.delete(ex)
-        elif data.action_type == "work" and not ex: 
-            db.add(WorkDay(employee_id=emp.id, date=data.target_date))
-    db.commit()
-    return {"status": "success"}
+        if data.action_type == "holiday" and ex: db.delete(ex)
+        elif data.action_type == "work" and not ex: db.add(WorkDay(employee_id=emp.id, date=data.target_date))
+    db.commit(); return {"status": "success"}
 
-# --- Остальные роуты без изменений ---
+# --- КАЛЕНДАРЬ И ПРЕСЕТЫ ---
 @router.post("/schedule/{emp_id}/reset")
 def reset_schedule(emp_id: int, db: Session = Depends(get_db)):
     db.query(WorkDay).filter(WorkDay.employee_id == emp_id).delete()
@@ -128,30 +160,7 @@ def get_schedule(emp_id: int, db: Session = Depends(get_db)):
     days = db.query(WorkDay).filter(WorkDay.employee_id == emp_id).all()
     return [d.date.isoformat() for d in days]
 
-@router.post("/employees")
-def create_employee(data: EmployeeCreate, db: Session = Depends(get_db)):
-    emp = Employee(full_name=data.full_name, role=data.role, month_limit_rub=data.month_limit_rub, telegram_id=data.telegram_id)
-    db.add(emp); db.commit(); db.refresh(emp)
-    db.add(Card(uid=data.card_uid.strip(), employee_id=emp.id)); db.commit()
-    return {"id": emp.id}
-
-@router.put("/employees/{emp_id}")
-def update_employee(emp_id: int, data: EmployeeUpdate, db: Session = Depends(get_db)):
-    emp = db.query(Employee).filter(Employee.id == emp_id).first()
-    if not emp: raise HTTPException(404, "Not found")
-    emp.full_name, emp.role, emp.month_limit_rub, emp.telegram_id = data.full_name, data.role, data.month_limit_rub, data.telegram_id
-    card = db.query(Card).filter(Card.employee_id == emp_id).first()
-    if card: card.uid = data.card_uid.strip()
-    db.commit(); return {"status": "success"}
-
-@router.delete("/employees/{emp_id}")
-def delete_employee(emp_id: int, db: Session = Depends(get_db)):
-    db.query(Transaction).filter(Transaction.employee_id == emp_id).delete()
-    db.query(Card).filter(Card.employee_id == emp_id).delete()
-    db.query(WorkDay).filter(WorkDay.employee_id == emp_id).delete()
-    db.query(Employee).filter(Employee.id == emp_id).delete()
-    db.commit(); return {"status": "success"}
-
+# --- ЛИЦА И ИНФО ---
 @router.post("/enroll_face")
 async def enroll_face(card_uid: str = Form(...), file: UploadFile = File(...), db: Session = Depends(get_db)):
     content = await file.read()
