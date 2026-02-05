@@ -1,0 +1,3 @@
+canteen.nik0lakt.site {
+    reverse_proxy web:8000
+}

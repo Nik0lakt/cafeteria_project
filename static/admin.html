@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Cafeteria Control</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f8f9fa; margin: 0; padding: 20px; color: #333; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .main-layout { display: flex; gap: 30px; }
+        .box { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 2px 15px rgba(0,0,0,0.05); }
+        .registration-box { width: 320px; }
+        .personnel-box { flex: 1; }
+        label { display: block; font-size: 11px; color: #999; margin-bottom: 5px; font-weight: 600; text-transform: uppercase; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 8px; box-sizing: border-box; background: #fafafa; margin-bottom: 15px; font-size: 14px; }
+        .btn { width: 100%; background: #000; color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .action-btn { background: #f5f5f5; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; margin-right: 4px; }
+        .btn-red { color: #dc3545; background: #fff5f5; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; font-size: 11px; color: #999; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0; }
+        td { padding: 12px 0; border-bottom: 1px solid #f8f8f8; font-size: 14px; }
+        .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:1000; }
+        .modal-content { background:#fff; padding:30px; border-radius:16px; width:420px; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .cal-day { padding: 10px; text-align: center; border: 1px solid #eee; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .cal-day.workday { background: #007AFF; color: #fff; border-color: #007AFF; font-weight: bold; }
+        .role-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f9f9f9; border-radius: 8px; margin-bottom: 10px; }
+        .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Cafeteria Control</h1>
+        <div style="display:flex; gap:10px;">
+            <button class="action-btn" style="background:#000; color:#fff; padding:10px 20px;" onclick="openRoles()">⚙️ Настройка ролей</button>
+            <button class="action-btn" style="background:#4a5568; color:#fff; padding:10px 20px;" onclick="openGlobal()">🗓 Управление днями</button>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="box registration-box">
+            <h3>Registration</h3>
+            <label>Full Name</label><input type="text" id="regName">
+            <label>Card UID</label><input type="text" id="regCard">
+            <label>Telegram ID</label><input type="text" id="regTg">
+            <label>Role</label><select id="regRole"></select>
+            <label>Monthly Limit</label><input type="number" id="regLimit" value="5000">
+            <button class="btn" onclick="createRecord()">Create Record</button>
+        </div>
+        <div class="box personnel-box">
+            <h3>Personnel List</h3>
+            <table>
+                <thead><tr><th>Name</th><th>Card</th><th>Biometrics</th><th>Daily</th><th>Limit</th><th>Actions</th></tr></thead>
+                <tbody id="pTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="roleModal" class="modal"><div class="modal-content">
+        <h3>Настройка ролей</h3>
+        <div id="rolesList"></div>
+        <div style="margin-top:20px; border-top:1px solid #eee; padding-top:15px;">
+            <label>Добавить новую роль</label>
+            <input type="text" id="newRoleName" placeholder="Название">
+            <input type="number" id="newRoleSubsidy" placeholder="Дотация (руб)">
+            <button class="btn" onclick="addRole()">Добавить роль</button>
+        </div>
+        <button class="btn" style="background:#eee; color:#000; margin-top:10px" onclick="closeModals()">Закрыть</button>
+    </div></div>
+
+    <div id="globalModal" class="modal"><div class="modal-content">
+        <h3>Управление днями</h3>
+        <label>Выберите дату</label><input type="date" id="gDate">
+        <label>Действие</label>
+        <select id="gAction">
+            <option value="holiday">Сделать ВЫХОДНЫМ</option>
+            <option value="work">Сделать РАБОЧИМ</option>
+        </select>
+        <label>Для какого класса (роли)</label>
+        <select id="gTarget"></select>
+        <button class="btn" onclick="saveGlobal()">Применить</button>
+        <button class="btn" style="background:#eee; color:#000; margin-top:10px" onclick="closeModals()">Отмена</button>
+    </div></div>
+
+    <div id="bioModal" class="modal"><div class="modal-content">
+        <h3 id="bioName">Биометрия</h3>
+        <div style="width:100%; height:240px; background:#000; border-radius:8px; overflow:hidden; margin-bottom:15px;">
+            <video id="bioVideo" autoplay muted style="width:100%; height:100%; object-fit:cover;"></video>
+        </div>
+        <button class="btn" onclick="captureBio()">Сделать снимок</button>
+        <div style="text-align:center; margin:15px 0; color:#999; font-size:12px;">ИЛИ</div>
+        <input type="file" id="bioFile" accept="image/*" style="margin-bottom:10px;" onchange="uploadBioFile(this)">
+        <button class="btn" style="background:#eee; color:#000;" onclick="closeModals()">Отмена</button>
+    </div></div>
+
+    <div id="editModal" class="modal"><div class="modal-content"><h3>Settings</h3><input type="hidden" id="editId"><label>Full Name</label><input type="text" id="editName"><label>Card UID</label><input type="text" id="editCard"><label>Telegram ID</label><input type="text" id="editTg"><label>Monthly Limit</label><input type="number" id="editLimit"><label>Role</label><select id="editRole"></select><button class="btn" onclick="saveEdit()">Save</button></div></div>
+    
+    <div id="calModal" class="modal"><div class="modal-content"><div class="cal-header"><button class="action-btn" onclick="changeMonth(-1)">←</button><h3 id="calTitle" style="margin:0"></h3><button class="action-btn" onclick="changeMonth(1)">→</button></div><div id="calGrid" class="cal-grid"></div><div style="margin-top:20px; display:flex; gap:5px;"><button class="action-btn" style="flex:1" onclick="applyPreset(5,2)">5/2</button><button class="action-btn" style="flex:1" onclick="applyPreset(2,2)">2/2</button><button class="action-btn" style="flex:1" onclick="customPreset()">Свой</button></div><button class="action-btn" style="width:100%; color:red; margin-top:10px" onclick="resetCal()">Сбросить график</button><button class="btn" style="margin-top:20px" onclick="closeModals()">Закрыть</button></div></div>
+
+    <script>
+        let currentEmpId = null, currentUid = null, viewDate = new Date(), workDays = [], rolesData = [];
+        const video = document.getElementById('bioVideo');
+        
+        async function load() {
+            const data = await (await fetch('/api/employees')).json();
+            rolesData = await (await fetch('/api/role_settings')).json();
+            
+            const roleOptions = rolesData.map(r => `<option value="${r.role_name}">${r.role_name}</option>`).join('');
+            document.getElementById('regRole').innerHTML = roleOptions;
+            document.getElementById('editRole').innerHTML = roleOptions;
+
+            document.getElementById('pTable').innerHTML = data.map(e => `
+                <tr>
+                    <td><b>${e.full_name}</b></td>
+                    <td><span style="background:#fff0f3; color:#d63384; padding:2px 6px; border-radius:4px;">${e.card_uid}</span></td>
+                    <td><span class="status-dot" style="background:${e.has_face?'#28a745':'#ccc'}"></span> ${e.has_face?'Ready':'Empty'}</td>
+                    <td>${e.daily_used}/100</td>
+                    <td>${e.month_limit_rub}</td>
+                    <td>
+                        <button class="action-btn" onclick='openEdit(${JSON.stringify(e).replace(/'/g, "&apos;")})'>⚙️</button>
+                        <button class="action-btn" onclick="openCal(${e.id},'${e.full_name}')">📅</button>
+                        <button class="action-btn" onclick="openBio(${e.id},'${e.card_uid}','${e.full_name}')">📷</button>
+                        <button class="action-btn btn-red" onclick="delEmp(${e.id})">×</button>
+                    </td>
+                </tr>`).join('');
+        }
+
+        // Роли
+        async function openRoles() {
+            const roles = await (await fetch('/api/role_settings')).json();
+            document.getElementById('rolesList').innerHTML = roles.map(r => `
+                <div class="role-row">
+                    <b>${r.role_name}</b>
+                    <div style="display:flex; align-items:center; gap:5px">
+                        <input type="number" value="${r.subsidy_rub}" style="width:70px; margin:0;" onchange="updateRole('${r.role_name}', this.value)">
+                        <button class="action-btn btn-red" onclick="deleteRole('${r.role_name}')">×</button>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('roleModal').style.display = 'flex';
+        }
+        async function deleteRole(name) {
+            if(confirm(`Удалить роль ${name}? Сотрудники с этой ролью могут потерять дотации.`)) {
+                await fetch(`/api/role_settings/${name}`, {method:'DELETE'});
+                openRoles(); load();
+            }
+        }
+        async function addRole() {
+            const n = document.getElementById('newRoleName').value, s = document.getElementById('newRoleSubsidy').value;
+            if(!n) return;
+            await fetch('/api/role_settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role_name:n, subsidy_rub:parseFloat(s)})});
+            document.getElementById('newRoleName').value = ''; document.getElementById('newRoleSubsidy').value = '';
+            openRoles(); load();
+        }
+        async function updateRole(n, v) { await fetch('/api/role_settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role_name:n, subsidy_rub:parseFloat(v)})}); }
+
+        // Управление днями (Глобальное)
+        function openGlobal() {
+            const targetSelect = document.getElementById('gTarget');
+            targetSelect.innerHTML = '<option value="ALL">Все сотрудники</option>' + 
+                rolesData.map(r => `<option value="${r.role_name}">Только ${r.role_name}</option>`).join('');
+            document.getElementById('globalModal').style.display = 'flex';
+        }
+        async function saveGlobal() {
+            const p = {
+                target_date: document.getElementById('gDate').value,
+                action_type: document.getElementById('gAction').value,
+                target_role: document.getElementById('gTarget').value
+            };
+            if(!p.target_date) return alert("Выберите дату");
+            await fetch('/api/schedule/global_action', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(p)
+            });
+            closeModals(); load();
+        }
+
+        // Остальной JS
+        async function openBio(id, uid, name) {
+            currentEmpId = id; currentUid = uid;
+            document.getElementById('bioName').innerText = `Биометрия: ${name}`;
+            document.getElementById('bioModal').style.display = 'flex';
+            navigator.mediaDevices.getUserMedia({video:true}).then(s => video.srcObject = s);
+        }
+        function captureBio() {
+            const c = document.createElement('canvas'); c.width=640; c.height=480;
+            c.getContext('2d').drawImage(video, 0, 0);
+            c.toBlob(b => sendBio(b), 'image/jpeg');
+        }
+        function uploadBioFile(input) { if(input.files[0]) sendBio(input.files[0]); }
+        async function sendBio(blob) {
+            const fd = new FormData(); fd.append('card_uid', currentUid); fd.append('file', blob);
+            const res = await fetch('/api/enroll_face', {method:'POST', body:fd});
+            if(res.ok) { alert("Успешно!"); closeModals(); load(); }
+        }
+        function closeModals() { 
+            document.querySelectorAll('.modal').forEach(m => m.style.display='none');
+            if(video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+        }
+        async function openCal(id, n) { currentEmpId = id; document.getElementById('calTitle').innerText = n; document.getElementById('calModal').style.display = 'flex'; await refreshCal(); }
+        async function refreshCal() { workDays = await (await fetch(`/api/schedule/${currentEmpId}`)).json(); renderCal(); }
+        function renderCal() {
+            const g = document.getElementById('calGrid'), y = viewDate.getFullYear(), m = viewDate.getMonth();
+            document.getElementById('calTitle').innerText = new Intl.DateTimeFormat('ru',{month:'long', year:'numeric'}).format(viewDate);
+            g.innerHTML = ''; const f = (new Date(y, m, 1).getDay() + 6) % 7, l = new Date(y, m + 1, 0).getDate();
+            for(let i=0; i<f; i++) g.innerHTML += '<div></div>';
+            for(let i=1; i<=l; i++) {
+                const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                g.innerHTML += `<div class="cal-day ${workDays.includes(ds)?'workday':''}" onclick="toggleDay('${ds}')">${i}</div>`;
+            }
+        }
+        async function toggleDay(d) { await fetch(`/api/schedule/${currentEmpId}/toggle?target_date=${d}`, {method:'POST'}); await refreshCal(); }
+        async function resetCal() { if(confirm('Сбросить?')) { await fetch(`/api/schedule/${currentEmpId}/reset`, {method:'POST'}); await refreshCal(); } }
+        async function applyPreset(w, r) { await fetch(`/api/schedule/${currentEmpId}/preset`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({work_days:w, rest_days:r})}); await refreshCal(); }
+        function customPreset() { const w=prompt("Рабочих:"), r=prompt("Выходных:"); if(w&&r) applyPreset(parseInt(w), parseInt(r)); }
+        function changeMonth(s) { viewDate.setMonth(viewDate.getMonth() + s); renderCal(); }
+        async function delEmp(id) { if(confirm('Удалить?')) { await fetch(`/api/employees/${id}`, {method:'DELETE'}); load(); } }
+        async function createRecord() {
+            const p = {full_name:document.getElementById('regName').value, role:document.getElementById('regRole').value, card_uid:document.getElementById('regCard').value, telegram_id:document.getElementById('regTg').value, month_limit_rub:parseInt(document.getElementById('regLimit').value)};
+            await fetch('/api/employees', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)}); load();
+        }
+        function openEdit(e) { document.getElementById('editId').value = e.id; document.getElementById('editName').value = e.full_name; document.getElementById('editCard').value = e.card_uid; document.getElementById('editTg').value = e.telegram_id || ''; document.getElementById('editLimit').value = e.month_limit_rub; document.getElementById('editRole').value = e.role; document.getElementById('editModal').style.display = 'flex'; }
+        async function saveEdit() { const p = {full_name:document.getElementById('editName').value, card_uid:document.getElementById('editCard').value, telegram_id:document.getElementById('editTg').value, month_limit_rub:parseInt(document.getElementById('editLimit').value), role:document.getElementById('editRole').value}; await fetch(`/api/employees/${document.getElementById('editId').value}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)}); closeModals(); load(); }
+        load();
+    </script>
+</body>
+</html>

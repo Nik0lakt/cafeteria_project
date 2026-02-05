@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Оплата заказа</title>
+    <style>
+        body { margin: 0; font-family: -apple-system, sans-serif; background: #fcfcfc; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .card { background: #fff; width: 420px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 25px rgba(0,0,0,0.03); text-align: center; }
+        .amount { font-size: 48px; font-weight: 500; margin-bottom: 20px; }
+        .video-box { width: 100%; height: 240px; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 20px; border: 1px solid #eee; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        input { width: 100%; padding: 15px; border: 1px solid #f0f0f0; border-radius: 8px; margin-bottom: 10px; text-align: center; font-size: 16px; outline: none; }
+        .btn { background: #007AFF; color: #fff; border: none; width: 100%; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .btn-manual { background: none; border: none; color: #007AFF; font-size: 14px; cursor: pointer; margin-top: 15px; opacity: 0.7; }
+        #comparison { display: none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; }
+        .photo-pair { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
+        .photo-pair img, .photo-pair canvas { width: 140px; height: 140px; object-fit: cover; border-radius: 8px; border: 2px solid #eee; background: #f8f8f8; }
+        .status-msg { font-size: 13px; color: #999; margin-top: 15px; white-space: pre-line; }
+        .error-text { color: #dc3545; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1 id="userName" style="font-size: 18px; margin-bottom: 10px;">Оплата заказа</h1>
+        <div class="amount" id="amountDisp">0 ₽</div>
+        <div class="video-box"><video id="video" autoplay playsinline muted></video></div>
+        
+        <div id="mainUI">
+            <input type="text" id="uidInput" placeholder="Введите ID карты">
+            <button class="btn" onclick="startProcess()">Подтвердить карту</button>
+            <button id="manualBtn" class="btn-manual" style="display:none" onclick="openManual()">Подтвердить вручную</button>
+        </div>
+
+        <div id="comparison">
+            <div class="photo-pair">
+                <div><img id="dbPhoto" alt="База"></div>
+                <div><canvas id="snapCanvas" width="140" height="140"></canvas></div>
+            </div>
+            <button class="btn" style="background:#34c759" onclick="finalize(true)">ПОДТВЕРДИТЬ ЛИЧНОСТЬ</button>
+        </div>
+        <div id="status" class="status-msg">Введите ID карты</div>
+    </div>
+
+    <script>
+        const amount = new URLSearchParams(location.search).get('amount') || 0;
+        document.getElementById('amountDisp').innerText = amount + " ₽";
+        const video = document.getElementById('video');
+        const status = document.getElementById('status');
+        let currentSid = null;
+        let currentUid = null;
+
+        navigator.mediaDevices.getUserMedia({video:true}).then(s => video.srcObject = s);
+
+        async function startProcess() {
+            currentUid = document.getElementById('uidInput').value.trim();
+            if(!currentUid) return;
+            status.innerText = "Поиск карты...";
+            const res = await fetch(`/api/employee_info?card_uid=${currentUid}`);
+            if(!res.ok) {
+                status.innerText = "Карта не найдена";
+                return;
+            }
+            
+            const user = await res.json();
+            document.getElementById('userName').innerText = user.name;
+            const sRes = await fetch(`/api/start_liveness?card_uid=${currentUid}`, {method:'POST'});
+            const sData = await sRes.json();
+            currentSid = sData.session_id;
+            document.getElementById('manualBtn').style.display = 'inline-block';
+            status.innerText = "Смотрите в камеру...";
+            runLiveness();
+        }
+
+        async function runLiveness() {
+            if(!currentSid) return;
+            const canvas = document.createElement('canvas');
+            canvas.width = 640; canvas.height = 480;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            canvas.toBlob(async (blob) => {
+                const fd = new FormData(); fd.append('session_id', currentSid); fd.append('file', blob);
+                const r = await fetch('/api/liveness_frame', {method:'POST', body:fd});
+                const d = await r.json();
+                if(d.status === 'finished') finalize(false);
+                else if(currentSid) setTimeout(runLiveness, 600);
+            }, 'image/jpeg');
+        }
+
+        function openManual() {
+            document.getElementById('mainUI').style.display = 'none';
+            document.getElementById('comparison').style.display = 'block';
+            document.getElementById('dbPhoto').src = `static/photos/${currentUid}.jpg?t=${new Date().getTime()}`;
+            const ctx = document.getElementById('snapCanvas').getContext('2d');
+            ctx.drawImage(video, 0, 0, 640, 480, 0, 0, 140, 140);
+        }
+
+        async function finalize(isManual) {
+            status.innerText = "Проверка баланса и оплата...";
+            let livePhoto = isManual ? document.getElementById('snapCanvas').toDataURL('image/jpeg', 0.8) : null;
+            
+            const res = await fetch('/api/pay', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ 
+                    session_id: currentSid, 
+                    amount_rub: parseInt(amount), 
+                    items: JSON.parse(localStorage.getItem('cart') || '[]'),
+                    is_manual: isManual,
+                    live_frame_base64: livePhoto 
+                })
+            });
+
+            const data = await res.json();
+            if(res.ok) { 
+                status.innerText = "Оплата прошла успешно!";
+                localStorage.removeItem('cart'); 
+                currentSid = null;
+                setTimeout(() => { location.href = 'canteen.html'; }, 1500);
+            } else {
+                // Вывод ошибки "Недостаточно средств" или других сбоев
+                status.innerHTML = `<span class="error-text">ОТКАЗ: ${data.detail}</span>`;
+                currentSid = null;
+                document.getElementById('manualBtn').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

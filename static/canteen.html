@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Меню — Cafeteria</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; margin: 0; display: flex; height: 100vh; background: #fff; color: #1d1d1f; }
+        
+        /* Сетка товаров */
+        .menu-side { flex: 1; padding: 40px; background: #fcfcfc; overflow-y: auto; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; }
+        .card { 
+            background: #fff; padding: 25px 15px; border-radius: 16px; text-align: center; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0; 
+            cursor: pointer; transition: transform 0.1s; 
+        }
+        .card:active { transform: scale(0.95); }
+        .card b { display: block; margin-bottom: 5px; font-size: 16px; }
+        .card small { color: #007AFF; font-weight: 600; }
+
+        /* Боковая панель заказа */
+        .order-side { width: 380px; padding: 40px; border-left: 1px solid #eee; display: flex; flex-direction: column; background: #fff; }
+        .order-title { font-size: 20px; font-weight: bold; letter-spacing: -0.5px; margin-bottom: 30px; }
+        
+        .cart-items { flex: 1; overflow-y: auto; margin-bottom: 20px; }
+        .cart-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 12px 0; border-bottom: 1px solid #f5f5f7; 
+        }
+        .item-info b { font-size: 14px; display: block; }
+        .item-info small { color: #86868b; }
+        
+        .remove-btn { 
+            background: #fff5f5; color: #ff3b30; border: none; 
+            width: 28px; height: 28px; border-radius: 50%; 
+            cursor: pointer; font-size: 18px; line-height: 1; 
+        }
+
+        .total-box { border-top: 1px solid #eee; padding-top: 20px; }
+        .total-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; }
+        .total-val { font-size: 32px; font-weight: 600; }
+        
+        .pay-btn { 
+            width: 100%; background: #e5e5ea; color: #fff; border: none; 
+            padding: 18px; border-radius: 12px; font-size: 16px; 
+            font-weight: 600; cursor: not-allowed; transition: 0.2s;
+        }
+        .pay-btn.active { background: #000; cursor: pointer; }
+        .clear-link { color: #ff3b30; cursor: pointer; font-size: 13px; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="menu-side">
+        <div class="grid">
+            <div class="card" onclick="add('Чай', 30)"><b>Чай</b><small>30 ₽</small></div>
+            <div class="card" onclick="add('Пицца', 50)"><b>Пицца</b><small>50 ₽</small></div>
+            <div class="card" onclick="add('Кофе', 80)"><b>Кофе</b><small>80 ₽</small></div>
+            <div class="card" onclick="add('Булочка', 45)"><b>Булочка</b><small>45 ₽</small></div>
+        </div>
+    </div>
+
+    <div class="order-side">
+        <div class="order-title">ЗАКАЗ</div>
+        <div class="cart-items" id="items">
+            </div>
+        
+        <div class="total-box">
+            <div class="total-row">
+                <span onclick="clearCart()" class="clear-link">Очистить заказ</span>
+                <div class="total-val"><span id="total">0</span> ₽</div>
+            </div>
+            <button id="pay" class="pay-btn" onclick="goToPayment()" disabled>ПЕРЕЙТИ К ОПЛАТЕ</button>
+        </div>
+    </div>
+
+    <script>
+        let cart = [];
+
+        function add(name, price) {
+            cart.push({ name, price });
+            render();
+        }
+
+        function removeOne(name) {
+            // Находим индекс последнего добавленного товара с таким именем
+            const idx = cart.map(i => i.name).lastIndexOf(name);
+            if (idx > -1) {
+                cart.splice(idx, 1);
+            }
+            render();
+        }
+
+        function clearCart() {
+            if(confirm('Очистить всю корзину?')) {
+                cart = [];
+                render();
+            }
+        }
+
+        function render() {
+            const sum = cart.reduce((a, b) => a + b.price, 0);
+            document.getElementById('total').innerText = sum;
+
+            // Группировка для отображения
+            const groups = {};
+            cart.forEach(item => {
+                if (!groups[item.name]) groups[item.name] = { count: 0, price: item.price };
+                groups[item.name].count++;
+            });
+
+            const itemsContainer = document.getElementById('items');
+            itemsContainer.innerHTML = Object.keys(groups).map(name => {
+                const info = groups[name];
+                const total = info.count * info.price;
+                return `
+                    <div class="cart-item">
+                        <div class="item-info">
+                            <b>${name} ${info.count > 1 ? `<span style="color:#007AFF">(×${info.count})</span>` : ''}</b>
+                            <small>${total} ₽</small>
+                        </div>
+                        <button class="remove-btn" onclick="removeOne('${name}')">×</button>
+                    </div>
+                `;
+            }).join('');
+
+            const btn = document.getElementById('pay');
+            if(sum > 0) {
+                btn.classList.add('active');
+                btn.disabled = false;
+            } else {
+                btn.classList.remove('active');
+                btn.disabled = true;
+            }
+        }
+
+        function goToPayment() {
+            localStorage.setItem('cart', JSON.stringify(cart));
+            const sum = cart.reduce((a, b) => a + b.price, 0);
+            location.href = `/index.html?amount=${sum}`;
+        }
+        
+        render();
+    </script>
+</body>
+</html>
