@@ -1,3 +1,5 @@
+<script src="/static/admin_check.js"></script>
+<script>async function check() {    const pass = localStorage.getItem("admin_pass");    const res = await fetch("/api/login", {         method: "POST",         headers: {"Content-Type": "application/json"},         body: JSON.stringify({password: pass})     });    const data = await res.json();}check();</script>
 <!DOCTYPE html>
 <html lang="ru">
 <head>
