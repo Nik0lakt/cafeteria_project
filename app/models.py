@@ -1,3 +1,5 @@
+from datetime import datetime
+from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, LargeBinary, ForeignKey, Date, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -41,3 +43,9 @@ class RoleSetting(Base):
     id = Column(Integer, primary_key=True, index=True)
     role_name = Column(String, unique=True)
     subsidy_rub = Column(Float, default=0.0)
+
+class LivenessSession(Base):
+    __tablename__ = "liveness_sessions"
+    id = Column(String, primary_key=True, index=True)
+    card_uid = Column(String)
+    timestamp = Column(DateTime, default=datetime.now)

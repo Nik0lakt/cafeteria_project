@@ -18,6 +18,9 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     expose:
       - "8000"
+    volumes:
+      - ./app:/app/app        # Пробрасываем папку с логикой
+      - ./static:/app/static  # Пробрасываем фронтенд
     depends_on:
       - db
     environment:

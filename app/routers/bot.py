@@ -1,9 +1,9 @@
-import os, time, json, urllib.request, threading, sys
+import os, time as time_module, json, urllib.request, threading, sys
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import SessionLocal
 from app.models import Employee, Transaction, WorkDay, RoleSetting
-from datetime import date
+from datetime import datetime, time, date # Импортируем классы времени
 
 # Загружаем токен сразу при импорте модуля
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -25,18 +25,33 @@ def process_message(db, chat_id, text):
         if not emp:
             send_reply(chat_id, f"❌ Вы не зарегистрированы. Ваш ID: {chat_id}")
             return
+            
         is_work_day = db.query(WorkDay).filter(WorkDay.employee_id == emp.id, WorkDay.date == date.today()).first() is not None
         role_set = db.query(RoleSetting).filter(RoleSetting.role_name == emp.role).first()
-        daily_subsidy = role_set.subsidy_rub if (role_set and is_work_day) else 0
-        used_today_kop = db.query(func.sum(Transaction.subsidy_part_kopecks)).filter(Transaction.employee_id == emp.id, func.date(Transaction.created_at) == date.today()).scalar() or 0
-        subsidy_status = f"✅ Доступно: {daily_subsidy} ₽ (Потрачено: {used_today_kop/100} ₽)" if daily_subsidy > 0 else "❌ Сегодня нет дотации"
-        msg = f"👤 <b>{emp.full_name}</b>\n━━━━━━━━━━━━━━━\n🥗 <b>Дотация:</b>\n{subsidy_status}\n\n💳 <b>Лимит:</b> {round(emp.month_limit_rub, 2)} ₽"
+        daily_limit = role_set.subsidy_rub if (role_set and is_work_day) else 0
+        
+        # --- ФИКС: Считаем потраченное строго с начала текущих суток ---
+        start_of_today = datetime.combine(date.today(), time.min)
+        used_today_kop = db.query(func.sum(Transaction.subsidy_part_kopecks)).filter(
+            Transaction.employee_id == emp.id, 
+            Transaction.created_at >= start_of_today
+        ).scalar() or 0
+        
+        used_today_rub = used_today_kop / 100
+        subsidy_status = f"✅ Доступно: {daily_limit} ₽ (Потрачено: {used_today_rub} ₽)" if daily_limit > 0 else "❌ Сегодня нет дотации"
+        
+        msg = (
+            f"👤 <b>{emp.full_name}</b>\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"🥗 <b>Дотация:</b>\n{subsidy_status}\n\n"
+            f"💳 <b>Лимит:</b> {round(emp.month_limit_rub, 2)} ₽"
+        )
         send_reply(chat_id, msg)
 
 def bot_polling():
     offset = 0
     # Ждем немного, чтобы основной процесс успел загрузить .env
-    time.sleep(2)
+    time_module.sleep(2)
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
         print("--- BOT ERROR: TELEGRAM_BOT_TOKEN NOT FOUND IN ENV ---", file=sys.stderr)
@@ -57,7 +72,7 @@ def bot_polling():
                         finally: db.close()
         except Exception as e:
             print(f"--- POLLING ERROR: {e}", file=sys.stderr)
-            time.sleep(10)
+            time_module.sleep(10)
 
 def start_bot():
     thread = threading.Thread(target=bot_polling, daemon=True)

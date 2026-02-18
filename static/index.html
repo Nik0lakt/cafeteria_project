@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <title>Оплата заказа</title>
     <style>
-        body { margin: 0; font-family: -apple-system, sans-serif; background: #fcfcfc; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-        .card { background: #fff; width: 420px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 25px rgba(0,0,0,0.03); text-align: center; }
+        body { margin: 0; font-family: -apple-system, sans-serif; background: #fcfcfc; display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column;}
+        .card { background: #fff; width: 420px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 25px rgba(0,0,0,0.03); text-align: center; position: relative; }
         .amount { font-size: 48px; font-weight: 500; margin-bottom: 20px; }
         .video-box { width: 100%; height: 240px; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 20px; border: 1px solid #eee; }
         video { width: 100%; height: 100%; object-fit: cover; }
@@ -17,16 +17,29 @@
         .photo-pair img, .photo-pair canvas { width: 140px; height: 140px; object-fit: cover; border-radius: 8px; border: 2px solid #eee; background: #f8f8f8; }
         .status-msg { font-size: 13px; color: #999; margin-top: 15px; white-space: pre-line; }
         .error-text { color: #dc3545; font-weight: bold; }
+        
+        /* Стили для статуса подключения */
+        .scanner-status { 
+            font-size: 12px; margin-bottom: 10px; color: #dc3545; display: flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .scanner-status.connected { color: #28a745; }
+        .connect-btn { background: #6c757d; font-size: 12px; padding: 5px 10px; width: auto; margin-bottom: 15px; }
     </style>
 </head>
 <body>
+    
     <div class="card">
+        <div id="scannerControl">
+            <div id="connectionStatus" class="scanner-status">🔴 Сканер не подключен</div>
+            <button id="connectBtn" class="btn connect-btn" onclick="connectSerial()">🔌 Подключить сканер</button>
+        </div>
+
         <h1 id="userName" style="font-size: 18px; margin-bottom: 10px;">Оплата заказа</h1>
         <div class="amount" id="amountDisp">0 ₽</div>
         <div class="video-box"><video id="video" autoplay playsinline muted></video></div>
         
         <div id="mainUI">
-            <input type="text" id="uidInput" placeholder="Введите ID карты">
+            <input type="text" id="uidInput" placeholder="Приложите карту или введите ID" autocomplete="off">
             <button class="btn" onclick="startProcess()">Подтвердить карту</button>
             <button id="manualBtn" class="btn-manual" style="display:none" onclick="openManual()">Подтвердить вручную</button>
         </div>
@@ -38,7 +51,7 @@
             </div>
             <button class="btn" style="background:#34c759" onclick="finalize(true)">ПОДТВЕРДИТЬ ЛИЧНОСТЬ</button>
         </div>
-        <div id="status" class="status-msg">Введите ID карты</div>
+        <div id="status" class="status-msg">Ожидание карты...</div>
     </div>
 
     <script>
@@ -51,24 +64,137 @@
 
         navigator.mediaDevices.getUserMedia({video:true}).then(s => video.srcObject = s);
 
+        // --- ЛОГИКА WEB SERIAL API (СКАНЕР) ---
+        let port;
+        let reader;
+        let keepReading = false;
+
+        // Попытка авто-подключения при загрузке (если уже давали доступ)
+        document.addEventListener('DOMContentLoaded', async () => {
+            if ("serial" in navigator) {
+                const ports = await navigator.serial.getPorts();
+                if (ports.length > 0) {
+                    // Пытаемся подключиться к первому известному порту
+                    connectToPort(ports[0]);
+                }
+            }
+        });
+
+        async function connectSerial() {
+            if (!("serial" in navigator)) {
+                alert("Браузер не поддерживает Serial API (нужен Chrome/Yandex)");
+                return;
+            }
+            try {
+                // Запрашиваем порт у пользователя
+                const p = await navigator.serial.requestPort();
+                connectToPort(p);
+            } catch (err) {
+                console.error("Ошибка выбора порта:", err);
+            }
+        }
+
+        async function connectToPort(p) {
+            try {
+                port = p;
+                await port.open({ baudRate: 9600 }); // Скорость как в Arduino
+
+                // Обновляем UI
+                document.getElementById('connectionStatus').innerText = "🟢 Сканер подключен";
+                document.getElementById('connectionStatus').classList.add('connected');
+                document.getElementById('connectBtn').style.display = 'none';
+
+                keepReading = true;
+                readSerialLoop();
+            } catch (err) {
+                console.error("Ошибка открытия порта:", err);
+                // Если авто-подключение не сработало, показываем кнопку
+                document.getElementById('connectionStatus').innerText = "🔴 Ошибка подключения";
+                document.getElementById('connectBtn').style.display = 'inline-block';
+            }
+        }
+
+        async function readSerialLoop() {
+            const textDecoder = new TextDecoderStream();
+            const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+            const reader = textDecoder.readable.getReader();
+            let buffer = "";
+
+            try {
+                while (keepReading) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    if (value) {
+                        buffer += value;
+                        // Ищем перенос строки (признак конца UID от Arduino)
+                        if (buffer.includes('\n')) {
+                            const lines = buffer.split('\n');
+                            // Берем первую полную команду
+                            for (let i = 0; i < lines.length - 1; i++) {
+                                const scannedUid = lines[i].trim().toUpperCase();
+                                if (scannedUid.length > 0) {
+                                    handleScan(scannedUid);
+                                }
+                            }
+                            buffer = lines[lines.length - 1]; // Сохраняем хвост
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Ошибка чтения:", error);
+                document.getElementById('connectionStatus').innerText = "🔴 Разрыв соединения";
+                document.getElementById('connectionStatus').classList.remove('connected');
+                document.getElementById('connectBtn').style.display = 'inline-block';
+            } finally {
+                reader.releaseLock();
+            }
+        }
+
+        function handleScan(uid) {
+            console.log("Сканировано:", uid);
+            // 1. Вставляем UID в поле
+            const input = document.getElementById('uidInput');
+            input.value = uid;
+            
+            // 2. Визуальный эффект
+            input.style.backgroundColor = "#e8f0fe";
+            setTimeout(() => input.style.backgroundColor = "#fff", 300);
+
+            // 3. Автоматически запускаем процесс (как будто нажали кнопку)
+            startProcess();
+        }
+
+        // --- ОСНОВНАЯ ЛОГИКА ---
+
         async function startProcess() {
             currentUid = document.getElementById('uidInput').value.trim();
             if(!currentUid) return;
-            status.innerText = "Поиск карты...";
-            const res = await fetch(`/api/employee_info?card_uid=${currentUid}`);
-            if(!res.ok) {
-                status.innerText = "Карта не найдена";
-                return;
-            }
             
-            const user = await res.json();
-            document.getElementById('userName').innerText = user.name;
-            const sRes = await fetch(`/api/start_liveness?card_uid=${currentUid}`, {method:'POST'});
-            const sData = await sRes.json();
-            currentSid = sData.session_id;
-            document.getElementById('manualBtn').style.display = 'inline-block';
-            status.innerText = "Смотрите в камеру...";
-            runLiveness();
+            status.innerText = "Поиск карты...";
+            
+            try {
+                const res = await fetch(`/api/employee_info?card_uid=${currentUid}`);
+                if(!res.ok) {
+                    status.innerText = "Карта не найдена";
+                    // Очищаем поле, чтобы можно было сканировать снова
+                    document.getElementById('uidInput').value = '';
+                    return;
+                }
+                
+                const user = await res.json();
+                document.getElementById('userName').innerText = user.name;
+                
+                const sRes = await fetch(`/api/start_liveness?card_uid=${currentUid}`, {method:'POST'});
+                const sData = await sRes.json();
+                currentSid = sData.session_id;
+                
+                document.getElementById('manualBtn').style.display = 'inline-block';
+                status.innerText = "Смотрите в камеру...";
+                runLiveness();
+            } catch (e) {
+                status.innerText = "Ошибка сети";
+                console.error(e);
+            }
         }
 
         async function runLiveness() {
@@ -77,11 +203,20 @@
             canvas.width = 640; canvas.height = 480;
             canvas.getContext('2d').drawImage(video, 0, 0);
             canvas.toBlob(async (blob) => {
-                const fd = new FormData(); fd.append('session_id', currentSid); fd.append('file', blob);
-                const r = await fetch('/api/liveness_frame', {method:'POST', body:fd});
-                const d = await r.json();
-                if(d.status === 'finished') finalize(false);
-                else if(currentSid) setTimeout(runLiveness, 600);
+                try {
+                    const fd = new FormData(); fd.append('session_id', currentSid); fd.append('file', blob);
+                    const r = await fetch('/api/liveness_frame', {method:'POST', body:fd});
+                    const d = await r.json();
+                    
+                    if(d.status === 'finished') {
+                        finalize(false);
+                    } else if(currentSid) {
+                        setTimeout(runLiveness, 600);
+                    }
+                } catch (e) {
+                    console.log("Liveness error/retry");
+                    if(currentSid) setTimeout(runLiveness, 600);
+                }
             }, 'image/jpeg');
         }
 
@@ -97,29 +232,35 @@
             status.innerText = "Проверка баланса и оплата...";
             let livePhoto = isManual ? document.getElementById('snapCanvas').toDataURL('image/jpeg', 0.8) : null;
             
-            const res = await fetch('/api/pay', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ 
-                    session_id: currentSid, 
-                    amount_rub: parseInt(amount), 
-                    items: JSON.parse(localStorage.getItem('cart') || '[]'),
-                    is_manual: isManual,
-                    live_frame_base64: livePhoto 
-                })
-            });
+            try {
+                const res = await fetch('/api/pay', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        session_id: currentSid, 
+                        amount_rub: parseInt(amount), 
+                        items: JSON.parse(localStorage.getItem('cart') || '[]'),
+                        is_manual: isManual,
+                        live_frame_base64: livePhoto 
+                    })
+                });
 
-            const data = await res.json();
-            if(res.ok) { 
-                status.innerText = "Оплата прошла успешно!";
-                localStorage.removeItem('cart'); 
-                currentSid = null;
-                setTimeout(() => { location.href = 'canteen.html'; }, 1500);
-            } else {
-                // Вывод ошибки "Недостаточно средств" или других сбоев
-                status.innerHTML = `<span class="error-text">ОТКАЗ: ${data.detail}</span>`;
-                currentSid = null;
-                document.getElementById('manualBtn').style.display = 'none';
+                const data = await res.json();
+                if(res.ok) { 
+                    status.innerText = "Оплата прошла успешно!";
+                    localStorage.removeItem('cart'); 
+                    currentSid = null;
+                    // Небольшая задержка перед переходом, чтобы кассир увидел успех
+                    setTimeout(() => { location.href = 'canteen.html'; }, 1500);
+                } else {
+                    status.innerHTML = `<span class="error-text">ОТКАЗ: ${data.detail}</span>`;
+                    currentSid = null;
+                    document.getElementById('manualBtn').style.display = 'none';
+                    // Если отказ, можно очистить поле для следующей карты
+                    document.getElementById('uidInput').value = '';
+                }
+            } catch (e) {
+                status.innerText = "Ошибка сервера";
             }
         }
     </script>
