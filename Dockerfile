@@ -1,28 +1,22 @@
 FROM python:3.10-slim
 
-# 1. Установка системных зависимостей (добавлены библиотеки для OpenCV)
+# Устанавливаем системные зависимости для OpenCV, Git и компиляции dlib
 RUN apt-get update && apt-get install -y \
-    build-essential \
+    git \
     cmake \
-    libopenblas-dev \
-    liblapack-dev \
-    libx11-dev \
-    libgtk-3-dev \
+    g++ \
     libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# 2. Обновление инструментов сборки (важно для dlib)
-RUN pip install --upgrade pip setuptools wheel
-
-# 3. Установка зависимостей Python
+# Устанавливаем зависимости Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir git+https://github.com/ageitgey/face_recognition_models
 
-# 4. Копирование кода
+# Копируем остальной код
 COPY . .
 
-# 5. Команда запуска сервера (FastAPI)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
