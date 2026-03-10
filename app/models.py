@@ -1,6 +1,6 @@
 from datetime import datetime
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, LargeBinary, ForeignKey, Date, DateTime
+from sqlalchemy import Column, JSON, Integer, String, Float, LargeBinary, ForeignKey, Date, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -24,13 +24,17 @@ class Card(Base):
 class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(Integer, primary_key=True, index=True)
-    employee_id = Column(Integer, ForeignKey("employees.id"))
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=True)
     amount_total_kopecks = Column(Integer)
     subsidy_part_kopecks = Column(Integer)
     limit_part_kopecks = Column(Integer)
     status = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+
+    cash_desk_id = Column(String, index=True, nullable=True)
+    payment_method = Column(String, default="internal")
+    items = Column(JSON, nullable=True)
 class WorkDay(Base):
     __tablename__ = "work_days"
     id = Column(Integer, primary_key=True, index=True)
@@ -49,3 +53,10 @@ class LivenessSession(Base):
     id = Column(String, primary_key=True, index=True)
     card_uid = Column(String)
     timestamp = Column(DateTime, default=datetime.now)
+
+
+class CashDesk(Base):
+    __tablename__ = 'cash_desks'
+    id = Column(Integer, primary_key=True, index=True)
+    login = Column(String, unique=True, index=True)
+    description = Column(String, nullable=True)

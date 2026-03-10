@@ -2,144 +2,280 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Меню — Cafeteria</title>
+    <title>Касса Столовой</title>
     <style>
-        body { font-family: -apple-system, sans-serif; margin: 0; display: flex; height: 100vh; background: #fff; color: #1d1d1f; }
+        body, html { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fff; height: 100vh; overflow: hidden; }
         
-        /* Сетка товаров */
-        .menu-side { flex: 1; padding: 40px; background: #fcfcfc; overflow-y: auto; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; }
-        .card { 
-            background: #fff; padding: 25px 15px; border-radius: 16px; text-align: center; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0; 
-            cursor: pointer; transition: transform 0.1s; 
-        }
-        .card:active { transform: scale(0.95); }
-        .card b { display: block; margin-bottom: 5px; font-size: 16px; }
-        .card small { color: #007AFF; font-weight: 600; }
+        /* Layout */
+        .app-container { display: flex; height: 100vh; }
+        .sidebar { width: 250px; background: #fcfcfc; border-right: 1px solid #eaeaea; display: flex; flex-direction: column; padding: 20px; flex-shrink: 0; }
+        .main-content { flex: 1; padding: 30px; display: flex; gap: 30px; overflow-y: auto; }
+        
+        /* Sidebar Elements */
+        .sidebar-title { font-size: 20px; font-weight: bold; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 1px solid #eaeaea; color: #000; }
+        .desk-info { margin-bottom: auto; }
+        .desk-label { color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .desk-name { font-size: 18px; font-weight: bold; color: #000; }
+        .btn-logout { background: transparent; color: #000; border: 1px solid #000; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; width: 100%; text-align: center; }
+        .btn-logout:hover { background: #000; color: #fff; }
 
-        /* Боковая панель заказа */
-        .order-side { width: 380px; padding: 40px; border-left: 1px solid #eee; display: flex; flex-direction: column; background: #fff; }
-        .order-title { font-size: 20px; font-weight: bold; letter-spacing: -0.5px; margin-bottom: 30px; }
-        
+        /* Products Grid */
+        .products-area { flex: 2; }
+        .section-title { font-size: 24px; font-weight: bold; margin-bottom: 20px; margin-top: 0; color: #000; }
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
+        .product-card { border: 1px solid #eaeaea; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: 0.2s; user-select: none; background: #fff; }
+        .product-card:hover { border-color: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transform: translateY(-2px); }
+        .product-name { font-size: 16px; margin-bottom: 8px; color: #333; }
+        .product-price { font-size: 18px; font-weight: bold; color: #000; }
+
+        /* Cart Area */
+        .cart-area { flex: 1; border: 1px solid #eaeaea; border-radius: 12px; padding: 25px; display: flex; flex-direction: column; max-width: 400px; background: #fcfcfc; }
         .cart-items { flex: 1; overflow-y: auto; margin-bottom: 20px; }
-        .cart-item { 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 12px 0; border-bottom: 1px solid #f5f5f7; 
-        }
-        .item-info b { font-size: 14px; display: block; }
-        .item-info small { color: #86868b; }
-        
-        .remove-btn { 
-            background: #fff5f5; color: #ff3b30; border: none; 
-            width: 28px; height: 28px; border-radius: 50%; 
-            cursor: pointer; font-size: 18px; line-height: 1; 
-        }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eaeaea; }
+        .item-info { display: flex; flex-direction: column; }
+        .item-name { font-weight: 600; color: #000; font-size: 16px; }
+        .item-qty { font-size: 13px; color: #666; margin-top: 4px; }
+        .item-right { display: flex; align-items: center; gap: 15px; }
+        .item-price { font-weight: bold; font-size: 16px; }
+        .btn-remove { background: #fff; color: #000; border: 1px solid #eaeaea; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .btn-remove:hover { border-color: #000; background: #f0f0f0; }
 
-        .total-box { border-top: 1px solid #eee; padding-top: 20px; }
-        .total-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; }
-        .total-val { font-size: 32px; font-weight: 600; }
+        .cart-footer { padding-top: 20px; }
+        .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .total-label { font-size: 18px; color: #555; }
+        .total-amount { font-size: 28px; font-weight: bold; color: #000; }
         
-        .pay-btn { 
-            width: 100%; background: #e5e5ea; color: #fff; border: none; 
-            padding: 18px; border-radius: 12px; font-size: 16px; 
-            font-weight: 600; cursor: not-allowed; transition: 0.2s;
-        }
-        .pay-btn.active { background: #000; cursor: pointer; }
-        .clear-link { color: #ff3b30; cursor: pointer; font-size: 13px; text-decoration: none; }
+        .btn-black { background: #000; color: #fff; border: none; padding: 18px; border-radius: 8px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; transition: 0.2s; }
+        .btn-black:disabled { background: #eaeaea; color: #888; cursor: not-allowed; }
+        .btn-black:hover:not(:disabled) { background: #333; }
+
+        /* Modals & Overlays */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
+        .modal-box { background: #fff; padding: 40px; border-radius: 12px; width: 100%; max-width: 450px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border: 1px solid #eaeaea; position: relative; }
+        .modal-title { font-size: 24px; font-weight: bold; margin-top: 0; margin-bottom: 25px; text-align: center; color: #000; }
+        .close-btn { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer; color: #888; }
+        .close-btn:hover { color: #000; }
+
+        input[type="text"], input[type="number"] { width: 100%; padding: 15px; border: 1px solid #eaeaea; border-radius: 8px; box-sizing: border-box; font-size: 16px; margin-bottom: 20px; outline: none; text-align: center; background: #fcfcfc; }
+        input[type="text"]:focus, input[type="number"]:focus { border-color: #000; background: #fff; }
+
+        /* Unified Payment Buttons */
+        .pay-methods-grid { display: flex; flex-direction: column; gap: 15px; }
+        .btn-method { background: #fff; border: 1px solid #eaeaea; padding: 20px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 15px; transition: 0.2s; text-align: left; }
+        .btn-method:hover { border-color: #000; background: #fafafa; }
+        .method-icon { font-size: 24px; }
+        .method-text { font-size: 16px; font-weight: bold; color: #000; }
+        
+        .text-danger { color: #dc3545; font-weight: bold; margin-bottom: 20px; }
+        .text-success { color: #28a745; font-weight: bold; margin-bottom: 20px; font-size: 20px;}
     </style>
 </head>
 <body>
-    <div class="menu-side">
-        <div class="grid">
-            <div class="card" onclick="add('Чай', 30)"><b>Чай</b><small>30 ₽</small></div>
-            <div class="card" onclick="add('Пицца', 50)"><b>Пицца</b><small>50 ₽</small></div>
-            <div class="card" onclick="add('Кофе', 80)"><b>Кофе</b><small>80 ₽</small></div>
-            <div class="card" onclick="add('Булочка', 45)"><b>Булочка</b><small>45 ₽</small></div>
+
+    <div id="loginOverlay" class="overlay" style="display: flex; background: #f4f6f9;">
+        <div class="modal-box">
+            <h3 class="modal-title">Вход в терминал</h3>
+            <input type="text" id="deskLoginInput" placeholder="Введите логин кассы">
+            <button class="btn-black" onclick="login()">Открыть смену</button>
+            <div id="loginError" class="text-danger mt-3" style="display:none; text-align:center; margin-top:15px;"></div>
         </div>
     </div>
 
-    <div class="order-side">
-        <div class="order-title">ЗАКАЗ</div>
-        <div class="cart-items" id="items">
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="sidebar-title">Терминал кассира</div>
+            <div class="desk-info">
+                <div class="desk-label">Текущая касса</div>
+                <div class="desk-name" id="cashDeskLabel">Ожидание...</div>
             </div>
-        
-        <div class="total-box">
-            <div class="total-row">
-                <span onclick="clearCart()" class="clear-link">Очистить заказ</span>
-                <div class="total-val"><span id="total">0</span> ₽</div>
+            <button class="btn-logout" onclick="logout()">Завершить смену</button>
+        </div>
+
+        <div class="main-content">
+            <div class="products-area">
+                <h2 class="section-title">Меню</h2>
+                <div class="product-grid" id="products">
+                    <div class="product-card" onclick="addToCart('Кофе', 80)"><div class="product-name">☕ Кофе</div><div class="product-price">80 ₽</div></div>
+                    <div class="product-card" onclick="addToCart('Чай', 40)"><div class="product-name">🍵 Чай</div><div class="product-price">40 ₽</div></div>
+                    <div class="product-card" onclick="addToCart('Пицца', 150)"><div class="product-name">🍕 Пицца</div><div class="product-price">150 ₽</div></div>
+                    <div class="product-card" onclick="addToCart('Салат', 120)"><div class="product-name">🥗 Салат</div><div class="product-price">120 ₽</div></div>
+                    <div class="product-card" onclick="addToCart('Булочка', 60)"><div class="product-name">🥐 Булочка</div><div class="product-price">60 ₽</div></div>
+                </div>
             </div>
-            <button id="pay" class="pay-btn" onclick="goToPayment()" disabled>ПЕРЕЙТИ К ОПЛАТЕ</button>
+
+            <div class="cart-area">
+                <h2 class="section-title" style="font-size: 20px; border-bottom: 1px solid #eaeaea; padding-bottom: 15px;">Текущий заказ</h2>
+                <div class="cart-items" id="cartItems"></div>
+                
+                <div class="cart-footer">
+                    <div class="total-row">
+                        <span class="total-label">Итого:</span>
+                        <span class="total-amount" id="totalDisplay">0 ₽</span>
+                    </div>
+                    <button class="btn-black" onclick="openPaymentModal()" id="payBtn" disabled>ОПЛАТИТЬ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="paymentMethodModal" class="overlay">
+        <div class="modal-box">
+            <button class="close-btn" onclick="closeModal('paymentMethodModal')">×</button>
+            <h3 class="modal-title">Способ оплаты</h3>
+            <div class="pay-methods-grid">
+                <button class="btn-method" onclick="startBankCard()">
+                    <span class="method-icon">💳</span><span class="method-text">Банковская карта</span>
+                </button>
+                <button class="btn-method" onclick="startInternal()">
+                    <span class="method-icon">🥗</span><span class="method-text">Дотация (Лицо)</span>
+                </button>
+                <button class="btn-method" onclick="startCash()">
+                    <span class="method-icon">💵</span><span class="method-text">Наличные</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="cashModal" class="overlay">
+        <div class="modal-box">
+            <button class="close-btn" onclick="closeModal('cashModal')">×</button>
+            <h3 class="modal-title">Расчет наличными</h3>
+            <div style="text-align: center; margin-bottom: 20px;">К оплате: <b style="font-size: 24px;" id="cashTotalDisp">0</b> ₽</div>
+            <input type="number" id="cashReceived" placeholder="Сумма от клиента (₽)" oninput="calculateChange()">
+            <div id="changeDisp" style="text-align: center; display: none;"></div>
+            <button class="btn-black" id="confirmCashBtn" onclick="processExternal('cash')" disabled>Пробить чек</button>
         </div>
     </div>
 
     <script>
-        let cart = [];
+        let cashDeskId = localStorage.getItem('cashDeskId');
 
-        function add(name, price) {
-            cart.push({ name, price });
-            render();
+        if (!cashDeskId) {
+            document.getElementById('loginOverlay').style.display = 'flex';
+        } else {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('cashDeskLabel').innerText = cashDeskId;
         }
 
-        function removeOne(name) {
-            // Находим индекс последнего добавленного товара с таким именем
-            const idx = cart.map(i => i.name).lastIndexOf(name);
-            if (idx > -1) {
-                cart.splice(idx, 1);
+        async function login() {
+            const loginInput = document.getElementById('deskLoginInput').value.trim();
+            const errorDiv = document.getElementById('loginError');
+            if (!loginInput) { errorDiv.innerText = "Введите логин"; errorDiv.style.display = "block"; return; }
+            try {
+                const res = await fetch('/api/verify_cash_desk', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ login: loginInput })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('cashDeskId', data.login);
+                    cashDeskId = data.login;
+                    document.getElementById('cashDeskLabel').innerText = data.description || data.login;
+                    document.getElementById('loginOverlay').style.display = 'none';
+                } else {
+                    const err = await res.json();
+                    errorDiv.innerText = err.detail || "Неверный логин";
+                    errorDiv.style.display = "block";
+                }
+            } catch (e) {
+                errorDiv.innerText = "Ошибка соединения";
+                errorDiv.style.display = "block";
             }
-            render();
         }
 
-        function clearCart() {
-            if(confirm('Очистить всю корзину?')) {
-                cart = [];
-                render();
+        function logout() {
+            if(confirm("Выйти из кассы?")) {
+                localStorage.removeItem('cashDeskId');
+                location.reload();
             }
         }
 
-        function render() {
-            const sum = cart.reduce((a, b) => a + b.price, 0);
-            document.getElementById('total').innerText = sum;
+        let cart = []; let total = 0;
 
-            // Группировка для отображения
-            const groups = {};
-            cart.forEach(item => {
-                if (!groups[item.name]) groups[item.name] = { count: 0, price: item.price };
-                groups[item.name].count++;
-            });
+        function addToCart(name, price) {
+            let item = cart.find(i => i.name === name);
+            if (item) item.qty += 1; else cart.push({name, price, qty: 1});
+            renderCart();
+        }
 
-            const itemsContainer = document.getElementById('items');
-            itemsContainer.innerHTML = Object.keys(groups).map(name => {
-                const info = groups[name];
-                const total = info.count * info.price;
-                return `
-                    <div class="cart-item">
-                        <div class="item-info">
-                            <b>${name} ${info.count > 1 ? `<span style="color:#007AFF">(×${info.count})</span>` : ''}</b>
-                            <small>${total} ₽</small>
-                        </div>
-                        <button class="remove-btn" onclick="removeOne('${name}')">×</button>
+        function renderCart() {
+            const container = document.getElementById('cartItems');
+            container.innerHTML = ''; total = 0;
+            cart.forEach((item, index) => {
+                let itemTotal = item.price * item.qty;
+                total += itemTotal;
+                container.innerHTML += `
+                <div class="cart-item">
+                    <div class="item-info">
+                        <span class="item-name">${item.name}</span>
+                        <span class="item-qty">${item.qty} шт. × ${item.price} ₽</span>
                     </div>
-                `;
-            }).join('');
+                    <div class="item-right">
+                        <span class="item-price">${itemTotal} ₽</span>
+                        <button class="btn-remove" onclick="removeFromCart(${index})">×</button>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('totalDisplay').innerText = total + " ₽";
+            document.getElementById('payBtn').disabled = cart.length === 0;
+            
+            let flatCart = [];
+            cart.forEach(i => { for(let k=0; k < i.qty; k++) flatCart.push({name: i.name, price: i.price}); });
+            localStorage.setItem('cart', JSON.stringify(flatCart));
+        }
 
-            const btn = document.getElementById('pay');
-            if(sum > 0) {
-                btn.classList.add('active');
-                btn.disabled = false;
+        // КРЕСТИК ОТНИМАЕТ 1 ТОВАР
+        function removeFromCart(index) {
+            if (cart[index].qty > 1) cart[index].qty -= 1;
+            else cart.splice(index, 1);
+            renderCart();
+        }
+
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        function openPaymentModal() { openModal('paymentMethodModal'); }
+        function startInternal() { window.location.href = `index.html?amount=${total}`; }
+        function startBankCard() { if(confirm("Подтвердите оплату на терминале: " + total + " ₽")) processExternal('bank_card'); }
+
+        function startCash() {
+            closeModal('paymentMethodModal');
+            document.getElementById('cashTotalDisp').innerText = total;
+            document.getElementById('cashReceived').value = '';
+            document.getElementById('changeDisp').style.display = 'none';
+            document.getElementById('confirmCashBtn').disabled = true;
+            openModal('cashModal');
+        }
+
+        function calculateChange() {
+            const received = parseFloat(document.getElementById('cashReceived').value) || 0;
+            const changeDisp = document.getElementById('changeDisp');
+            const confirmBtn = document.getElementById('confirmCashBtn');
+            changeDisp.style.display = 'block';
+            if (received >= total) {
+                changeDisp.innerHTML = `Сдача: <b>${received - total}</b> ₽`;
+                changeDisp.className = "text-success"; confirmBtn.disabled = false;
             } else {
-                btn.classList.remove('active');
-                btn.disabled = true;
+                changeDisp.innerHTML = `Не хватает: <b>${total - received}</b> ₽`;
+                changeDisp.className = "text-danger"; confirmBtn.disabled = true;
             }
         }
 
-        function goToPayment() {
-            localStorage.setItem('cart', JSON.stringify(cart));
-            const sum = cart.reduce((a, b) => a + b.price, 0);
-            location.href = `/index.html?amount=${sum}`;
+        async function processExternal(method) {
+            document.getElementById('confirmCashBtn').innerText = "ОБРАБОТКА...";
+            let flatCart = [];
+            cart.forEach(i => { for(let k=0; k < i.qty; k++) flatCart.push({name: i.name, price: i.price}); });
+            try {
+                const res = await fetch('/api/pay_external', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ cash_desk_id: cashDeskId, amount_rub: total, items: flatCart, payment_method: method })
+                });
+                if (res.ok) {
+                    cart = []; renderCart(); closeModal('cashModal'); closeModal('paymentMethodModal');
+                    document.getElementById('confirmCashBtn').innerText = "Пробить чек";
+                } else alert("❌ Ошибка сервера.");
+            } catch (e) { alert("Ошибка соединения."); }
         }
-        
-        render();
     </script>
 </body>
 </html>
