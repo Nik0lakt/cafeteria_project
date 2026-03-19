@@ -67,7 +67,12 @@
         .pay-methods-grid { display: flex; flex-direction: column; gap: 15px; }
         .btn-method { background: #fff; border: 2px solid #eaeaea; padding: 20px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 15px; transition: 0.2s; font-size: 18px; font-weight: bold;}
         .btn-method:hover { border-color: #000; background: #000; color: #fff; }
-    </style>
+    
+    .btn-method { display: flex; align-items: center; gap: 15px; width: 100%; padding: 18px; margin-bottom: 12px; background: #fff; border: 2px solid #eee; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s; text-align: left; }
+    .btn-method:hover { border-color: #000; background: #f9f9f9; }
+    .btn-method span { font-size: 24px; }
+
+</style>
 </head>
 <body id="appBody">
     <div id="loginOverlay" class="overlay" style="display: flex;">
@@ -140,24 +145,17 @@
         </div>
     </div>
 
+    
     <div id="paymentMethodModal" class="overlay">
         <div class="modal-box">
             <button class="close-btn" onclick="closeModal('paymentMethodModal')">×</button>
-            <h3 style="margin-top:0; text-align:center;">Способ оплаты</h3>
-            <div class="pay-methods-grid">
-                <button class="btn-method" onclick=0; text-align:center;">Способ оплаты</h3>
-    шна?')) processExternal('bank_card')">
-                    <span style="font-size:24px;">💳</span> Банковская карта
-                </button>
-                             <span style="font-size:24px;">�ocation.href = `index.html?amount=${total}`">
-                    <span style="font-size:24px;">🥗</span> Дотация (Лицо)
-                </button>
-                <button class="btn-method" onclick="startCash()">
-                    <span style="font-size:24px;">💵</span> Наличные
-                </button>
-            </div>
+            <h3 style="margin-top:0; text-align:center; margin-bottom: 20px;">Выберите способ оплаты</h3>
+            <button class="btn-method" onclick="if(confirm('Оплата по терминалу прошла успешно?')) processExternal('bank_card')"><span>💳</span> Банковская карта</button>
+            <button class="btn-method" onclick="startInternal()"><span>🥗</span> Дотация (Лицо)</button>
+            <button class="btn-method" onclick="startCash()"><span>💵</span> Наличные</button>
         </div>
     </div>
+
 
     <div id="cashModal" class="overlay">
         <div class="modal-box">
@@ -342,6 +340,12 @@
                 else alert("Ошибка сервера.");
             } catch (e) {}
         }
-    </script>
+    
+function startInternal() {
+    if (typeof total === 'undefined' || total <= 0) { alert('Корзина пуста!'); return; }
+    window.location.href = "index.html?amount=" + total + "&desk=" + (typeof cashDeskId !== 'undefined' ? cashDeskId : 'unknown');
+}
+
+</script>
 </body>
 </html>
