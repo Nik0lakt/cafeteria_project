@@ -275,7 +275,7 @@
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
             <input type="text" id="newDeskLogin" placeholder="Логин (например, kassa1)" style="flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px;">
             <input type="text" id="newDeskDesc" placeholder="Описание (Главная касса)" style="flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px;">
-        </div>
+        <input type="text" id="newDeskPass" placeholder="Пароль (по умолч. 1234)" style="flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px;"></div>
         <button onclick="addCashDesk()" style="background: #000; color: #fff; border: none; padding: 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 16px;">Создать</button>
     </div>
     <table style="width: 100%; border-collapse: collapse; text-align: left; font-family: sans-serif;">
@@ -299,7 +299,7 @@
                     <td style="padding: 15px 10px;">${d.id}</td>
                     <td style="padding: 15px 10px;"><b>${d.login}</b></td>
                     <td style="padding: 15px 10px;">${d.description || ''}</td>
-                    <td style="padding: 15px 10px;"><button style="background:#000; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;" onclick="deleteCashDesk(${d.id})">Удалить</button></td>
+                    <td style="padding: 15px 10px;"><button style="background:#000; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;" onclick="deleteCashDesk(${d.id})">Удалить</button> <button style='background:#6c757d; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer; margin-left:5px;' onclick="forceChangePwd(${d.id})" title='Сменить пароль'>🔑</button></td>
                 </tr>
             `).join('');
         } catch(e) {}
@@ -308,8 +308,8 @@
         const login = document.getElementById('newDeskLogin').value.trim();
         const desc = document.getElementById('newDeskDesc').value.trim();
         if(!login) return alert("Введите логин");
-        await fetch('/api/cash_desks', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({login: login, description: desc})});
-        document.getElementById('newDeskLogin').value = ''; document.getElementById('newDeskDesc').value = ''; loadCashDesks();
+        await fetch('/api/cash_desks', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({login: login, description: desc, password: document.getElementById('newDeskPass').value.trim() || '1234'})});
+        document.getElementById('newDeskLogin').value = ''; document.getElementById('newDeskDesc').value = ''; document.getElementById('newDeskPass').value = ''; loadCashDesks();
     }
     async function deleteCashDesk(id) {
         if(confirm("Удалить эту кассу?")) { await fetch(`/api/cash_desks/${id}`, {method: 'DELETE'}); loadCashDesks(); }
@@ -325,5 +325,20 @@
 </script>
 
 
+
+            <script>
+                async function forceChangePwd(id) {
+                    const np = prompt("Введите новый пароль для этой кассы:");
+                    if(np) {
+                        try {
+                            const res = await fetch(`/api/cash_desks/${id}/password`, {
+                                method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({password: np})
+                            });
+                            if(res.ok) alert("Пароль успешно изменен!"); else alert("Ошибка смены пароля");
+                        } catch(e) { alert("Ошибка соединения"); }
+                    }
+                }
+            </script>
+            
 </body>
 </html>

@@ -60,3 +60,16 @@ class CashDesk(Base):
     id = Column(Integer, primary_key=True, index=True)
     login = Column(String, unique=True, index=True)
     description = Column(String, nullable=True)
+    password = Column(String, default='1234')
+
+class Category(Base):
+    __tablename__ = 'categories'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True)
+
+class Product(Base):
+    __tablename__ = 'products'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    price = Column(Integer)
+    category_id = Column(Integer, ForeignKey('categories.id'))
