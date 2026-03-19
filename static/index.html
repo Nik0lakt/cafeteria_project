@@ -190,7 +190,7 @@
                     status.innerText = "Оплата прошла успешно!";
                     localStorage.removeItem('cart'); 
                     currentSid = null;
-                    setTimeout(() => { location.href = 'canteen.html'; }, 1500);
+                    setTimeout(() => { location.href = 'canteen.html?desk=' + currentCashDesk; }, 1500);
                 } else {
                     status.innerHTML = `<span class="error-text">ОТКАЗ: ${data.detail}</span>`;
                     currentSid = null; document.getElementById('manualBtn').style.display = 'none';

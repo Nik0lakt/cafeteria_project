@@ -8,7 +8,6 @@
         .app-container { display: flex; height: 100vh; }
         .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* Компактная шапка */
         .top-bar { background: #fff; border-bottom: 1px solid #eaeaea; padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
         .top-bar-left { display: flex; align-items: center; gap: 20px; }
         .desk-badge { background: #000; color: #fff; padding: 6px 15px; border-radius: 6px; font-weight: bold; font-size: 14px; }
@@ -17,40 +16,34 @@
         .btn-outline { background: transparent; border: 1px solid #000; padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-outline:hover { background: #000; color: #fff; }
         
-        /* Рабочая зона */
         .work-area { display: flex; flex: 1; overflow: hidden; padding: 20px 30px; gap: 30px; }
-        
-        /* Зона продуктов */
         .catalog-area { flex: 2; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* Вкладки категорий (5 в ряд) */
         .category-tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; flex-shrink: 0; }
-        .cat-tab { background: #fff; border: 1px solid #eaeaea; padding: 15px; text-align: center; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .cat-tab { background: #fff; border: 1px solid #eaeaea; padding: 15px; text-align: center; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; position: relative;}
         .cat-tab.active { background: #000; color: #fff; border-color: #000; }
         .cat-tab:hover:not(.active) { border-color: #000; }
         
-        /* Сетка продуктов (6 в ряд) */
         .product-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 15px; overflow-y: auto; align-content: start; padding-bottom: 20px; }
-        .product-card { background: #fff; border: 1px solid #eaeaea; border-radius: 8px; padding: 20px 10px; text-align: center; cursor: pointer; transition: 0.2s; position: relative; }
+        .product-card { background: #fff; border: 1px solid #eaeaea; border-radius: 8px; padding: 35px 10px 15px 10px; text-align: center; cursor: pointer; transition: 0.2s; position: relative; display: flex; flex-direction: column; justify-content: flex-end;}
         .product-card:hover { border-color: #000; transform: translateY(-2px); }
-        .product-name { font-size: 14px; margin-bottom: 8px; font-weight: 500; }
+        .product-name { font-size: 14px; margin-bottom: 8px; font-weight: 500; word-break: break-word; line-height: 1.2;}
         .product-price { font-size: 16px; font-weight: bold; }
         
-        /* Звездочка избранного */
-        .star-btn { position: absolute; top: 5px; right: 5px; font-size: 18px; color: #ccc; background: none; border: none; cursor: pointer; z-index: 10; padding: 5px; }
-        .star-btn.active { color: #ffc107; text-shadow: 0 0 2px rgba(0,0,0,0.2); }
+        .star-btn { position: absolute; top: 5px; right: 5px; font-size: 22px; background: none; border: none; cursor: pointer; z-index: 10; padding: 0; margin: 0; line-height: 1; }
+        .star-btn.fav { color: #ffc107; text-shadow: 0 0 2px rgba(0,0,0,0.2); }
+        .star-btn.not-fav { color: #ccc; }
         
-        /* Элементы режима редактирования */
         .edit-only { display: none; }
         .edit-mode .edit-only { display: inline-block; }
-        .edit-mode .star-btn { display: none; } /* Скрываем звездочки в режиме редактора */
-        .delete-btn { position: absolute; top: -5px; right: -5px; background: #dc3545; color: #fff; border: none; width: 25px; height: 25px; border-radius: 50%; font-weight: bold; cursor: pointer; z-index: 10; }
+        .edit-mode .star-btn { display: none; }
+        .delete-btn { position: absolute; top: -8px; right: -8px; background: #dc3545; color: #fff; border: none; width: 24px; height: 24px; border-radius: 50%; font-weight: bold; cursor: pointer; z-index: 10; display:flex; align-items:center; justify-content:center; padding:0;}
+        .edit-btn { position: absolute; top: -8px; left: -8px; background: #007bff; color: #fff; border: none; width: 24px; height: 24px; border-radius: 50%; font-weight: bold; cursor: pointer; z-index: 10; display:flex; align-items:center; justify-content:center; padding:0; font-size:12px;}
         
-        /* Корзина */
         .cart-area { flex: 1; border: 1px solid #eaeaea; border-radius: 12px; padding: 25px; display: flex; flex-direction: column; background: #fff; max-width: 400px; }
         .cart-items { flex: 1; overflow-y: auto; margin-bottom: 20px; }
         .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eaeaea; }
-        .item-name { font-weight: bold; font-size: 15px; }
+        .item-name { font-weight: bold; font-size: 15px; word-break: break-word;}
         .item-qty { font-size: 13px; color: #888; margin-top: 4px; }
         .btn-remove { background: #fff; border: 1px solid #eaeaea; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; }
         
@@ -58,7 +51,6 @@
         .btn-black { background: #000; color: #fff; border: none; padding: 18px; border-radius: 8px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; transition: 0.2s; }
         .btn-black:disabled { background: #eaeaea; color: #888; cursor: not-allowed; }
 
-        /* Окна */
         .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: none; align-items: center; justify-content: center; z-index: 1000; }
         .modal-box { background: #fff; padding: 40px; border-radius: 12px; width: 100%; max-width: 450px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border: 1px solid #eaeaea; position: relative; }
         input[type="text"], input[type="number"], input[type="password"] { width: 100%; padding: 15px; border: 1px solid #eaeaea; border-radius: 8px; box-sizing: border-box; font-size: 16px; margin-bottom: 15px; }
@@ -88,18 +80,16 @@
                     <div class="admin-badge" id="adminBadge">РЕЖИМ РЕДАКТОРА</div>
                 </div>
                 <div class="top-bar-right">
-                    <button class="btn-outline" id="settingsBtn" onclick="openAdminAuth()">⚙️ Настройки</button>
-                    <button class="btn-outline edit-only" style="border-color:#dc3545; color:#dc3545;" onclick="exitAdmin()">Выйти из настроек</button>
+                    <button class="btn-outline" id="settingsBtn" onclick="openModal('adminAuthModal'); document.getElementById('adminPassInput').value = '';">⚙️ Настройки</button>
+                    <button class="btn-outline edit-only" style="border-color:#dc3545; color:#dc3545;" onclick="exitAdmin()">🚪 Выйти из настроек</button>
                     <button class="btn-outline" onclick="logout()">🚪 Выход</button>
                 </div>
             </div>
 
             <div class="work-area">
                 <div class="catalog-area">
-                    <div class="category-tabs" id="categoriesBar">
-                        </div>
-                    <div class="product-grid" id="productsGrid">
-                        </div>
+                    <div class="category-tabs" id="categoriesBar"></div>
+                    <div class="product-grid" id="productsGrid"></div>
                 </div>
 
                 <div class="cart-area">
@@ -135,8 +125,19 @@
             <button class="close-btn" onclick="closeModal('addProductModal')">×</button>
             <h3 style="margin-top:0;">Новый товар</h3>
             <input type="text" id="newProdName" placeholder="Название">
-            <input type="number" id="newProdPtop:0;">Новый товар</h3>
-            <input typlass="btn-black" onclick="addProduct()">Добавить</button>
+            <input type="number" id="newProdPrice" placeholder="Цена (₽)">
+            <button class="btn-black" onclick="addProduct()">Добавить</button>
+        </div>
+    </div>
+
+    <div id="editProductModal" class="overlay">
+        <div class="modal-box">
+            <button class="close-btn" onclick="closeModal('editProductModal')">×</button>
+            <h3 style="margin-top:0;">Редактировать товар</h3>
+            <input type="hidden" id="editProdId">
+            <input type="text" id="editProdName" placeholder="Название">
+            <input type="number" id="editProdPrice" placeholder="Цена (₽)">
+            <button class="btn-black" onclick="saveProductEdit()">Сохранить изменения</button>
         </div>
     </div>
 
@@ -145,11 +146,10 @@
             <button class="close-btn" onclick="closeModal('paymentMethodModal')">×</button>
             <h3 style="margin-top:0; text-align:center;">Способ оплаты</h3>
             <div class="pay-methods-grid">
-                <button class="btn-method" onclick=0; text-align:center;">Способ оплаты</h3>
-    шна?')) processExternal('bank_card')">
+                <button class="btn-method" onclick="if(confirm('Оплата на терминале успешна?')) processExternal('bank_card')">
                     <span style="font-size:24px;">💳</span> Банковская карта
                 </button>
-                             <span style="font-size:24px;">�ocation.href = `index.html?amount=${total}`">
+                <button class="btn-method" onclick="startInternal()">
                     <span style="font-size:24px;">🥗</span> Дотация (Лицо)
                 </button>
                 <button class="btn-method" onclick="startCash()">
@@ -171,15 +171,18 @@
     </div>
 
     <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const deskFromUrl = urlParams.get('desk');
+        if (deskFromUrl) {
+            localStorage.setItem('cashDeskId', deskFromUrl);
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
         let cashDeskId = localStorage.getItem('cashDeskId');
         let isAdmin = false;
-        let categories = [];
-        let products = [];
-        let currentCatId = 0; // 0 = Избранное
-        let cart = [];
-        let total = 0;
-        
-        // Получаем избранное для этой кассы
+        let categories = []; let products = [];
+        let currentCatId = 0;
+        let cart = []; let total = 0;
         let favs = JSON.parse(localStorage.getItem('favs_' + cashDeskId) || '[]');
 
         if (!cashDeskId) document.getElementById('loginOverlay').style.display = 'flex';
@@ -211,15 +214,14 @@
             const [cRes, pRes] = await Promise.all([fetch('/api/categories'), fetch('/api/products')]);
             categories = await cRes.json();
             products = await pRes.json();
-            renderCategories();
-            renderProducts();
+            renderCategories(); renderProducts();
         }
 
         function renderCategories() {
             const bar = document.getElementById('categoriesBar');
-            let html = `<div class="cat-tab ${currentCatId === 0 ? 'active' : ''}" onclick="selectCat(0)">⭐ Избранное</div>`;
+            let html = `<div class="cat-tab ${currentCatId === 0 ? 'active' : ''}" onclick="selectCat(0)">★ Избранное</div>`;
             categories.forEach(c => {
-                html += `<div class="cat-tab ${currentCatId === c.id ? 'active' : ''}" style="position:relative;" onclick="selectCat(${c.id})">
+                html += `<div class="cat-tab ${currentCatId === c.id ? 'active' : ''}" onclick="selectCat(${c.id})">
                     ${c.name}
                     ${isAdmin ? `<button class="delete-btn" onclick="event.stopPropagation(); deleteCat(${c.id})">×</button>` : ''}
                 </div>`;
@@ -231,36 +233,37 @@
         function renderProducts() {
             const grid = document.getElementById('productsGrid');
             let html = '';
-            
             let displayProducts = currentCatId === 0 ? products.filter(p => favs.includes(p.id)) : products.filter(p => p.category_id === currentCatId);
 
             displayProducts.forEach(p => {
                 const isFav = favs.includes(p.id);
+                const starChar = isFav ? '★' : '☆';
+                const starClass = isFav ? 'fav' : 'not-fav';
+
                 html += `
                 <div class="product-card" onclick="if(!isAdmin) addToCart('${p.name}', ${p.price})">
-                    <button class="star-btn ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav(${p.id})">${isFav ? '❌' : '⭐'}</button>
+                    <button class="star-btn ${starClass}" onclick="event.stopPropagation(); toggleFav(${p.id})">${starChar}</button>
+                    ${isAdmin ? `<button class="edit-btn" onclick="event.stopPropagation(); openEditProduct(${p.id}, '${p.name.replace(/'/g, "\\'")}', ${p.price})">✏️</button>` : ''}
                     ${isAdmin ? `<button class="delete-btn" onclick="event.stopPropagation(); deleteProduct(${p.id})">×</button>` : ''}
                     <div class="product-name">${p.name}</div>
                     <div class="product-price">${p.price} ₽</div>
                 </div>`;
             });
 
-            if (isAdmin && currentCatId !== 0) html += `<div class="product-card" style="border-style: dashed; display:flex; align-items:center; justify-content:center;" onclick="openModal('addProductModal')">+ Товар</div>`;
+            if (isAdmin && currentCatId !== 0) html += `<div class="product-card" style="border-style: dashed; justify-content:center; padding-top:20px;" onclick="openModal('addProductModal')">+ Товар</div>`;
             grid.innerHTML = html;
         }
 
         function selectCat(id) { currentCatId = id; renderCategories(); renderProducts(); }
 
         function toggleFav(id) {
+            id = parseInt(id);
             if (favs.includes(id)) favs = favs.filter(f => f !== id);
             else favs.push(id);
             localStorage.setItem('favs_' + cashDeskId, JSON.stringify(favs));
             renderProducts();
         }
 
-        // --- Админские функции в кассе ---
-        function openAdminAuth() { openModal('adminAuthModal'); document.getElementById('adminPassInput').value = ''; }
-        
         async function verifyAdmin() {
             const pwd = document.getElementById('adminPassInput').value;
             const res = await fetch('/api/verify_desk_password', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ login: cashDeskId, password: pwd }) });
@@ -282,6 +285,22 @@
             renderCategories(); renderProducts();
         }
 
+        function openEditProduct(id, name, price) {
+            document.getElementById('editProdId').value = id;
+            document.getElementById('editProdName').value = name;
+            document.getElementById('editProdPrice').value = price;
+            openModal('editProductModal');
+        }
+
+        async function saveProductEdit() {
+            const id = document.getElementById('editProdId').value;
+            const name = document.getElementById('editProdName').value.trim();
+            const price = parseInt(document.getElementById('editProdPrice').value);
+            if(!name || !price) return;
+            await fetch(`/api/products/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name, price, category_id: currentCatId }) });
+            closeModal('editProductModal'); loadData();
+        }
+
         async function addCategory() {
             const name = document.getElementById('newCatName').value.trim();
             if(!name) return;
@@ -300,7 +319,6 @@
         async function deleteCat(id) { if(confirm("Удалить вкладку и ВСЕ её товары?")) { await fetch(`/api/categories/${id}`, {method:'DELETE'}); currentCatId = 0; loadData(); } }
         async function deleteProduct(id) { if(confirm("Удалить товар?")) { await fetch(`/api/products/${id}`, {method:'DELETE'}); loadData(); } }
 
-        // --- Корзина и Оплата (Осталась без изменений) ---
         function addToCart(name, price) {
             let item = cart.find(i => i.name === name);
             if (item) item.qty += 1; else cart.push({name, price, qty: 1});
@@ -325,6 +343,8 @@
         function removeFromCart(index) { if (cart[index].qty > 1) cart[index].qty -= 1; else cart.splice(index, 1); renderCart(); }
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        
+        function startInternal() { window.location.href = `index.html?amount=${total}&desk=${cashDeskId}`; }
         
         function startCash() { closeModal('paymentMethodModal'); document.getElementById('cashTotalDisp').innerText = total; document.getElementById('cashReceived').value = ''; document.getElementById('changeDisp').style.display = 'none'; document.getElementById('confirmCashBtn').disabled = true; openModal('cashModal'); }
         function calculateChange() {

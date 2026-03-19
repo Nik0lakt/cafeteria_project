@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
-from app.models import CashDesk, Employee, Card, Transaction, WorkDay, RoleSetting, LivenessSession
+from app.models import CashDesk, Employee, Category, Product, Card, Transaction, WorkDay, RoleSetting, LivenessSession
 from pydantic import BaseModel
 from datetime import date, datetime, time
 from typing import List, Optional
@@ -178,6 +178,7 @@ def pay(data: PaymentRequest, db: Session = Depends(get_db)):
 class CashDeskCreate(BaseModel):
     login: str
     description: str
+    password: str
 
 class CashDeskLogin(BaseModel):
     login: str
@@ -197,7 +198,7 @@ def get_cash_desks(db: Session = Depends(get_db)):
 def add_cash_desk(data: CashDeskCreate, db: Session = Depends(get_db)):
     if db.query(CashDesk).filter(CashDesk.login == data.login).first():
         raise HTTPException(status_code=400, detail="Логин занят")
-    new_desk = CashDesk(login=data.login, description=data.description)
+    new_desk = CashDesk(login=data.login, description=data.description, password=data.password)
     db.add(new_desk)
     db.commit()
     return {"status": "success"}
@@ -209,3 +210,81 @@ def delete_cash_desk(desk_id: int, db: Session = Depends(get_db)):
         db.delete(desk)
         db.commit()
     return {"status": "success"}
+
+class CategoryCreate(BaseModel):
+    name: str
+
+class ProductCreate(BaseModel):
+    name: str
+    price: int
+    category_id: int
+
+class DeskPassword(BaseModel):
+    password: str
+
+class VerifyDeskPassword(BaseModel):
+    login: str
+    password: str
+
+@router.get("/categories")
+def get_categories(db: Session = Depends(get_db)):
+    return db.query(Category).all()
+
+@router.post("/categories")
+def add_category(data: CategoryCreate, db: Session = Depends(get_db)):
+    cat = Category(name=data.name)
+    db.add(cat)
+    db.commit()
+    return {"status": "ok"}
+
+@router.delete("/categories/{cat_id}")
+def delete_category(cat_id: int, db: Session = Depends(get_db)):
+    db.query(Product).filter(Product.category_id == cat_id).delete()
+    db.query(Category).filter(Category.id == cat_id).delete()
+    db.commit()
+    return {"status": "ok"}
+
+@router.get("/products")
+def get_products(db: Session = Depends(get_db)):
+    return db.query(Product).all()
+
+@router.post("/products")
+def add_product(data: ProductCreate, db: Session = Depends(get_db)):
+    p = Product(name=data.name, price=data.price, category_id=data.category_id)
+    db.add(p)
+    db.commit()
+    return {"status": "ok"}
+
+@router.delete("/products/{p_id}")
+def delete_product(p_id: int, db: Session = Depends(get_db)):
+    db.query(Product).filter(Product.id == p_id).delete()
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.put("/products/{p_id}")
+def edit_product(p_id: int, data: ProductCreate, db: Session = Depends(get_db)):
+    p = db.query(Product).filter(Product.id == p_id).first()
+    if p:
+        p.name = data.name
+        p.price = data.price
+        p.category_id = data.category_id
+        db.commit()
+        return {"status": "ok"}
+    raise HTTPException(404, "Товар не найден")
+
+@router.post("/verify_desk_password")
+def verify_desk_password(data: VerifyDeskPassword, db: Session = Depends(get_db)):
+    desk = db.query(CashDesk).filter(CashDesk.login == data.login).first()
+    if desk and desk.password == data.password:
+        return {"status": "ok"}
+    raise HTTPException(403, "Неверный пароль")
+
+@router.put("/cash_desks/{desk_id}/password")
+def update_desk_password(desk_id: int, data: DeskPassword, db: Session = Depends(get_db)):
+    desk = db.query(CashDesk).filter(CashDesk.id == desk_id).first()
+    if desk:
+        desk.password = data.password
+        db.commit()
+        return {"status": "ok"}
+    raise HTTPException(404, "Касса не найдена")
