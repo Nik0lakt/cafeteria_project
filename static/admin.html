@@ -111,6 +111,14 @@
         </div>
         <div class="box personnel-box">
             <h3>Список персонала</h3>
+	    <div class="box personnel-box">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0;">Список персонала</h3>
+        <div style="position: relative; width: 250px;">
+                    <input type="text" id="empSearch" placeholder="🔍 Поиск по ФИО..." oninput="handleSearch()" style="margin-bottom: 0; padding: 8px 12px 8px 35px; font-size: 13px;">
+                    <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999;"></span>
+                </div>
+    	    </div>
             <table>
                 <thead><tr><th>Имя</th><th>Карта</th><th>Биометрия</th><th>Daily</th><th>Limit</th><th>Действия</th></tr></thead>
                 <tbody id="pTable"></tbody>
@@ -166,14 +174,16 @@
         
         // Новые переменные для пагинации
         let allEmployees = []; 
-        let currentPage = 1;
+        let filteredEmployees = [];
+	let currentPage = 1;
         const itemsPerPage = 10;
 
         async function load() {
             // Загружаем данные только один раз или при обновлении
             const res = await fetch('/api/employees');
             allEmployees = await res.json();
-            
+            filteredEmployees = [...allEmployees];
+
             rolesData = await (await fetch('/api/role_settings')).json();
 
             const roleOptions = rolesData.map(r => `<option value="${r.role_name}">${r.role_name}</option>`).join('');
@@ -183,10 +193,22 @@
             renderTable(); // Вызываем новую функцию отрисовки
         }
 
+	function handleSearch() {
+	    const query = document.getElementById('empSearch').value.toLowerCase();
+
+   	    filteredEmployees = allEmployees.filter(e => 
+        	e.full_name.toLowerCase().includes(query) || 
+	       	e.card_uid.toLowerCase().includes(query)
+	    );
+    
+	    currentPage = 1; // При поиске всегда возвращаемся на первую страницу
+            renderTable();
+	}
+
         function renderTable() {
             const start = (currentPage - 1) * itemsPerPage;
             const end = start + itemsPerPage;
-            const paginatedItems = allEmployees.slice(start, end);
+            const paginatedItems = filteredEmployees.slice(start, end);
 
             const tableBody = document.getElementById('pTable');
             tableBody.innerHTML = paginatedItems.map(e => {
@@ -216,7 +238,7 @@
         }
 
         function renderPagination() {
-            const totalPages = Math.ceil(allEmployees.length / itemsPerPage);
+            const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
             const container = document.getElementById('pPagination');
             container.innerHTML = '';
 
