@@ -9,3 +9,4 @@ static/photos/*
 !static/photos/.gitkeep
 database.db
 __pycache__/
+__pycache__/
