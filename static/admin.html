@@ -87,27 +87,27 @@
     <div id="tab-emp">
         
     <div class="header">
-        <h1>Cafeteria Control</h1>
+        <h1>Управление сотрудниками</h1>
         <div style="display:flex; gap:10px;">
             <button class="action-btn" style="background:#000; color:#fff; padding:10px 20px;" onclick="openRoles()">⚙️ Настройка ролей</button>
-            <button class="action-btn" style="background:#4a5568; color:#fff; padding:10px 20px;" onclick="openGlobal()">🗓 Управление днями</button>
+            <button class="action-btn" style="background:#4a5568; color:#fff; padding:10px 20px;" onclick="openGlobal()">📅Управление днями</button>
         </div>
     </div>
 
     <div class="main-layout">
         <div class="box registration-box">
-            <h3>Registration</h3>
-            <label>Full Name</label><input type="text" id="regName">
-            <label>Card UID</label><input type="text" id="regCard">
+            <h3>Регистрация</h3>
+            <label>ФИО сотрудника</label><input type="text" id="regName">
+            <label>Карты UID</label><input type="text" id="regCard">
             <label>Telegram ID</label><input type="text" id="regTg">
-            <label>Role</label><select id="regRole"></select>
-            <label>Monthly Limit</label><input type="number" id="regLimit" value="5000">
+            <label>Роль</label><select id="regRole"></select>
+            <label>Месячный лимит</label><input type="number" id="regLimit" value="5000">
             <button class="btn" onclick="createRecord()">Create Record</button>
         </div>
         <div class="box personnel-box">
-            <h3>Personnel List</h3>
+            <h3>Список персонала</h3>
             <table>
-                <thead><tr><th>Name</th><th>Card</th><th>Biometrics</th><th>Daily</th><th>Limit</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Имя</th><th>Карта</th><th>Биометрия</th><th>Daily</th><th>Limit</th><th>Действия</th></tr></thead>
                 <tbody id="pTable"></tbody>
             </table>
         </div>
@@ -283,27 +283,48 @@
     </script>
 
     </div>
-    <div id="tab-cash" style="display: none;">
-        
-<div style="background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); max-width: 1000px; margin: 0 auto;">
-    <h2 style="margin-top: 0; margin-bottom: 20px; font-family: sans-serif;">Управление терминалами</h2>
-    <div style="border: 1px solid #eaeaea; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-        <p style="margin-top:0; font-weight:bold; font-family: sans-serif;">Создать новый логин кассы</p>
-        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <input type="text" id="newDeskLogin" placeholder="Логин (например, kassa1)" style="flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px;">
-            <input type="text" id="newDeskDesc" placeholder="Описание (Главная касса)" style="flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px;">
-        <input type="text" id="newDeskPass" placeholder="Пароль (по умолч. 1234)" style="flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px;"></div>
-        <button onclick="addCashDesk()" style="background: #000; color: #fff; border: none; padding: 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 16px;">Создать</button>
+    
+<div id="tab-cash" style="display: none;">
+    <div class="header">
+        <h1>Управление терминалами</h1>
+        <div style="color: #999; font-size: 14px;">Настройка точек оплаты</div>
     </div>
-    <table style="width: 100%; border-collapse: collapse; text-align: left; font-family: sans-serif;">
-        <tr style="border-bottom: 2px solid #000;">
-            <th style="padding: 15px 10px;">ID</th><th style="padding: 15px 10px;">Логин</th><th style="padding: 15px 10px;">Описание</th><th style="padding: 15px 10px;">Действия</th>
-        </tr>
-        <tbody id="cashDesksTableBody"></tbody>
-    </table>
-</div>
 
+    <div class="main-layout">
+        <div class="box registration-box">
+            <h3>Новый терминал</h3>
+            <label style="margin-top: 10px;">Логин кассы</label>
+            <input type="text" id="newDeskLogin" placeholder=" " style="margin-bottom: 15px;">
+            
+            <label>Описание</label>
+            <input type="text" id="newDeskDesc" placeholder=" " style="margin-bottom: 15px;">
+            
+            <label>Пароль доступа</label>
+            <input type="text" id="newDeskPass" placeholder=" " style="margin-bottom: 20px;">
+            
+            <button class="btn" onclick="addCashDesk()" style="margin-top: 10px;">Создать кассу</button>
+            <p style="font-size: 11px; color: #999; margin-top: 20px; line-height: 1.4;">
+                * Эти данные используются для входа в приложение терминала.
+            </p>
+        </div>
+
+        <div class="box personnel-box">
+            <h3>Активные кассы</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">ID</th>
+                        <th>Логин</th>
+                        <th>Описание</th>
+                        <th style="text-align: right; padding-right: 10px;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="cashDesksTableBody">
+                    </tbody>
+            </table>
+        </div>
     </div>
+</div>
 <div id="tab-stat" style="display: none; padding: 20px;">
     <div class="box" style="margin-bottom: 20px;">
         <h3 style="margin-top:0">📈 Статистика доходов</h3>
@@ -370,16 +391,26 @@
         try {
             const res = await fetch('/api/cash_desks');
             const desks = await res.json();
-            document.getElementById('cashDesksTableBody').innerHTML = desks.map(d => `
-                <tr style="border-bottom: 1px solid #eaeaea;">
-                    <td style="padding: 15px 10px;">${d.id}</td>
-                    <td style="padding: 15px 10px;"><b>${d.login}</b></td>
-                    <td style="padding: 15px 10px;">${d.description || ''}</td>
-                    <td style="padding: 15px 10px;"><button style="background:#000; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;" onclick="deleteCashDesk(${d.id})">Удалить</button> <button style='background:#6c757d; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer; margin-left:5px;' onclick="forceChangePwd(${d.id})" title='Сменить пароль'>🔑</button></td>
+            const tableBody = document.getElementById('cashDesksTableBody');
+            
+            if (!tableBody) return;
+
+            tableBody.innerHTML = desks.map(d => `
+                <tr>
+                    <td><span style="color: #ccc;">#${d.id}</span></td>
+                    <td><b style="color: #007AFF;">${d.login}</b></td>
+                    <td>${d.description || '<span style="color:#eee">---</span>'}</td>
+                    <td style="text-align: right;">
+                        <button class="action-btn" onclick="forceChangePwd(${d.id})" title="Сменить пароль">🔑</button>
+                        <button class="action-btn btn-red" onclick="deleteCashDesk(${d.id})" title="Удалить">×</button>
+                    </td>
                 </tr>
             `).join('');
-        } catch(e) {}
+        } catch(e) {
+            console.error("Ошибка загрузки списка касс", e);
+        }
     }
+    
     async function addCashDesk() {
         const login = document.getElementById('newDeskLogin').value.trim();
         const desc = document.getElementById('newDeskDesc').value.trim();
