@@ -494,32 +494,26 @@
         const checkedCbs = document.querySelectorAll('.stat-desk-cb:checked');
         document.getElementById('selectAllCashDesks').checked = (allCbs.length === checkedCbs.length);
     }
-    
+
+
+
     async function buildChart() {
         const period = document.getElementById('statPeriod').value;
         let start, end;
         const today = new Date();
-
+        
         if (period === 'custom') {
             start = document.getElementById('statStartDate').value;
             end = document.getElementById('statEndDate').value;
-            if(!start || !end) return alert("Выберите обе даты!");
         } else {
-            const days = parseInt(period);
-            const startObj = new Date();
-            startObj.setDate(today.getDate() - days + 1);
-            start = startObj.toISOString().split('T')[0];
             end = today.toISOString().split('T')[0];
+            today.setDate(today.getDate() - parseInt(period) + 1);
+            start = today.toISOString().split('T')[0];
         }
 
-        const methods = Array.from(document.querySelectorAll('.stat-method-cb:checked')).map(cb => cb.value);
-        const desks = Array.from(document.querySelectorAll('.stat-desk-cb:checked')).map(cb => cb.value);
-
-        if (!methods.length || !desks.length) return alert("Выберите методы оплаты и кассы!");
-
         const params = new URLSearchParams({ start_date: start, end_date: end });
-        methods.forEach(m => params.append('payment_methods', m));
-        desks.forEach(d => params.append('cash_desks', d));
+        document.querySelectorAll('.stat-method-cb:checked').forEach(cb => params.append('payment_methods', cb.value));
+        document.querySelectorAll('.stat-desk-cb:checked').forEach(cb => params.append('cash_desks', cb.value));
 
         const res = await fetch(`/api/statistics/chart?${params.toString()}`);
         const result = await res.json();
@@ -527,21 +521,39 @@
         const ctx = document.getElementById('revenueChart').getContext('2d');
         if (revenueChartInstance) revenueChartInstance.destroy();
 
+        // Список цветов для касс (можно добавить больше)
+        const colors = [
+            '#007AFF', '#FF9500', '#34C759', '#FF3B30', '#AF52DE', '#5856D6', '#5AC8FA'
+        ];
+
+        // Настраиваем каждый датасет (цвет, обводка и т.д.)
+        const formattedDatasets = result.datasets.map((ds, index) => ({
+            label: ds.label,
+            data: ds.data,
+            borderColor: colors[index % colors.length],
+            backgroundColor: colors[index % colors.length] + '22', // Прозрачность 22
+            borderWidth: 3,
+            tension: 0.3,
+            fill: false, // Отключаем заливку под графиком для нескольких линий, чтобы не было "каши"
+            pointRadius: 4
+        }));
+
         revenueChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: result.labels,
-                datasets: [{
-                    label: 'Выручка (руб)',
-                    data: result.data,
-                    borderColor: '#007AFF',
-                    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.3
-                }]
+                datasets: formattedDatasets
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' } // Показываем легенду сверху
+                },
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Выручка (руб)' } }
+                }
+            }
         });
     }
 

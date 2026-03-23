@@ -305,48 +305,49 @@ def get_statistics_chart(
     db: Session = Depends(get_db)
 ):
     try:
-        # Базовый запрос: сумма по дням
+        # Группируем по дате И по кассе
         query = db.query(
             func.date(Transaction.created_at).label('day'),
+            Transaction.cash_desk_id,
             func.sum(Transaction.amount_total_kopecks).label('total')
         ).filter(
             func.date(Transaction.created_at) >= start_date,
             func.date(Transaction.created_at) <= end_date
         )
 
-        # Фильтр методов оплаты (internal, cash, bank_card)
         if payment_methods:
-            methods = [m for m in payment_methods if m and m.strip()]
-            if methods:
-                query = query.filter(Transaction.payment_method.in_(methods))
-        
-        # Фильтр касс: пробуем искать и как числа, и как строки
+            query = query.filter(Transaction.payment_method.in_(payment_methods))
         if cash_desks:
-            desks = [d for d in cash_desks if d and d.strip()]
-            if desks:
-                # SQLite поймет сравнение строки с числом, если мы передадим список строк
-                query = query.filter(Transaction.cash_desk_id.in_(desks))
+            query = query.filter(Transaction.cash_desk_id.in_(cash_desks))
 
-        results = query.group_by(func.date(Transaction.created_at)).order_by('day').all()
+        results = query.group_by(func.date(Transaction.created_at), Transaction.cash_desk_id).all()
 
-        labels = []
-        data = []
+        # Формируем структуру: { "касса": { "дата": сумма } }
+        desk_data = {}
+        all_dates = set()
+
         for row in results:
-            labels.append(str(row[0])) # Дата YYYY-MM-DD
-            # ПРАВИЛО: float() перед делением на 100
-            val = float(row[1] or 0) / 100.0
-            data.append(val)
+            day, desk_id, total = str(row[0]), str(row[1]), float(row[2] or 0) / 100.0
+            all_dates.add(day)
+            if desk_id not in desk_data:
+                desk_data[desk_id] = {}
+            desk_data[desk_id][day] = total
 
-        # Это появится в терминале твоего сервера (для отладки)
-        print(f"--- STATS DEBUG ---")
-        print(f"Period: {start_date} to {end_date}")
-        print(f"Methods: {payment_methods} | Desks: {cash_desks}")
-        print(f"Found: {len(results)} days of data")
+        # Сортируем даты для оси X
+        sorted_dates = sorted(list(all_dates))
 
-        return {"labels": labels, "data": data}
+        # Готовим датасеты для каждой кассы
+        datasets = []
+        for desk_id, values in desk_data.items():
+            datasets.append({
+                "label": f"Касса {desk_id}",
+                "data": [values.get(d, 0) for d in sorted_dates] # Если в этот день нет данных - ставим 0
+            })
+
+        return {"labels": sorted_dates, "datasets": datasets}
     except Exception as e:
-        print(f"CRITICAL STATS ERROR: {e}")
-        return {"labels": [], "data": [], "error": str(e)}
+        print(f"Error: {e}")
+        return {"labels": [], "datasets": []}
 
 @router.get("/statistics/export")
 def export_statistics_csv(
