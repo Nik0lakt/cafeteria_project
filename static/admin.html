@@ -28,6 +28,20 @@
         .role-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f9f9f9; border-radius: 8px; margin-bottom: 10px; }
         .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
     </style>
+    <script src="/static/chart.js"></script>
+    <style>
+        /* Стили для модального окна экспорта */
+        #exportModal {
+            display: none; position: fixed; z-index: 9999; left: 0; top: 0;
+            width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fff; margin: 15% auto; padding: 20px;
+            border: 1px solid #888; width: 300px; border-radius: 8px; text-align: center;
+        }
+        .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close-btn:hover { color: black; }
+    </style>
 </head>
 <body>
 
@@ -63,6 +77,9 @@
     </div>
     <div class="nav-item" onclick="switchTab('cash', this)">
         <span class="nav-icon">🖥</span><span class="nav-text">Кассы терминалов</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('stat', this)">
+        <span class="nav-icon">📈</span><span class="nav-text">Статистика</span>
     </div>
 </div>
 
@@ -287,6 +304,65 @@
 </div>
 
     </div>
+<div id="tab-stat" style="display: none; padding: 20px;">
+    <div class="box" style="margin-bottom: 20px;">
+        <h3 style="margin-top:0">📈 Статистика доходов</h3>
+        
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            
+            <div style="display: flex; align-items: flex-end; gap: 15px; flex-wrap: wrap;">
+                <div style="min-width: 200px;">
+                    <label style="margin-bottom: 8px;">Период</label>
+                    <select id="statPeriod" onchange="toggleCustomDates()" style="margin-bottom: 0;">
+                        <option value="7">Последние 7 дней</option>
+                        <option value="30" selected>Последние 30 дней</option>
+                        <option value="custom">Свой период</option>
+                    </select>
+                </div>
+                <div id="customDatesWrapper" style="display:none;">
+                    <label style="margin-bottom: 8px;">С - ПО</label>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <input type="date" id="statStartDate" style="margin-bottom: 0; padding: 8px;">
+                        <input type="date" id="statEndDate" style="margin-bottom: 0; padding: 8px;">
+                    </div>
+                </div>
+                <button class="btn" style="width: auto; height: 42px; padding: 0 30px;" onclick="buildChart()">Построить график</button>
+            </div>
+
+            <div style="border-top: 1px solid #eee; padding-top: 15px;">
+                <label style="margin-bottom: 10px;">Кассы: 
+                    <input type="checkbox" id="selectAllCashDesks" onchange="toggleAllCashDesks(this)" checked style="width: auto; margin-left: 10px;"> 
+                    <span style="text-transform: none; color: #666; font-size: 10px;">(Выбрать все)</span>
+                </label>
+                <div id="cashDesksContainer" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    </div>
+            </div>
+
+            <div style="border-top: 1px solid #eee; padding-top: 15px;">
+                <label style="margin-bottom: 10px;">Способы оплаты:</label>
+                <div style="display: flex; gap: 20px;">
+                    <label style="text-transform:none; color:#333; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" value="bank_card" class="stat-method-cb" checked style="width: auto; margin: 0;"> Карта
+                    </label>
+                    <label style="text-transform:none; color:#333; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" value="internal" class="stat-method-cb" checked style="width: auto; margin: 0;"> Лицо
+                    </label>
+                    <label style="text-transform:none; color:#333; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" value="cash" class="stat-method-cb" checked style="width: auto; margin: 0;"> Наличные
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box" style="height: 450px;">
+        <canvas id="revenueChart"></canvas>
+    </div>
+
+    <div style="margin-top: 20px; text-align: center;">
+        <button class="btn" style="background: #28a745; width: auto;" onclick="openExportModal()">📥 Скачать БД (.csv)</button>
+    </div>
+</div>
 </div>
 
 <script>
@@ -315,30 +391,189 @@
         if(confirm("Удалить эту кассу?")) { await fetch(`/api/cash_desks/${id}`, {method: 'DELETE'}); loadCashDesks(); }
     }
     document.addEventListener('DOMContentLoaded', loadCashDesks);
+</script>
+<script>
+    // --- 1. Управление кассами (Терминалы) ---
+    async function loadCashDesks() {
+        try {
+            const res = await fetch('/api/cash_desks');
+            const desks = await res.json();
+            document.getElementById('cashDesksTableBody').innerHTML = desks.map(d => `
+                <tr style="border-bottom: 1px solid #eaeaea;">
+                    <td style="padding: 15px 10px;">${d.id}</td>
+                    <td style="padding: 15px 10px;"><b>${d.login}</b></td>
+                    <td style="padding: 15px 10px;">${d.description || ''}</td>
+                    <td style="padding: 15px 10px;">
+                        <button style="background:#000; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;" onclick="deleteCashDesk(${d.id})">Удалить</button>
+                        <button style='background:#6c757d; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer; margin-left:5px;' onclick="forceChangePwd(${d.id})" title='Сменить пароль'>🔑</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch(e) { console.error("Ошибка загрузки списка касс", e); }
+    }
 
+    async function addCashDesk() {
+        const login = document.getElementById('newDeskLogin').value.trim();
+        const desc = document.getElementById('newDeskDesc').value.trim();
+        const pass = document.getElementById('newDeskPass').value.trim() || '1234';
+        if(!login) return alert("Введите логин");
+        await fetch('/api/cash_desks', {
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({login: login, description: desc, password: pass})
+        });
+        document.getElementById('newDeskLogin').value = ''; 
+        document.getElementById('newDeskDesc').value = ''; 
+        document.getElementById('newDeskPass').value = ''; 
+        loadCashDesks();
+    }
+
+    async function deleteCashDesk(id) {
+        if(confirm("Удалить эту кассу?")) { 
+            await fetch(`/api/cash_desks/${id}`, {method: 'DELETE'}); 
+            loadCashDesks(); 
+        }
+    }
+
+    async function forceChangePwd(id) {
+        const np = prompt("Введите новый пароль для этой кассы:");
+        if(np) {
+            const res = await fetch(`/api/cash_desks/${id}/password`, {
+                method: 'PUT', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({password: np})
+            });
+            if(res.ok) alert("Пароль успешно изменен!");
+        }
+    }
+
+    // --- 2. Навигация по вкладкам ---
     function switchTab(tabId, element) {
-        document.getElementById('tab-emp').style.display = tabId === 'emp' ? 'block' : 'none';
-        document.getElementById('tab-cash').style.display = tabId === 'cash' ? 'block' : 'none';
+        const tabs = ['tab-emp', 'tab-cash', 'tab-stat'];
+        tabs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = (id === 'tab-' + tabId) ? 'block' : 'none';
+        });
+
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         element.classList.add('active');
     }
+
+    // --- 3. Логика статистики и графиков ---
+    let revenueChartInstance = null;
+
+    function toggleCustomDates() {
+        const val = document.getElementById('statPeriod').value;
+        document.getElementById('customDatesWrapper').style.display = (val === 'custom') ? 'block' : 'none';
+    }
+
+    function toggleAllCashDesks(main) {
+        document.querySelectorAll('.stat-desk-cb').forEach(cb => cb.checked = main.checked);
+    }
+
+    
+    async function loadCashDesksForStats() {
+        try {
+            const res = await fetch('/api/cash_desks');
+            const desks = await res.json();
+            const container = document.getElementById('cashDesksContainer');
+            if (!container) return;
+
+            container.innerHTML = desks.map(d => `
+                <label class="stat-label">
+                    <input type="checkbox" value="${d.login}" class="stat-desk-cb" checked onchange="checkSelectAllStatus()">
+                    <span>${d.login}</span>
+                </label>
+            `).join('');
+        } catch(e) { console.error("Ошибка загрузки касс:", e); }
+    }
+
+    // Автоматическое снятие галочки "Выбрать все", если сняли одну кассу
+    function checkSelectAllStatus() {
+        const allCbs = document.querySelectorAll('.stat-desk-cb');
+        const checkedCbs = document.querySelectorAll('.stat-desk-cb:checked');
+        document.getElementById('selectAllCashDesks').checked = (allCbs.length === checkedCbs.length);
+    }
+    
+    async function buildChart() {
+        const period = document.getElementById('statPeriod').value;
+        let start, end;
+        const today = new Date();
+
+        if (period === 'custom') {
+            start = document.getElementById('statStartDate').value;
+            end = document.getElementById('statEndDate').value;
+            if(!start || !end) return alert("Выберите обе даты!");
+        } else {
+            const days = parseInt(period);
+            const startObj = new Date();
+            startObj.setDate(today.getDate() - days + 1);
+            start = startObj.toISOString().split('T')[0];
+            end = today.toISOString().split('T')[0];
+        }
+
+        const methods = Array.from(document.querySelectorAll('.stat-method-cb:checked')).map(cb => cb.value);
+        const desks = Array.from(document.querySelectorAll('.stat-desk-cb:checked')).map(cb => cb.value);
+
+        if (!methods.length || !desks.length) return alert("Выберите методы оплаты и кассы!");
+
+        const params = new URLSearchParams({ start_date: start, end_date: end });
+        methods.forEach(m => params.append('payment_methods', m));
+        desks.forEach(d => params.append('cash_desks', d));
+
+        const res = await fetch(`/api/statistics/chart?${params.toString()}`);
+        const result = await res.json();
+
+        const ctx = document.getElementById('revenueChart').getContext('2d');
+        if (revenueChartInstance) revenueChartInstance.destroy();
+
+        revenueChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: result.labels,
+                datasets: [{
+                    label: 'Выручка (руб)',
+                    data: result.data,
+                    borderColor: '#007AFF',
+                    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    // --- 4. Экспорт ---
+    function openExportModal() { document.getElementById('exportModal').style.display = 'flex'; }
+    function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
+
+    function downloadCSV() {
+        const s = document.getElementById('exportStartDate').value;
+        const e = document.getElementById('exportEndDate').value;
+        if(!s || !e) return alert("Выберите даты!");
+        window.location.href = `/api/statistics/export?start_date=${s}&end_date=${e}`;
+        closeExportModal();
+    }
+
+    // --- 5. Инициализация при загрузке ---
+    document.addEventListener('DOMContentLoaded', () => {
+        load(); // твоя функция для сотрудников
+        loadCashDesks(); // список терминалов
+        loadCashDesksForStats(); // кассы в статистике
+    });
 </script>
-
-
-
-            <script>
-                async function forceChangePwd(id) {
-                    const np = prompt("Введите новый пароль для этой кассы:");
-                    if(np) {
-                        try {
-                            const res = await fetch(`/api/cash_desks/${id}/password`, {
-                                method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({password: np})
-                            });
-                            if(res.ok) alert("Пароль успешно изменен!"); else alert("Ошибка смены пароля");
-                        } catch(e) { alert("Ошибка соединения"); }
-                    }
-                }
-            </script>
-            
+<div id="exportModal" class="modal">
+    <div class="modal-content">
+        <h3 style="margin-top:0">Экспорт транзакций</h3>
+        <label>С даты:</label> <input type="date" id="exportStartDate">
+        <label>По дату:</label> <input type="date" id="exportEndDate">
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn" onclick="downloadCSV()">Скачать CSV</button>
+            <button class="btn" style="background:#eee; color:#000" onclick="closeExportModal()">Отмена</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

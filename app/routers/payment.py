@@ -8,6 +8,13 @@ from app.models import CashDesk, Employee, Category, Product, Card, Transaction,
 from pydantic import BaseModel
 from datetime import date, datetime, time
 from typing import List, Optional
+import csv
+import io
+from datetime import date, datetime, timedelta
+from fastapi import Query
+from fastapi.responses import StreamingResponse
+from sqlalchemy import func
+
 
 router = APIRouter()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -288,3 +295,94 @@ def update_desk_password(desk_id: int, data: DeskPassword, db: Session = Depends
         db.commit()
         return {"status": "ok"}
     raise HTTPException(404, "Касса не найдена")
+
+@router.get("/statistics/chart")
+def get_statistics_chart(
+    start_date: str = Query(...),
+    end_date: str = Query(...),
+    payment_methods: Optional[List[str]] = Query(None),
+    cash_desks: Optional[List[str]] = Query(None),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Базовый запрос: сумма по дням
+        query = db.query(
+            func.date(Transaction.created_at).label('day'),
+            func.sum(Transaction.amount_total_kopecks).label('total')
+        ).filter(
+            func.date(Transaction.created_at) >= start_date,
+            func.date(Transaction.created_at) <= end_date
+        )
+
+        # Фильтр методов оплаты (internal, cash, bank_card)
+        if payment_methods:
+            methods = [m for m in payment_methods if m and m.strip()]
+            if methods:
+                query = query.filter(Transaction.payment_method.in_(methods))
+        
+        # Фильтр касс: пробуем искать и как числа, и как строки
+        if cash_desks:
+            desks = [d for d in cash_desks if d and d.strip()]
+            if desks:
+                # SQLite поймет сравнение строки с числом, если мы передадим список строк
+                query = query.filter(Transaction.cash_desk_id.in_(desks))
+
+        results = query.group_by(func.date(Transaction.created_at)).order_by('day').all()
+
+        labels = []
+        data = []
+        for row in results:
+            labels.append(str(row[0])) # Дата YYYY-MM-DD
+            # ПРАВИЛО: float() перед делением на 100
+            val = float(row[1] or 0) / 100.0
+            data.append(val)
+
+        # Это появится в терминале твоего сервера (для отладки)
+        print(f"--- STATS DEBUG ---")
+        print(f"Period: {start_date} to {end_date}")
+        print(f"Methods: {payment_methods} | Desks: {cash_desks}")
+        print(f"Found: {len(results)} days of data")
+
+        return {"labels": labels, "data": data}
+    except Exception as e:
+        print(f"CRITICAL STATS ERROR: {e}")
+        return {"labels": [], "data": [], "error": str(e)}
+
+@router.get("/statistics/export")
+def export_statistics_csv(
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    db: Session = Depends(get_db)
+):
+    # Выгружаем транзакции за период
+    transactions = db.query(Transaction).filter(
+        func.date(Transaction.created_at) >= start_date,
+        func.date(Transaction.created_at) <= end_date
+    ).all()
+
+    # Используем StringIO для создания CSV
+    stream = io.StringIO()
+    writer = csv.writer(stream, delimiter=';', dialect='excel')
+
+    # Заголовки колонок
+    writer.writerow(["ID", "Дата", "Касса", "Метод", "Сумма (РУБ)"])
+
+    for t in transactions:
+        # Конвертируем копейки в рубли через float
+        rubles = float(t.amount_total_kopecks) / 100.0 if t.amount_total_kopecks else 0.0
+        writer.writerow([
+            t.id,
+            t.created_at.strftime("%Y-%m-%d %H:%M") if t.created_at else "",
+            t.cash_desk_id,
+            t.payment_method,
+            f"{rubles:.2f}".replace('.', ',') # Запятая лучше для русского Excel
+        ])
+
+    # ВАЖНО: Добавляем BOM (u'\ufeff') и кодируем в utf-8-sig для Excel
+    content = u'\ufeff' + stream.getvalue()
+    
+    return StreamingResponse(
+        iter([content.encode("utf-8-sig")]), 
+        media_type="text/csv; charset=utf-8-sig",
+        headers={"Content-Disposition": f"attachment; filename=export_{start_date}_{end_date}.csv"}
+    )
