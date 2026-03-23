@@ -8,3 +8,4 @@ venv/
 static/photos/*
 !static/photos/.gitkeep
 database.db
+__pycache__/
