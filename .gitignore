@@ -31,3 +31,4 @@ Thumbs.db
 
 static/photos/*
 !static/photos/.gitkeep
+/static/photos/

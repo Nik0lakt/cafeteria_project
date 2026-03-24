@@ -25,6 +25,7 @@ class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(Integer, primary_key=True, index=True)
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=True)
+    employee = relationship("Employee")
     amount_total_kopecks = Column(Integer)
     subsidy_part_kopecks = Column(Integer)
     limit_part_kopecks = Column(Integer)

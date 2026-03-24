@@ -355,35 +355,51 @@ def export_statistics_csv(
     end_date: date = Query(...),
     db: Session = Depends(get_db)
 ):
-    # Выгружаем транзакции за период
+    # 1. Загружаем транзакции с сортировкой по УБЫВАНИЮ даты
     transactions = db.query(Transaction).filter(
         func.date(Transaction.created_at) >= start_date,
         func.date(Transaction.created_at) <= end_date
-    ).all()
+    ).order_by(Transaction.created_at.desc()).all() # .desc() — новые сверху
 
-    # Используем StringIO для создания CSV
+    # StringIO для записи CSV
     stream = io.StringIO()
     writer = csv.writer(stream, delimiter=';', dialect='excel')
 
-    # Заголовки колонок
-    writer.writerow(["ID", "Дата", "Касса", "Метод", "Сумма (РУБ)"])
+    # 2. Заголовки (Добавили "Сотрудник" и "Состав заказа")
+    writer.writerow(["ID", "Дата", "Сотрудник", "Касса", "Метод", "Сумма (РУБ)", "Состав заказа"])
 
     for t in transactions:
-        # Конвертируем копейки в рубли через float
+        # Конвертируем копейки в рубли
         rubles = float(t.amount_total_kopecks) / 100.0 if t.amount_total_kopecks else 0.0
+        
+        # 3. Собираем состав заказа из JSON
+        item_summary = {}
+        if t.items and isinstance(t.items, list):
+            for item in t.items:
+                name = item.get('name', 'Товар')
+                item_summary[name] = item_summary.get(name, 0) + 1
+        
+        # Превращаем словарь в строку: "Кофе x2, Булочка x1"
+        items_str = ", ".join([f"{name} x{qty}" for name, qty in item_summary.items()])
+
+        # Имя сотрудника (благодаря relationship, который мы добавили в Шаге 1)
+        emp_name = t.employee.full_name if t.employee else "Внешняя оплата"
+
         writer.writerow([
             t.id,
-            t.created_at.strftime("%Y-%m-%d %H:%M") if t.created_at else "",
+            t.created_at.strftime("%Y-%m-%d %H:%M:%S") if t.created_at else "",
+            emp_name,
             t.cash_desk_id,
             t.payment_method,
-            f"{rubles:.2f}".replace('.', ',') # Запятая лучше для русского Excel
+            f"{rubles:.2f}".replace('.', ','), # Запятая для Excel
+            items_str
         ])
 
-    # ВАЖНО: Добавляем BOM (u'\ufeff') и кодируем в utf-8-sig для Excel
+    # Кодировка для Excel (UTF-8 с BOM)
     content = u'\ufeff' + stream.getvalue()
     
     return StreamingResponse(
         iter([content.encode("utf-8-sig")]), 
         media_type="text/csv; charset=utf-8-sig",
-        headers={"Content-Disposition": f"attachment; filename=export_{start_date}_{end_date}.csv"}
+        headers={"Content-Disposition": f"attachment; filename=report_{start_date}_{end_date}.csv"}
     )
