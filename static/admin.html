@@ -1,710 +1,285 @@
-<script src="/static/admin_check.js"></script>
-<script>async function check() {    const pass = localStorage.getItem("admin_pass");    const res = await fetch("/api/login", {         method: "POST",         headers: {"Content-Type": "application/json"},         body: JSON.stringify({password: pass})     });    const data = await res.json();}check();</script>
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <title>Cafeteria Control</title>
-    <style>
-	.pagination { display: flex; justify-content: center; gap: 5px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #f8f8f8; }
-        .page-btn { padding: 6px 12px; border-radius: 6px; border: 1px solid #eee; background: #fff; cursor: pointer; font-size: 13px; transition: 0.2s; }
-        .page-btn:hover { background: #f5f5f5; }
-        .page-btn.active { background: #000; color: #fff; border-color: #000; }
-        .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f8f9fa; margin: 0; padding: 20px; color: #333; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .main-layout { display: flex; gap: 30px; }
-        .box { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 2px 15px rgba(0,0,0,0.05); }
-        .registration-box { width: 320px; }
-        .personnel-box { flex: 1; }
-	label { display: block; font-size: 11px; color: #999; margin-bottom: 5px; font-weight: 600; text-transform: uppercase; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 8px; box-sizing: border-box; background: #fafafa; margin-bottom: 15px; font-size: 14px; }
-        .btn { width: 100%; background: #000; color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-        .action-btn { background: #f5f5f5; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; margin-right: 4px; }
-        .btn-red { color: #dc3545; background: #fff5f5; }
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; font-size: 11px; color: #999; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0; }
-        td { padding: 12px 0; border-bottom: 1px solid #f8f8f8; font-size: 14px; }
-        .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:1000; }
-        .modal-content { background:#fff; padding:30px; border-radius:16px; width:420px; }
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-        .cal-day { padding: 10px; text-align: center; border: 1px solid #eee; border-radius: 6px; cursor: pointer; font-size: 13px; }
-        .cal-day.workday { background: #007AFF; color: #fff; border-color: #007AFF; font-weight: bold; }
-        .role-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f9f9f9; border-radius: 8px; margin-bottom: 10px; }
-        .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
-    </style>
+    <link rel="stylesheet" href="/static/style.css">
     <script src="/static/chart.js"></script>
-    <style>
-        /* Стили для модального окна экспорта */
-        #exportModal {
-            display: none; position: fixed; z-index: 9999; left: 0; top: 0;
-            width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);
-        }
-        .modal-content {
-            background-color: #fff; margin: 15% auto; padding: 20px;
-            border: 1px solid #888; width: 300px; border-radius: 8px; text-align: center;
-        }
-        .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .close-btn:hover { color: black; }
-    </style>
 </head>
 <body>
 
-<style>
-    body { margin: 0; padding: 0; background: #f4f6f9; overflow-x: hidden; font-family: -apple-system, sans-serif; }
-    
-    /* Темная панель (Скрывается / Выезжает при наведении) */
-    .app-sidebar {
-        position: fixed; top: 0; left: 0; height: 100vh; width: 60px;
-        background: #111; color: #fff; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        overflow: hidden; white-space: nowrap; z-index: 9999;
-        box-shadow: 2px 0 15px rgba(0,0,0,0.2);
-    }
-    .app-sidebar:hover { width: 250px; }
-    
-    .nav-header { padding: 20px; font-size: 18px; font-weight: bold; border-bottom: 1px solid #333; margin-bottom: 10px; display: flex; align-items: center; color: #fff; }
-    .nav-item { padding: 15px 20px; cursor: pointer; display: flex; align-items: center; color: #aaa; transition: 0.2s; font-size: 16px; }
-    .nav-item:hover, .nav-item.active { background: #222; color: #fff; border-left: 4px solid #fff; padding-left: 16px; }
-    
-    .nav-icon { font-size: 20px; min-width: 30px; text-align: left; }
-    .nav-text { margin-left: 10px; opacity: 0; transition: opacity 0.3s; }
-    .app-sidebar:hover .nav-text { opacity: 1; }
-    
-    .main-content { margin-left: 60px; padding: 20px; min-height: 100vh; transition: margin-left 0.3s; }
-</style>
-
 <div class="app-sidebar">
-    <div class="nav-header">
-        <span class="nav-icon">⚙️</span><span class="nav-text">Админ-панель</span>
-    </div>
-    <div class="nav-item active" onclick="switchTab('emp', this)">
-        <span class="nav-icon">👥</span><span class="nav-text">Сотрудники</span>
-    </div>
-    <div class="nav-item" onclick="switchTab('cash', this)">
-        <span class="nav-icon">🖥</span><span class="nav-text">Кассы терминалов</span>
-    </div>
-    <div class="nav-item" onclick="switchTab('stat', this)">
-        <span class="nav-icon">📈</span><span class="nav-text">Статистика</span>
-    </div>
+    <div class="nav-header">⚙️ <span class="nav-text">Админ-панель</span></div>
+    <div class="nav-item active" onclick="switchTab('emp', this)">👥 <span class="nav-text">Сотрудники</span></div>
+    <div class="nav-item" onclick="switchTab('cash', this)">🖥 <span class="nav-text">Кассы терминалов</span></div>
+    <div class="nav-item" onclick="switchTab('stat', this)">📈 <span class="nav-text">Статистика</span></div>
 </div>
 
 <div class="main-content">
+    
     <div id="tab-emp">
-        
-    <div class="header">
-        <h1>Управление сотрудниками</h1>
-        <div style="display:flex; gap:10px;">
-            <button class="action-btn" style="background:#000; color:#fff; padding:10px 20px;" onclick="openRoles()">⚙️ Настройка ролей</button>
-            <button class="action-btn" style="background:#4a5568; color:#fff; padding:10px 20px;" onclick="openGlobal()">📅Управление днями</button>
+        <div class="header">
+            <h1>Управление сотрудниками</h1>
+            <div style="display:flex; gap:10px;">
+                <button class="action-btn" style="background:#000; color:#fff; padding:10px 20px;" onclick="openRoles()">⚙️ Настройка ролей</button>
+                <button class="action-btn" style="background:#4a5568; color:#fff; padding:10px 20px;" onclick="openGlobal()">📅 Управление днями</button>
+            </div>
         </div>
-    </div>
 
-    <div class="main-layout">
-        <div class="box registration-box">
-            <h3>Регистрация</h3>
-            <label>ФИО сотрудника</label><input type="text" id="regName">
-            <label>UID Карты</label><input type="text" id="regCard">
-            <label>Telegram ID</label><input type="text" id="regTg">
-            <label>Роль</label><select id="regRole"></select>
-            <label>Месячный лимит</label><input type="number" id="regLimit" value="5000">
-            <button class="btn" onclick="createRecord()">Create Record</button>
-        </div>
-        <div class="box personnel-box">
-            <h3>Список персонала</h3>
-	    <div class="box personnel-box">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h3 style="margin: 0;">Список персонала</h3>
-        <div style="position: relative; width: 250px;">
-                    <input type="text" id="empSearch" placeholder="🔍 Поиск по ФИО..." oninput="handleSearch()" style="margin-bottom: 0; padding: 8px 12px 8px 35px; font-size: 13px;">
-                    <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999;"></span>
+        <div class="main-layout">
+            <div class="box" style="width: 320px;">
+                <h3>Регистрация</h3>
+                <label>ФИО сотрудника</label><input type="text" id="regName">
+                <label>UID Карты</label><input type="text" id="regCard">
+                <label>Telegram ID</label><input type="text" id="regTg">
+                <label>Роль</label><select id="regRole"></select>
+                <label>Месячный лимит</label><input type="number" id="regLimit" value="5000">
+                <button class="btn" onclick="createRecord()">Create Record</button>
+            </div>
+            
+            <div class="box" style="flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0;">Список персонала</h3>
+                    <input type="text" id="empSearch" placeholder="🔍 Поиск по ФИО..." oninput="handleSearch()" style="width: 250px; margin-bottom: 0;">
                 </div>
-    	    </div>
-            <table>
-                <thead><tr><th>Имя</th><th>Карта</th><th>Биометрия</th><th>Daily</th><th>Limit</th><th>Действия</th></tr></thead>
-                <tbody id="pTable"></tbody>
-            </table>
-	    <div id="pPagination" class="pagination"></div>
+                <table>
+                    <thead><tr><th>Имя</th><th>Карта</th><th>Биометрия</th><th>Daily</th><th>Limit</th><th>Действия</th></tr></thead>
+                    <tbody id="pTable"></tbody>
+                </table>
+                <div id="pPagination" class="pagination"></div>
+            </div>
         </div>
     </div>
 
-    <div id="roleModal" class="modal"><div class="modal-content">
+    <div id="tab-cash" style="display: none;">
+        <div class="header"><h1>Управление терминалами</h1></div>
+        <div class="main-layout">
+            <div class="box" style="width: 320px;">
+                <h3>Новый терминал</h3>
+                <label>Логин кассы</label><input type="text" id="newDeskLogin">
+                <label>Описание</label><input type="text" id="newDeskDesc">
+                <label>Пароль</label><input type="text" id="newDeskPass" placeholder="1234">
+                <button class="btn" onclick="addCashDesk()">Создать кассу</button>
+            </div>
+            <div class="box" style="flex: 1;">
+                <h3>Активные кассы</h3>
+                <table>
+                    <thead><tr><th>ID</th><th>Логин</th><th>Описание</th><th style="text-align:right">Действия</th></tr></thead>
+                    <tbody id="cashDesksTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-stat" style="display: none;">
+        <div class="box">
+            <h3>📈 Статистика доходов</h3>
+            <div style="display:flex; gap:15px; align-items:flex-end; margin-bottom:20px;">
+                <div style="width:200px;"><label>Период</label><select id="statPeriod" onchange="toggleCustomDates()"><option value="7">7 дней</option><option value="30" selected>30 дней</option><option value="custom">Свой период</option></select></div>
+                <div id="customDatesWrapper" style="display:none; gap:10px;"><div><label>С</label><input type="date" id="statStartDate"></div><div><label>По</label><input type="date" id="statEndDate"></div></div>
+                <button class="btn" style="width:auto; padding:0 30px; height:42px" onclick="buildChart()">Построить</button>
+            </div>
+            <div id="cashDesksContainer" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px;"></div>
+            <div style="height:400px;"><canvas id="revenueChart"></canvas></div>
+            <div style="text-align:center; margin-top:20px;"><button class="btn" style="background:#28a745; width:auto" onclick="document.getElementById('exportModal').style.display='flex'">📥 Скачать БД (.csv)</button></div>
+        </div>
+    </div>
+</div>
+
+
+
+<div id="roleModal" class="modal">
+    <div class="modal-content">
         <h3>Настройка ролей</h3>
-        <div id="rolesList"></div>
-        <div style="margin-top:20px; border-top:1px solid #eee; padding-top:15px;">
-            <label>Добавить новую роль</label>
-            <input type="text" id="newRoleName" placeholder="Название">
-            <input type="number" id="newRoleSubsidy" placeholder="Дотация (руб)">
-            <button class="btn" onclick="addRole()">Добавить роль</button>
-        </div>
-        <button class="btn" style="background:#eee; color:#000; margin-top:10px" onclick="closeModals()">Закрыть</button>
-    </div></div>
-
-    <div id="globalModal" class="modal"><div class="modal-content">
-        <h3>Управление днями</h3>
-        <label>Выберите дату</label><input type="date" id="gDate">
-        <label>Действие</label>
-        <select id="gAction">
-            <option value="holiday">Сделать ВЫХОДНЫМ</option>
-            <option value="work">Сделать РАБОЧИМ</option>
-        </select>
-        <label>Для какого класса (роли)</label>
-        <select id="gTarget"></select>
-        <button class="btn" onclick="saveGlobal()">Применить</button>
-        <button class="btn" style="background:#eee; color:#000; margin-top:10px" onclick="closeModals()">Отмена</button>
-    </div></div>
-
-    <div id="bioModal" class="modal"><div class="modal-content">
-        <h3 id="bioName">Биометрия</h3>
-        <div style="width:100%; height:240px; background:#000; border-radius:8px; overflow:hidden; margin-bottom:15px;">
-            <video id="bioVideo" autoplay muted style="width:100%; height:100%; object-fit:cover;"></video>
-        </div>
-        <button class="btn" onclick="captureBio()">Сделать снимок</button>
-        <div style="text-align:center; margin:15px 0; color:#999; font-size:12px;">ИЛИ</div>
-        <input type="file" id="bioFile" accept="image/*" style="margin-bottom:10px;" onchange="uploadBioFile(this)">
-        <button class="btn" style="background:#eee; color:#000;" onclick="closeModals()">Отмена</button>
-    </div></div>
-
-    <div id="editModal" class="modal"><div class="modal-content"><h3>Settings</h3><input type="hidden" id="editId"><label>Full Name</label><input type="text" id="editName"><label>Card UID</label><input type="text" id="editCard"><label>Telegram ID</label><input type="text" id="editTg"><label>Monthly Limit</label><input type="number" id="editLimit"><label>Role</label><select id="editRole"></select><button class="btn" onclick="saveEdit()">Save</button></div></div>
-    
-    <div id="calModal" class="modal"><div class="modal-content"><div class="cal-header"><button class="action-btn" onclick="changeMonth(-1)">←</button><h3 id="calTitle" style="margin:0"></h3><button class="action-btn" onclick="changeMonth(1)">→</button></div><div id="calGrid" class="cal-grid"></div><div style="margin-top:20px; display:flex; gap:5px;"><button class="action-btn" style="flex:1" onclick="applyPreset(5,2)">5/2</button><button class="action-btn" style="flex:1" onclick="applyPreset(2,2)">2/2</button><button class="action-btn" style="flex:1" onclick="customPreset()">Свой</button></div><button class="action-btn" style="width:100%; color:red; margin-top:10px" onclick="resetCal()">Сбросить график</button><button class="btn" style="margin-top:20px" onclick="closeModals()">Закрыть</button></div></div>
-
-    <script>
-        let currentEmpId = null, currentUid = null, viewDate = new Date(), workDays = [], rolesData = [];
-        const video = document.getElementById('bioVideo');
         
-        // Новые переменные для пагинации
-        let allEmployees = []; 
-        let filteredEmployees = [];
-	let currentPage = 1;
-        const itemsPerPage = 10;
+        <div id="rolesList" style="margin-bottom: 20px;"></div>
+        
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+        
+        <h4 style="margin-bottom: 15px;">Добавить новую роль</h4>
+        
+        <label>Название роли</label>
+        <input type="text" id="newRoleName" placeholder="Например: Офис">
+        
+        <label>Сумма дотации (₽ в день)</label>
+        <input type="number" id="newRoleSubsidy" placeholder="Введите сумму, например: 100">
+        
+        <button class="btn" onclick="addRole()">Добавить роль</button>
+        <button class="btn" style="background: #f5f5f5; color: #333; margin-top: 10px;" onclick="closeModals()">Закрыть</button>
+    </div>
+</div>
+<div id="globalModal" class="modal"><div class="modal-content"><h3>Управление днями</h3><label>Дата</label><input type="date" id="gDate"><label>Действие</label><select id="gAction"><option value="holiday">Выходной</option><option value="work">Рабочий</option></select><label>Для роли</label><select id="gTarget"></select><button class="btn" onclick="saveGlobal()">Применить</button><button class="btn" style="background:#eee; color:#000; margin-top:10px" onclick="closeModals()">Отмена</button></div></div>
+<div id="bioModal" class="modal"><div class="modal-content"><h3 id="bioName">Биометрия</h3><video id="bioVideo" autoplay muted style="width:100%; border-radius:8px; background:#000; height:240px; object-fit:cover;"></video><button class="btn" style="margin-top:10px" onclick="captureBio()">Сделать снимок</button><input type="file" id="bioFile" onchange="uploadBioFile(this)" style="margin-top:10px;"><button class="btn" style="background:#eee; color:#000; margin-top:10px" onclick="closeModals()">Закрыть</button></div></div>
+<div id="editModal" class="modal"><div class="modal-content"><h3>Редактировать сотрудника</h3><input type="hidden" id="editId"><label>ФИО</label><input type="text" id="editName"><label>Карта</label><input type="text" id="editCard"><label>Telegram ID</label><input type="text" id="editTg"><label>Роль</label><select id="editRole"></select><label>Месячный лимит</label><input type="number" id="editLimit"><button class="btn" onclick="saveEdit()">Сохранить</button><button class="btn" style="background:#eee; color:#000; margin-top:10px" onclick="closeModals()">Отмена</button></div></div>
+<div id="calModal" class="modal"><div class="modal-content"><div style="display:flex; justify-content:space-between; align-items:center;"><button class="action-btn" onclick="changeMonth(-1)">←</button><h3 id="calTitle" style="margin:0"></h3><button class="action-btn" onclick="changeMonth(1)">→</button></div><div id="calGrid" class="cal-grid" style="margin-top:15px;"></div><div style="margin-top:20px; display:flex; gap:5px;"><button class="action-btn" style="flex:1" onclick="applyPreset(5,2)">5/2</button><button class="action-btn" style="flex:1" onclick="applyPreset(2,2)">2/2</button></div><button class="btn" style="background:#fff; color:red; border:1px solid red; margin-top:15px;" onclick="resetCal()">Сбросить</button><button class="btn" style="margin-top:15px" onclick="closeModals()">Закрыть</button></div></div>
+<div id="exportModal" class="modal"><div class="modal-content"><h3>Экспорт</h3><label>С</label><input type="date" id="exportStartDate"><label>По</label><input type="date" id="exportEndDate"><button class="btn" onclick="downloadCSV()">Скачать CSV</button><button class="btn" style="background:#eee; color:#000; margin-top:10px" onclick="closeModals()">Отмена</button></div></div>
 
-        async function load() {
-            // Загружаем данные только один раз или при обновлении
-            const res = await fetch('/api/employees');
-            allEmployees = await res.json();
-            filteredEmployees = [...allEmployees];
+<script>
+    let allEmployees = [], filteredEmployees = [], rolesData = [], currentEmpId = null, currentUid = null;
+    let viewDate = new Date(), workDays = [], currentPage = 1, itemsPerPage = 10, revenueChartInstance = null;
+    const video = document.getElementById('bioVideo');
 
-            rolesData = await (await fetch('/api/role_settings')).json();
+    function switchTab(id, el) {
+        ['tab-emp', 'tab-cash', 'tab-stat'].forEach(t => document.getElementById(t).style.display = 'none');
+        document.getElementById('tab-' + id).style.display = 'block';
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+        if(id === 'stat') buildChart();
+    }
 
-            const roleOptions = rolesData.map(r => `<option value="${r.role_name}">${r.role_name}</option>`).join('');
-            document.getElementById('regRole').innerHTML = roleOptions;
-            document.getElementById('editRole').innerHTML = roleOptions;
+    async function load() {
+        const res = await fetch('/api/employees'); allEmployees = await res.json();
+        rolesData = await (await fetch('/api/role_settings')).json();
+        const opts = rolesData.map(r => `<option value="${r.role_name}">${r.role_name}</option>`).join('');
+        document.getElementById('regRole').innerHTML = opts;
+        document.getElementById('editRole').innerHTML = opts;
+        document.getElementById('gTarget').innerHTML = '<option value="ALL">Все сотрудники</option>' + opts;
+        handleSearch();
+    }
 
-            renderTable(); // Вызываем новую функцию отрисовки
-        }
+    function handleSearch() {
+        const q = document.getElementById('empSearch').value.toLowerCase();
+        filteredEmployees = allEmployees.filter(e => e.full_name.toLowerCase().includes(q) || e.card_uid.includes(q));
+        currentPage = 1; renderTable();
+    }
 
-	function handleSearch() {
-	    const query = document.getElementById('empSearch').value.toLowerCase();
+    function renderTable() {
+        const start = (currentPage - 1) * itemsPerPage;
+        const items = filteredEmployees.slice(start, start + itemsPerPage);
+        document.getElementById('pTable').innerHTML = items.map(e => {
+            const rInfo = rolesData.find(r => r.role_name === e.role);
+            const dailyLimit = rInfo ? rInfo.subsidy_rub : 0;
+            return `<tr>
+                <td><b>${e.full_name}</b></td>
+                <td><span style="background:#fff0f3; color:#d63384; padding:2px 6px; border-radius:4px;">${e.card_uid}</span></td>
+                <td><span class="status-dot" style="background:${e.has_face?'#28a745':'#ccc'}"></span> ${e.has_face?'Ready':'Empty'}</td>
+                <td>${dailyLimit > 0 ? `${e.daily_used}/${dailyLimit}` : '<i>Нет дотации</i>'}</td>
+                <td>${e.month_limit_rub}</td>
+                <td>
+                    <button class="action-btn" onclick='openEdit(${JSON.stringify(e).replace(/'/g, "&apos;")})'>⚙️</button>
+                    <button class="action-btn" onclick="openCal(${e.id},'${e.full_name}')">📅</button>
+                    <button class="action-btn" onclick="openBio(${e.id},'${currentUid = e.card_uid}','${e.full_name}')">📷</button>
+                    <button class="action-btn btn-red" onclick="delEmp(${e.id})">×</button>
+                </td>
+            </tr>`;
+        }).join('');
+        renderPagination();
+    }
 
-   	    filteredEmployees = allEmployees.filter(e => 
-        	e.full_name.toLowerCase().includes(query) || 
-	       	e.card_uid.toLowerCase().includes(query)
-	    );
-    
-	    currentPage = 1; // При поиске всегда возвращаемся на первую страницу
-            renderTable();
-	}
+    function renderPagination() {
+        const pages = Math.ceil(filteredEmployees.length / itemsPerPage);
+        const cont = document.getElementById('pPagination'); cont.innerHTML = '';
+        if(pages <= 1) return;
+        for(let i=1; i<=pages; i++) cont.innerHTML += `<button class="page-btn ${i===currentPage?'active':''}" onclick="currentPage=${i};renderTable()">${i}</button>`;
+    }
 
-        function renderTable() {
-            const start = (currentPage - 1) * itemsPerPage;
-            const end = start + itemsPerPage;
-            const paginatedItems = filteredEmployees.slice(start, end);
-
-            const tableBody = document.getElementById('pTable');
-            tableBody.innerHTML = paginatedItems.map(e => {
-                const roleInfo = rolesData.find(r => r.role_name === e.role);
-                const dailyLimit = roleInfo ? roleInfo.subsidy_rub : 0;
-                const dailyDisplay = dailyLimit > 0 
-                    ? `${e.daily_used}/${dailyLimit}` 
-                    : '<span style="color: #999; font-style: italic;">Нет дотации</span>';
-
-                return `
-                <tr>
-                    <td><b>${e.full_name}</b></td>
-                    <td><span style="background:#fff0f3; color:#d63384; padding:2px 6px; border-radius:4px;">${e.card_uid}</span></td>
-                    <td><span class="status-dot" style="background:${e.has_face?'#28a745':'#ccc'}"></span> ${e.has_face?'Ready':'Empty'}</td>
-                    <td>${dailyDisplay}</td>
-                    <td>${e.month_limit_rub}</td>
-                    <td>
-                        <button class="action-btn" onclick='openEdit(${JSON.stringify(e).replace(/'/g, "&apos;")})'>⚙️</button>
-                        <button class="action-btn" onclick="openCal(${e.id},'${e.full_name}')">📅</button>
-                        <button class="action-btn" onclick="openBio(${e.id},'${e.card_uid}','${e.full_name}')">📷</button>
-                        <button class="action-btn btn-red" onclick="delEmp(${e.id})">×</button>
-                    </td>
-                </tr>`;
-            }).join('');
-
-            renderPagination();
-        }
-
-        function renderPagination() {
-            const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
-            const container = document.getElementById('pPagination');
-            container.innerHTML = '';
-
-            if (totalPages <= 1) return; // Если страниц меньше 2, не рисуем кнопки
-
-            // Кнопка "Назад"
-            const prevBtn = document.createElement('button');
-            prevBtn.className = 'page-btn';
-            prevBtn.innerText = '←';
-            prevBtn.disabled = currentPage === 1;
-            prevBtn.onclick = () => { currentPage--; renderTable(); };
-            container.appendChild(prevBtn);
-
-            // Номера страниц
-            for (let i = 1; i <= totalPages; i++) {
-                const pageBtn = document.createElement('button');
-                pageBtn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
-                pageBtn.innerText = i;
-                pageBtn.onclick = () => { currentPage = i; renderTable(); };
-                container.appendChild(pageBtn);
-            }
-
-            // Кнопка "Вперед"
-            const nextBtn = document.createElement('button');
-            nextBtn.className = 'page-btn';
-            nextBtn.innerText = '→';
-            nextBtn.disabled = currentPage === totalPages;
-            nextBtn.onclick = () => { currentPage++; renderTable(); };
-            container.appendChild(nextBtn);
-        }
-
-        // Роли
-        async function openRoles() {
-            const roles = await (await fetch('/api/role_settings')).json();
-            document.getElementById('rolesList').innerHTML = roles.map(r => `
-                <div class="role-row">
-                    <b>${r.role_name}</b>
-                    <div style="display:flex; align-items:center; gap:5px">
-                        <input type="number" value="${r.subsidy_rub}" style="width:70px; margin:0;" onchange="updateRole('${r.role_name}', this.value)">
-                        <button class="action-btn btn-red" onclick="deleteRole('${r.role_name}')">×</button>
-                    </div>
-                </div>
-            `).join('');
-            document.getElementById('roleModal').style.display = 'flex';
-        }
-        async function deleteRole(name) {
-            if(confirm(`Удалить роль ${name}? Сотрудники с этой ролью могут потерять дотации.`)) {
-                await fetch(`/api/role_settings/${name}`, {method:'DELETE'});
-                openRoles(); load();
-            }
-        }
-        async function addRole() {
-            const n = document.getElementById('newRoleName').value, s = document.getElementById('newRoleSubsidy').value;
-            if(!n) return;
-            await fetch('/api/role_settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role_name:n, subsidy_rub:parseFloat(s)})});
-            document.getElementById('newRoleName').value = ''; document.getElementById('newRoleSubsidy').value = '';
-            openRoles(); load();
-        }
-        async function updateRole(n, v) { await fetch('/api/role_settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role_name:n, subsidy_rub:parseFloat(v)})}); }
-
-        // Управление днями (Глобальное)
-        function openGlobal() {
-            const targetSelect = document.getElementById('gTarget');
-            targetSelect.innerHTML = '<option value="ALL">Все сотрудники</option>' + 
-                rolesData.map(r => `<option value="${r.role_name}">Только ${r.role_name}</option>`).join('');
-            document.getElementById('globalModal').style.display = 'flex';
-        }
-        async function saveGlobal() {
-            const p = {
-                target_date: document.getElementById('gDate').value,
-                action_type: document.getElementById('gAction').value,
-                target_role: document.getElementById('gTarget').value
-            };
-            if(!p.target_date) return alert("Выберите дату");
-            await fetch('/api/schedule/global_action', {
-                method: 'POST',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify(p)
-            });
-            closeModals(); load();
-        }
-
-        // Остальной JS
-        async function openBio(id, uid, name) {
-            currentEmpId = id; currentUid = uid;
-            document.getElementById('bioName').innerText = `Биометрия: ${name}`;
-            document.getElementById('bioModal').style.display = 'flex';
-            navigator.mediaDevices.getUserMedia({video:true}).then(s => video.srcObject = s);
-        }
-        function captureBio() {
-            const c = document.createElement('canvas'); c.width=640; c.height=480;
-            c.getContext('2d').drawImage(video, 0, 0);
-            c.toBlob(b => sendBio(b), 'image/jpeg');
-        }
-        function uploadBioFile(input) { if(input.files[0]) sendBio(input.files[0]); }
-        async function sendBio(blob) {
-            const fd = new FormData(); fd.append('card_uid', currentUid); fd.append('file', blob);
-            const res = await fetch('/api/enroll_face', {method:'POST', body:fd});
-            if(res.ok) { alert("Успешно!"); closeModals(); load(); }
-        }
-        function closeModals() { 
-            document.querySelectorAll('.modal').forEach(m => m.style.display='none');
-            if(video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
-        }
-        async function openCal(id, n) { currentEmpId = id; document.getElementById('calTitle').innerText = n; document.getElementById('calModal').style.display = 'flex'; await refreshCal(); }
-        async function refreshCal() { workDays = await (await fetch(`/api/schedule/${currentEmpId}`)).json(); renderCal(); }
-        function renderCal() {
-            const g = document.getElementById('calGrid'), y = viewDate.getFullYear(), m = viewDate.getMonth();
-            document.getElementById('calTitle').innerText = new Intl.DateTimeFormat('ru',{month:'long', year:'numeric'}).format(viewDate);
-            g.innerHTML = ''; const f = (new Date(y, m, 1).getDay() + 6) % 7, l = new Date(y, m + 1, 0).getDate();
-            for(let i=0; i<f; i++) g.innerHTML += '<div></div>';
-            for(let i=1; i<=l; i++) {
-                const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-                g.innerHTML += `<div class="cal-day ${workDays.includes(ds)?'workday':''}" onclick="toggleDay('${ds}')">${i}</div>`;
-            }
-        }
-        async function toggleDay(d) { await fetch(`/api/schedule/${currentEmpId}/toggle?target_date=${d}`, {method:'POST'}); await refreshCal(); }
-        async function resetCal() { if(confirm('Сбросить?')) { await fetch(`/api/schedule/${currentEmpId}/reset`, {method:'POST'}); await refreshCal(); } }
-        async function applyPreset(w, r) { await fetch(`/api/schedule/${currentEmpId}/preset`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({work_days:w, rest_days:r})}); await refreshCal(); }
-        function customPreset() { const w=prompt("Рабочих:"), r=prompt("Выходных:"); if(w&&r) applyPreset(parseInt(w), parseInt(r)); }
-        function changeMonth(s) { viewDate.setMonth(viewDate.getMonth() + s); renderCal(); }
-        async function delEmp(id) { if(confirm('Удалить?')) { await fetch(`/api/employees/${id}`, {method:'DELETE'}); load(); } }
-        async function createRecord() {
-            const p = {full_name:document.getElementById('regName').value, role:document.getElementById('regRole').value, card_uid:document.getElementById('regCard').value, telegram_id:document.getElementById('regTg').value, month_limit_rub:parseInt(document.getElementById('regLimit').value)};
-            await fetch('/api/employees', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)}); load();
-        }
-        function openEdit(e) { document.getElementById('editId').value = e.id; document.getElementById('editName').value = e.full_name; document.getElementById('editCard').value = e.card_uid; document.getElementById('editTg').value = e.telegram_id || ''; document.getElementById('editLimit').value = e.month_limit_rub; document.getElementById('editRole').value = e.role; document.getElementById('editModal').style.display = 'flex'; }
-        async function saveEdit() { const p = {full_name:document.getElementById('editName').value, card_uid:document.getElementById('editCard').value, telegram_id:document.getElementById('editTg').value, month_limit_rub:parseInt(document.getElementById('editLimit').value), role:document.getElementById('editRole').value}; await fetch(`/api/employees/${document.getElementById('editId').value}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)}); closeModals(); load(); }
+    async function createRecord() {
+        const p = {full_name:document.getElementById('regName').value, role:document.getElementById('regRole').value, card_uid:document.getElementById('regCard').value, telegram_id:document.getElementById('regTg').value, month_limit_rub:parseInt(document.getElementById('regLimit').value)};
+        await fetch('/api/employees', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
         load();
-    </script>
+    }
 
-    </div>
-    
-<div id="tab-cash" style="display: none;">
-    <div class="header">
-        <h1>Управление терминалами</h1>
-        <div style="color: #999; font-size: 14px;">Настройка точек оплаты</div>
-    </div>
+    async function delEmp(id) { if(confirm('Удалить?')) { await fetch(`/api/employees/${id}`, {method:'DELETE'}); load(); } }
 
-    <div class="main-layout">
-        <div class="box registration-box">
-            <h3>Новый терминал</h3>
-            <label style="margin-top: 10px;">Логин кассы</label>
-            <input type="text" id="newDeskLogin" placeholder=" " style="margin-bottom: 15px;">
-            
-            <label>Описание</label>
-            <input type="text" id="newDeskDesc" placeholder=" " style="margin-bottom: 15px;">
-            
-            <label>Пароль доступа</label>
-            <input type="text" id="newDeskPass" placeholder=" " style="margin-bottom: 20px;">
-            
-            <button class="btn" onclick="addCashDesk()" style="margin-top: 10px;">Создать кассу</button>
-            <p style="font-size: 11px; color: #999; margin-top: 20px; line-height: 1.4;">
-                * Эти данные используются для входа в приложение терминала.
-            </p>
-        </div>
+    function openEdit(e) {
+        document.getElementById('editId').value = e.id; document.getElementById('editName').value = e.full_name;
+        document.getElementById('editCard').value = e.card_uid; document.getElementById('editTg').value = e.telegram_id || '';
+        document.getElementById('editLimit').value = e.month_limit_rub; document.getElementById('editRole').value = e.role;
+        document.getElementById('editModal').style.display = 'flex';
+    }
 
-        <div class="box personnel-box">
-            <h3>Активные кассы</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 50px;">ID</th>
-                        <th>Логин</th>
-                        <th>Описание</th>
-                        <th style="text-align: right; padding-right: 10px;">Действия</th>
-                    </tr>
-                </thead>
-                <tbody id="cashDesksTableBody">
-                    </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-<div id="tab-stat" style="display: none; padding: 20px;">
-    <div class="box" style="margin-bottom: 20px;">
-        <h3 style="margin-top:0">📈 Статистика доходов</h3>
-        
-        <div style="display: flex; flex-direction: column; gap: 20px;">
-            
-            <div style="display: flex; align-items: flex-end; gap: 15px; flex-wrap: wrap;">
-                <div style="min-width: 200px;">
-                    <label style="margin-bottom: 8px;">Период</label>
-                    <select id="statPeriod" onchange="toggleCustomDates()" style="margin-bottom: 0;">
-                        <option value="7">Последние 7 дней</option>
-                        <option value="30" selected>Последние 30 дней</option>
-                        <option value="custom">Свой период</option>
-                    </select>
-                </div>
-                <div id="customDatesWrapper" style="display:none;">
-                    <label style="margin-bottom: 8px;">С - ПО</label>
-                    <div style="display: flex; gap: 5px; align-items: center;">
-                        <input type="date" id="statStartDate" style="margin-bottom: 0; padding: 8px;">
-                        <input type="date" id="statEndDate" style="margin-bottom: 0; padding: 8px;">
-                    </div>
-                </div>
-                <button class="btn" style="width: auto; height: 42px; padding: 0 30px;" onclick="buildChart()">Построить график</button>
-            </div>
+    async function saveEdit() {
+        const id = document.getElementById('editId').value;
+        const p = {full_name:document.getElementById('editName').value, card_uid:document.getElementById('editCard').value, telegram_id:document.getElementById('editTg').value, month_limit_rub:parseInt(document.getElementById('editLimit').value), role:document.getElementById('editRole').value};
+        await fetch(`/api/employees/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
+        closeModals(); load();
+    }
 
-            <div style="border-top: 1px solid #eee; padding-top: 15px;">
-                <label style="margin-bottom: 10px;">Кассы: 
-                    <input type="checkbox" id="selectAllCashDesks" onchange="toggleAllCashDesks(this)" checked style="width: auto; margin-left: 10px;"> 
-                    <span style="text-transform: none; color: #666; font-size: 10px;">(Выбрать все)</span>
-                </label>
-                <div id="cashDesksContainer" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    </div>
-            </div>
+    async function openRoles() {
+        const roles = await (await fetch('/api/role_settings')).json();
+        document.getElementById('rolesList').innerHTML = roles.map(r => `
+            <div class="role-row"><b>${r.role_name}</b><div><input type="number" value="${r.subsidy_rub}" style="width:70px; margin:0;" onchange="updateRole('${r.role_name}', this.value)"><button class="action-btn btn-red" onclick="deleteRole('${r.role_name}')">×</button></div></div>
+        `).join('');
+        document.getElementById('roleModal').style.display = 'flex';
+    }
+    async function addRole() {
+        const n = document.getElementById('newRoleName').value, s = document.getElementById('newRoleSubsidy').value;
+        await fetch('/api/role_settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role_name:n, subsidy_rub:parseFloat(s)})});
+        openRoles(); load();
+    }
+    async function updateRole(n, v) { await fetch('/api/role_settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role_name:n, subsidy_rub:parseFloat(v)})}); load(); }
+    async function deleteRole(n) { if(confirm('Удалить?')) { await fetch(`/api/role_settings/${n}`, {method:'DELETE'}); openRoles(); load(); } }
 
-            <div style="border-top: 1px solid #eee; padding-top: 15px;">
-                <label style="margin-bottom: 10px;">Способы оплаты:</label>
-                <div style="display: flex; gap: 20px;">
-                    <label style="text-transform:none; color:#333; display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" value="bank_card" class="stat-method-cb" checked style="width: auto; margin: 0;"> Карта
-                    </label>
-                    <label style="text-transform:none; color:#333; display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" value="internal" class="stat-method-cb" checked style="width: auto; margin: 0;"> Лицо
-                    </label>
-                    <label style="text-transform:none; color:#333; display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" value="cash" class="stat-method-cb" checked style="width: auto; margin: 0;"> Наличные
-                    </label>
-                </div>
-            </div>
-        </div>
-    </div>
+    function openGlobal() { document.getElementById('globalModal').style.display = 'flex'; }
+    async function saveGlobal() {
+        const p = {target_date: document.getElementById('gDate').value, action_type: document.getElementById('gAction').value, target_role: document.getElementById('gTarget').value};
+        await fetch('/api/schedule/global_action', {method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(p)});
+        closeModals(); load();
+    }
 
-    <div class="box" style="height: 450px;">
-        <canvas id="revenueChart"></canvas>
-    </div>
-
-    <div style="margin-top: 20px; text-align: center;">
-        <button class="btn" style="background: #28a745; width: auto;" onclick="openExportModal()">📥 Скачать БД (.csv)</button>
-    </div>
-</div>
-</div>
-
-<script>
     async function loadCashDesks() {
-        try {
-            const res = await fetch('/api/cash_desks');
-            const desks = await res.json();
-            const tableBody = document.getElementById('cashDesksTableBody');
-            
-            if (!tableBody) return;
-
-            tableBody.innerHTML = desks.map(d => `
-                <tr>
-                    <td><span style="color: #ccc;">#${d.id}</span></td>
-                    <td><b style="color: #007AFF;">${d.login}</b></td>
-                    <td>${d.description || '<span style="color:#eee">---</span>'}</td>
-                    <td style="text-align: right;">
-                        <button class="action-btn" onclick="forceChangePwd(${d.id})" title="Сменить пароль">🔑</button>
-                        <button class="action-btn btn-red" onclick="deleteCashDesk(${d.id})" title="Удалить">×</button>
-                    </td>
-                </tr>
-            `).join('');
-        } catch(e) {
-            console.error("Ошибка загрузки списка касс", e);
-        }
+        const desks = await (await fetch('/api/cash_desks')).json();
+        document.getElementById('cashDesksTableBody').innerHTML = desks.map(d => `<tr><td>#${d.id}</td><td><b>${d.login}</b></td><td>${d.description || ''}</td><td style="text-align:right"><button class="action-btn" onclick="forceChangePwd(${d.id})">🔑</button><button class="action-btn btn-red" onclick="deleteCashDesk(${d.id})">×</button></td></tr>`).join('');
+        document.getElementById('cashDesksContainer').innerHTML = desks.map(d => `<label style="font-size:12px"><input type="checkbox" value="${d.login}" class="stat-desk-cb" checked> ${d.login}</label>`).join('');
     }
-    
     async function addCashDesk() {
-        const login = document.getElementById('newDeskLogin').value.trim();
-        const desc = document.getElementById('newDeskDesc').value.trim();
-        if(!login) return alert("Введите логин");
-        await fetch('/api/cash_desks', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({login: login, description: desc, password: document.getElementById('newDeskPass').value.trim() || '1234'})});
-        document.getElementById('newDeskLogin').value = ''; document.getElementById('newDeskDesc').value = ''; document.getElementById('newDeskPass').value = ''; loadCashDesks();
-    }
-    async function deleteCashDesk(id) {
-        if(confirm("Удалить эту кассу?")) { await fetch(`/api/cash_desks/${id}`, {method: 'DELETE'}); loadCashDesks(); }
-    }
-    document.addEventListener('DOMContentLoaded', loadCashDesks);
-</script>
-<script>
-    // --- 1. Управление кассами (Терминалы) ---
-    async function loadCashDesks() {
-        try {
-            const res = await fetch('/api/cash_desks');
-            const desks = await res.json();
-            document.getElementById('cashDesksTableBody').innerHTML = desks.map(d => `
-                <tr style="border-bottom: 1px solid #eaeaea;">
-                    <td style="padding: 15px 10px;">${d.id}</td>
-                    <td style="padding: 15px 10px;"><b>${d.login}</b></td>
-                    <td style="padding: 15px 10px;">${d.description || ''}</td>
-                    <td style="padding: 15px 10px;">
-                        <button style="background:#000; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;" onclick="deleteCashDesk(${d.id})">Удалить</button>
-                        <button style='background:#6c757d; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer; margin-left:5px;' onclick="forceChangePwd(${d.id})" title='Сменить пароль'>🔑</button>
-                    </td>
-                </tr>
-            `).join('');
-        } catch(e) { console.error("Ошибка загрузки списка касс", e); }
-    }
-
-    async function addCashDesk() {
-        const login = document.getElementById('newDeskLogin').value.trim();
-        const desc = document.getElementById('newDeskDesc').value.trim();
-        const pass = document.getElementById('newDeskPass').value.trim() || '1234';
-        if(!login) return alert("Введите логин");
-        await fetch('/api/cash_desks', {
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({login: login, description: desc, password: pass})
-        });
-        document.getElementById('newDeskLogin').value = ''; 
-        document.getElementById('newDeskDesc').value = ''; 
-        document.getElementById('newDeskPass').value = ''; 
+        const p = {login: document.getElementById('newDeskLogin').value, description: document.getElementById('newDeskDesc').value, password: document.getElementById('newDeskPass').value || '1234'};
+        await fetch('/api/cash_desks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
         loadCashDesks();
     }
+    async function deleteCashDesk(id) { if(confirm('Удалить?')) { await fetch(`/api/cash_desks/${id}`, {method:'DELETE'}); loadCashDesks(); } }
+    async function forceChangePwd(id) { const np = prompt("Новый пароль:"); if(np) await fetch(`/api/cash_desks/${id}/password`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:np})}); }
 
-    async function deleteCashDesk(id) {
-        if(confirm("Удалить эту кассу?")) { 
-            await fetch(`/api/cash_desks/${id}`, {method: 'DELETE'}); 
-            loadCashDesks(); 
+    async function openCal(id, n) { currentEmpId = id; document.getElementById('calTitle').innerText = n; document.getElementById('calModal').style.display='flex'; await refreshCal(); }
+    async function refreshCal() { workDays = await (await fetch(`/api/schedule/${currentEmpId}`)).json(); renderCal(); }
+    function renderCal() {
+        const g = document.getElementById('calGrid'), y = viewDate.getFullYear(), m = viewDate.getMonth();
+        document.getElementById('calTitle').innerText = new Intl.DateTimeFormat('ru',{month:'long', year:'numeric'}).format(viewDate);
+        g.innerHTML = ''; const f = (new Date(y, m, 1).getDay() + 6) % 7, l = new Date(y, m + 1, 0).getDate();
+        for(let i=0; i<f; i++) g.innerHTML += '<div></div>';
+        for(let i=1; i<=l; i++) {
+            const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+            g.innerHTML += `<div class="cal-day ${workDays.includes(ds)?'workday':''}" onclick="toggleDay('${ds}')">${i}</div>`;
         }
     }
+    async function toggleDay(d) { await fetch(`/api/schedule/${currentEmpId}/toggle?target_date=${d}`, {method:'POST'}); await refreshCal(); }
+    async function applyPreset(w, r) { await fetch(`/api/schedule/${currentEmpId}/preset`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({work_days:w, rest_days:r})}); await refreshCal(); }
+    async function resetCal() { if(confirm('Сбросить?')) { await fetch(`/api/schedule/${currentEmpId}/reset`, {method:'POST'}); await refreshCal(); } }
+    function changeMonth(s) { viewDate.setMonth(viewDate.getMonth() + s); renderCal(); }
 
-    async function forceChangePwd(id) {
-        const np = prompt("Введите новый пароль для этой кассы:");
-        if(np) {
-            const res = await fetch(`/api/cash_desks/${id}/password`, {
-                method: 'PUT', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({password: np})
-            });
-            if(res.ok) alert("Пароль успешно изменен!");
-        }
+    async function openBio(id, uid, name) {
+        currentEmpId = id; currentUid = uid; document.getElementById('bioName').innerText = `Биометрия: ${name}`;
+        document.getElementById('bioModal').style.display = 'flex';
+        navigator.mediaDevices.getUserMedia({video:true}).then(s => video.srcObject = s);
     }
-
-    // --- 2. Навигация по вкладкам ---
-    function switchTab(tabId, element) {
-        const tabs = ['tab-emp', 'tab-cash', 'tab-stat'];
-        tabs.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = (id === 'tab-' + tabId) ? 'block' : 'none';
-        });
-
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        element.classList.add('active');
+    function captureBio() { const c = document.createElement('canvas'); c.width=640; c.height=480; c.getContext('2d').drawImage(video,0,0); c.toBlob(b => sendBio(b),'image/jpeg'); }
+    async function sendBio(blob) {
+        const fd = new FormData(); fd.append('card_uid', currentUid); fd.append('file', blob);
+        const res = await fetch('/api/enroll_face', {method:'POST', body:fd});
+        if(res.ok) { alert("Успешно!"); closeModals(); load(); }
     }
-
-    // --- 3. Логика статистики и графиков ---
-    let revenueChartInstance = null;
-
-    function toggleCustomDates() {
-        const val = document.getElementById('statPeriod').value;
-        document.getElementById('customDatesWrapper').style.display = (val === 'custom') ? 'block' : 'none';
-    }
-
-    function toggleAllCashDesks(main) {
-        document.querySelectorAll('.stat-desk-cb').forEach(cb => cb.checked = main.checked);
-    }
-
-    
-    async function loadCashDesksForStats() {
-        try {
-            const res = await fetch('/api/cash_desks');
-            const desks = await res.json();
-            const container = document.getElementById('cashDesksContainer');
-            if (!container) return;
-
-            container.innerHTML = desks.map(d => `
-                <label class="stat-label">
-                    <input type="checkbox" value="${d.login}" class="stat-desk-cb" checked onchange="checkSelectAllStatus()">
-                    <span>${d.login}</span>
-                </label>
-            `).join('');
-        } catch(e) { console.error("Ошибка загрузки касс:", e); }
-    }
-
-    // Автоматическое снятие галочки "Выбрать все", если сняли одну кассу
-    function checkSelectAllStatus() {
-        const allCbs = document.querySelectorAll('.stat-desk-cb');
-        const checkedCbs = document.querySelectorAll('.stat-desk-cb:checked');
-        document.getElementById('selectAllCashDesks').checked = (allCbs.length === checkedCbs.length);
-    }
-
-
+    function uploadBioFile(input) { if(input.files[0]) sendBio(input.files[0]); }
 
     async function buildChart() {
         const period = document.getElementById('statPeriod').value;
-        let start, end;
-        const today = new Date();
-        
-        if (period === 'custom') {
-            start = document.getElementById('statStartDate').value;
-            end = document.getElementById('statEndDate').value;
-        } else {
-            end = today.toISOString().split('T')[0];
-            today.setDate(today.getDate() - parseInt(period) + 1);
-            start = today.toISOString().split('T')[0];
-        }
-
-        const params = new URLSearchParams({ start_date: start, end_date: end });
-        document.querySelectorAll('.stat-method-cb:checked').forEach(cb => params.append('payment_methods', cb.value));
+        let start, end = new Date().toISOString().split('T')[0];
+        if(period === 'custom') { start = document.getElementById('statStartDate').value; end = document.getElementById('statEndDate').value; }
+        else { let d = new Date(); d.setDate(d.getDate() - parseInt(period)); start = d.toISOString().split('T')[0]; }
+        const params = new URLSearchParams({start_date: start, end_date: end});
         document.querySelectorAll('.stat-desk-cb:checked').forEach(cb => params.append('cash_desks', cb.value));
-
-        const res = await fetch(`/api/statistics/chart?${params.toString()}`);
-        const result = await res.json();
-
+        ['bank_card','internal','cash'].forEach(m => params.append('payment_methods', m));
+        const res = await fetch(`/api/statistics/chart?${params.toString()}`); const data = await res.json();
         const ctx = document.getElementById('revenueChart').getContext('2d');
-        if (revenueChartInstance) revenueChartInstance.destroy();
-
-        // Список цветов для касс (можно добавить больше)
-        const colors = [
-            '#007AFF', '#FF9500', '#34C759', '#FF3B30', '#AF52DE', '#5856D6', '#5AC8FA'
-        ];
-
-        // Настраиваем каждый датасет (цвет, обводка и т.д.)
-        const formattedDatasets = result.datasets.map((ds, index) => ({
-            label: ds.label,
-            data: ds.data,
-            borderColor: colors[index % colors.length],
-            backgroundColor: colors[index % colors.length] + '22', // Прозрачность 22
-            borderWidth: 3,
-            tension: 0.3,
-            fill: false, // Отключаем заливку под графиком для нескольких линий, чтобы не было "каши"
-            pointRadius: 4
-        }));
-
-        revenueChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: result.labels,
-                datasets: formattedDatasets
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top' } // Показываем легенду сверху
-                },
-                scales: {
-                    y: { beginAtZero: true, title: { display: true, text: 'Выручка (руб)' } }
-                }
-            }
-        });
+        if(revenueChartInstance) revenueChartInstance.destroy();
+        revenueChartInstance = new Chart(ctx, { type:'line', data:{labels:data.labels, datasets:data.datasets.map((ds,i)=>({label:ds.label, data:ds.data, borderColor:['#007AFF','#FF9500','#34C759','#AF52DE'][i%4], tension:0.3, fill:false}))}, options:{responsive:true, maintainAspectRatio:false} });
     }
 
-    // --- 4. Экспорт ---
-    function openExportModal() { document.getElementById('exportModal').style.display = 'flex'; }
-    function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
+    function toggleCustomDates() { document.getElementById('customDatesWrapper').style.display = document.getElementById('statPeriod').value === 'custom' ? 'flex' : 'none'; }
+    function downloadCSV() { window.location.href = `/api/statistics/export?start_date=${document.getElementById('exportStartDate').value}&end_date=${document.getElementById('exportEndDate').value}`; }
+    function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display='none'); if(video.srcObject) video.srcObject.getTracks().forEach(t => t.stop()); }
 
-    function downloadCSV() {
-        const s = document.getElementById('exportStartDate').value;
-        const e = document.getElementById('exportEndDate').value;
-        if(!s || !e) return alert("Выберите даты!");
-        window.location.href = `/api/statistics/export?start_date=${s}&end_date=${e}`;
-        closeExportModal();
-    }
-
-    // --- 5. Инициализация при загрузке ---
-    document.addEventListener('DOMContentLoaded', () => {
-        load(); // твоя функция для сотрудников
-        loadCashDesks(); // список терминалов
-        loadCashDesksForStats(); // кассы в статистике
-    });
+    window.onload = () => { load(); loadCashDesks(); };
 </script>
-<div id="exportModal" class="modal">
-    <div class="modal-content">
-        <h3 style="margin-top:0">Экспорт транзакций</h3>
-        <label>С даты:</label> <input type="date" id="exportStartDate">
-        <label>По дату:</label> <input type="date" id="exportEndDate">
-        <div style="display:flex; gap:10px; margin-top:20px;">
-            <button class="btn" onclick="downloadCSV()">Скачать CSV</button>
-            <button class="btn" style="background:#eee; color:#000" onclick="closeExportModal()">Отмена</button>
-        </div>
-    </div>
-</div>
+
 </body>
 </html>

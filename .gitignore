@@ -1,13 +1,33 @@
+# Python кэш
 __pycache__/
 *.py[cod]
-*$py.class
-.env
-.venv
-env/
+*.class
+
+# Виртуальные окружения
 venv/
+.venv/
+env/
+
+# Переменные окружения (секреты)
+.env
+
+# Базы данных (если используешь SQLite локально)
+*.db
+*.sqlite3
+
+# IDE (VS Code, PyCharm)
+.vscode/
+.idea/
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+
+# Бэкапы и временные файлы
+*.bak
+*.old
+*.tmp
+
+
 static/photos/*
 !static/photos/.gitkeep
-database.db
-__pycache__/
-__pycache__/
-__pycache__/
