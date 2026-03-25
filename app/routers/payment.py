@@ -195,7 +195,7 @@ def verify_cash_desk(data: CashDeskLogin, db: Session = Depends(get_db)):
     desk = db.query(CashDesk).filter(CashDesk.login == data.login).first()
     if not desk:
         raise HTTPException(status_code=401, detail="Касса не найдена")
-    return {"status": "ok", "login": desk.login, "description": desk.description}
+    return {"status": "ok", "login": desk.login, "id": desk.id, "description": desk.description}
 
 @router.get("/cash_desks")
 def get_cash_desks(db: Session = Depends(get_db)):
@@ -225,6 +225,7 @@ class ProductCreate(BaseModel):
     name: str
     price: int
     category_id: int
+    cash_desk_ids: List[int] = [] 
 
 class DeskPassword(BaseModel):
     password: str
@@ -252,13 +253,22 @@ def delete_category(cat_id: int, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 @router.get("/products")
-def get_products(db: Session = Depends(get_db)):
+def get_products(cash_desk_login: Optional[str] = None, db: Session = Depends(get_db)):
+    if cash_desk_login:
+        return db.query(Product).join(Product.cash_desks).filter(CashDesk.login == cash_desk_login).all()
     return db.query(Product).all()
 
 @router.post("/products")
 def add_product(data: ProductCreate, db: Session = Depends(get_db)):
-    p = Product(name=data.name, price=data.price, category_id=data.category_id)
-    db.add(p)
+    # 1. Создаем сам объект товара
+    new_p = Product(name=data.name, price=data.price, category_id=data.category_id)
+    
+    # 2. Если терминал прислал ID кассы, находим эту кассу в базе и связываем
+    if data.cash_desk_ids:
+        desks = db.query(CashDesk).filter(CashDesk.id.in_(data.cash_desk_ids)).all()
+        new_p.cash_desks = desks # SQLAlchemy сама запишет это в таблицу-связку
+        
+    db.add(new_p)
     db.commit()
     return {"status": "ok"}
 

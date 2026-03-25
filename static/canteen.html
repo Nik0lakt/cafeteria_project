@@ -3,213 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <title>Терминал Кассира</title>
-    <style>
-        body, html { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #fcfcfc; height: 100vh; overflow: hidden; }
-        .app-container { display: flex; height: 100vh; }
-        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-        
-        /* Компактная шапка */
-        .top-bar { background: #fff; border-bottom: 1px solid #eaeaea; padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .top-bar-left { display: flex; align-items: center; gap: 20px; }
-        .desk-badge { background: #000; color: #fff; padding: 6px 15px; border-radius: 6px; font-weight: bold; font-size: 14px; }
-        .admin-badge { background: #dc3545; color: #fff; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 12px; display: none; }
-        .top-bar-right { display: flex; gap: 10px; }
-        .btn-outline { background: transparent; border: 1px solid #000; padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .btn-outline:hover { background: #000; color: #fff; }
-        
-        /* Рабочая зона */
-        .work-area { display: flex; flex: 1; overflow: hidden; padding: 20px 30px; gap: 30px; }
-        
-        /* Зона продуктов */
-        .catalog-area { flex: 2; display: flex; flex-direction: column; overflow: hidden; }
-        
-        /* Вкладки категорий (5 в ряд) */
-        .category-tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; flex-shrink: 0; }
-        .cat-tab { background: #fff; border: 1px solid #eaeaea; padding: 15px; text-align: center; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .cat-tab.active { background: #000; color: #fff; border-color: #000; }
-        .cat-tab:hover:not(.active) { border-color: #000; }
-        
-        /* Сетка продуктов (6 в ряд) */
-        .product-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 15px; overflow-y: auto; align-content: start; padding-bottom: 20px; }
-        .product-card { background: #fff; border: 1px solid #eaeaea; border-radius: 8px; padding: 20px 10px; text-align: center; cursor: pointer; transition: 0.2s; position: relative; }
-        .product-card:hover { border-color: #000; transform: translateY(-2px); }
-        .product-name { font-size: 14px; margin-bottom: 8px; font-weight: 500; }
-        .product-price { font-size: 16px; font-weight: bold; }
-        
-        /* Звездочка избранного */
-        .star-btn { position: absolute; top: 5px; right: 5px; font-size: 18px; color: #ccc; background: none; border: none; cursor: pointer; z-index: 10; padding: 5px; }
-        .star-btn.active { color: #ffc107; text-shadow: 0 0 2px rgba(0,0,0,0.2); }
-        
-        /* Элементы режима редактирования */
-        .edit-only { display: none; }
-        .edit-mode .edit-only { display: inline-block; }
-        .edit-mode .star-btn { display: none; } /* Скрываем звездочки в режиме редактора */
-        .delete-btn { position: absolute; top: -5px; right: -5px; background: #dc3545; color: #fff; border: none; width: 25px; height: 25px; border-radius: 50%; font-weight: bold; cursor: pointer; z-index: 10; }
-        
-        /* Корзина */
-        .cart-area { flex: 1; border: 1px solid #eaeaea; border-radius: 12px; padding: 25px; display: flex; flex-direction: column; background: #fff; max-width: 400px; }
-        .cart-items { flex: 1; overflow-y: auto; margin-bottom: 20px; }
-        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eaeaea; }
-        .item-name { font-weight: bold; font-size: 15px; }
-        .item-qty { font-size: 13px; color: #888; margin-top: 4px; }
-        .btn-remove { background: #fff; border: 1px solid #eaeaea; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; }
-        
-        .total-amount { font-size: 28px; font-weight: bold; text-align: right; margin-bottom: 20px; }
-        .btn-black { background: #000; color: #fff; border: none; padding: 18px; border-radius: 8px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; transition: 0.2s; }
-        .btn-black:disabled { background: #eaeaea; color: #888; cursor: not-allowed; }
-
-        /* Окна */
-        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: none; align-items: center; justify-content: center; z-index: 1000; }
-        .modal-box { background: #fff; padding: 40px; border-radius: 12px; width: 100%; max-width: 450px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border: 1px solid #eaeaea; position: relative; }
-        input[type="text"], input[type="number"], input[type="password"] { width: 100%; padding: 15px; border: 1px solid #eaeaea; border-radius: 8px; box-sizing: border-box; font-size: 16px; margin-bottom: 15px; }
-        .close-btn { position: absolute; top: 15px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer; color: #888; }
-        
-        .pay-methods-grid { display: flex; flex-direction: column; gap: 15px; }
-        .btn-method { background: #fff; border: 2px solid #eaeaea; padding: 20px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 15px; transition: 0.2s; font-size: 18px; font-weight: bold;}
-        .btn-method:hover { border-color: #000; background: #000; color: #fff; }
-    
-    .btn-method { display: flex; align-items: center; gap: 15px; width: 100%; padding: 18px; margin-bottom: 12px; background: #fff; border: 2px solid #eee; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s; text-align: left; }
-    .btn-method:hover { border-color: #000; background: #f9f9f9; }
-    .btn-method span { font-size: 24px; }
-
-</style>
+    <link rel="stylesheet" href="/static/terminal.css">
 </head>
 <body id="appBody">
+
     <div id="loginOverlay" class="overlay" style="display: flex;">
-        <div class="modal-box text-center">
-            <h3 style="margin-top:0; text-align:center;">Вход в терминал</h3>
-            <input type="text" id="deskLoginInput" placeholder="Логин кассы">
-            <button class="btn-black" onclick="login()">Войти</button>
-            <div id="loginError" style="color: #dc3545; font-weight:bold; margin-top:15px; text-align:center; display:none;"></div>
+        <div class="modal-box">
+            <h3 style="text-align:center;">Вход в терминал</h3>
+            <input type="text" id="deskLoginInput" placeholder="Логин кассы (например: 123)">
+            <button class="btn-black" onclick="login()">Открыть смену</button>
+            <div id="loginError" style="color: #dc3545; margin-top:15px; text-align:center; display:none; font-weight: bold;">
+                ❌ Касса не найдена
+            </div>
         </div>
     </div>
 
     <div class="app-container">
-        <div class="main-content">
-            <div class="top-bar">
-                <div class="top-bar-left">
-                    <h3 style="margin:0;">Cafeteria POS</h3>
-                    <div class="desk-badge" id="cashDeskLabel">Ожидание...</div>
-                    <div class="admin-badge" id="adminBadge">РЕЖИМ РЕДАКТОРА</div>
-                </div>
-                <div class="top-bar-right">
-                    <button class="btn-outline" id="settingsBtn" onclick="openAdminAuth()">⚙️ Настройки</button>
-                    <button class="btn-outline edit-only" style="border-color:#dc3545; color:#dc3545;" onclick="exitAdmin()">Выйти из настроек</button>
-                    <button class="btn-outline" onclick="logout()">🚪 Выход</button>
-                </div>
+        <div class="top-bar">
+            <div class="top-bar-left">
+                <h3 style="margin:0;">Cafeteria POS</h3>
+                <div class="desk-badge" id="cashDeskLabel">...</div>
+                <div class="admin-badge edit-only" id="adminBadge">РЕЖИМ РЕДАКТОРА</div>
+            </div>
+            <div class="top-bar-right">
+                <button class="btn-outline" id="settingsBtn" onclick="openAdminAuth()">⚙️ Настройки</button>
+                <button class="btn-outline edit-only" style="color:#dc3545; border-color:#dc3545;" onclick="exitAdmin()">Выйти из настроек</button>
+                <button class="btn-outline" onclick="logout()">🚪 Выход</button>
+            </div>
+        </div>
+
+        <div class="work-area">
+            <div class="catalog-area">
+                <div class="category-tabs" id="categoriesBar"></div>
+                <div class="product-grid" id="productsGrid"></div>
             </div>
 
-            <div class="work-area">
-                <div class="catalog-area">
-                    <div class="category-tabs" id="categoriesBar">
-                        </div>
-                    <div class="product-grid" id="productsGrid">
-                        </div>
-                </div>
-
-                <div class="cart-area">
-                    <h3 style="margin-top:0; border-bottom: 1px solid #eaeaea; padding-bottom: 15px;">Текущий чек</h3>
-                    <div class="cart-items" id="cartItems"></div>
-                    <div class="total-amount" id="totalDisplay">0 ₽</div>
-                    <button class="btn-black" onclick="openModal('paymentMethodModal')" id="payBtn" disabled>ОПЛАТИТЬ</button>
-                </div>
+            <div class="cart-area">
+                <h3 style="margin:0; padding-bottom:15px; border-bottom:1px solid #eee;">Чек</h3>
+                <div class="cart-items" id="cartItems"></div>
+                <div class="total-amount" id="totalDisplay">0 ₽</div>
+                <button class="btn-black" onclick="openModal('paymentMethodModal')" id="payBtn" disabled>ОПЛАТИТЬ</button>
             </div>
         </div>
     </div>
 
     <div id="adminAuthModal" class="overlay">
         <div class="modal-box">
-            <button class="close-btn" onclick="closeModal('adminAuthModal')">×</button>
-            <h3 style="margin-top:0; text-align:center;">Доступ к настройкам</h3>
-            <input type="password" id="adminPassInput" placeholder="Пароль терминала">
+            <h3>Доступ к настройкам</h3>
+            <input type="password" id="adminPassInput" placeholder="Пароль кассы">
             <button class="btn-black" onclick="verifyAdmin()">Войти</button>
+            <button class="btn-outline" style="width:100%; margin-top:10px;" onclick="closeModal('adminAuthModal')">Отмена</button>
         </div>
     </div>
 
     <div id="addCatModal" class="overlay">
         <div class="modal-box">
-            <button class="close-btn" onclick="closeModal('addCatModal')">×</button>
-            <h3 style="margin-top:0;">Новая вкладка</h3>
-            <input type="text" id="newCatName" placeholder="Название (например, Напитки)">
-            <button class="btn-black" onclick="addCategory()">Добавить</button>
+            <h3>Новая вкладка (Категория)</h3>
+            <input type="text" id="newCatName" placeholder="Название (Напитки, Еда...)">
+            <button class="btn-black" onclick="addCategory()">Создать</button>
+            <button class="btn-outline" style="width:100%; margin-top:10px;" onclick="closeModal('addCatModal')">Отмена</button>
         </div>
     </div>
 
     <div id="addProductModal" class="overlay">
         <div class="modal-box">
-            <button class="close-btn" onclick="closeModal('addProductModal')">×</button>
-            <h3 style="margin-top:0;">Новый товар</h3>
-            <input type="text" id="newProdName" placeholder="Название">
-            <input type="number" id="newProdPtop:0;">Новый товар</h3>
-            <input typlass="btn-black" onclick="addProduct()">Добавить</button>
+            <h3>Новый товар</h3>
+            <label>Название</label><input type="text" id="newProdName">
+            <label>Цена (₽)</label><input type="number" id="newProdPrice">
+            <button class="btn-black" onclick="addProduct()">Сохранить товар</button>
+            <button class="btn-outline" style="width:100%; margin-top:10px;" onclick="closeModal('addProductModal')">Отмена</button>
         </div>
     </div>
 
-    
     <div id="paymentMethodModal" class="overlay">
         <div class="modal-box">
-            <button class="close-btn" onclick="closeModal('paymentMethodModal')">×</button>
-            <h3 style="margin-top:0; text-align:center; margin-bottom: 20px;">Выберите способ оплаты</h3>
-            <button class="btn-method" onclick="if(confirm('Оплата по терминалу прошла успешно?')) processExternal('bank_card')"><span>💳</span> Банковская карта</button>
-            <button class="btn-method" onclick="startInternal()"><span>🥗</span> Дотация (Лицо)</button>
+            <h3 style="text-align:center;">Способ оплаты</h3>
+            <button class="btn-method" onclick="processExternal('bank_card')"><span>💳</span> Карта</button>
+            <button class="btn-method" onclick="startInternal()"><span>🥗</span> Лицо (Дотация)</button>
             <button class="btn-method" onclick="startCash()"><span>💵</span> Наличные</button>
+            <button class="btn-outline" style="width:100%;" onclick="closeModal('paymentMethodModal')">Отмена</button>
         </div>
     </div>
-
 
     <div id="cashModal" class="overlay">
         <div class="modal-box">
-            <button class="close-btn" onclick="closeModal('cashModal')">×</button>
-            <h3 style="margin-top:0; text-align:center;">Наличный расчет</h3>
-            <div style="text-align:center; margin-bottom: 20px; font-size:18px;">Сумма чека: <b style="font-size:28px;" id="cashTotalDisp">0</b> ₽</div>
-            <input type="number" id="cashReceived" placeholder="Получено от клиента (₽)" oninput="calculateChange()">
-            <div id="changeDisp" style="text-align:center; font-size:18px; margin-bottom:20px; display:none;"></div>
+            <h3 style="text-align:center;">Наличные</h3>
+            <div style="text-align:center; margin-bottom:20px;">К оплате: <b id="cashTotalDisp" style="font-size:24px;">0</b> ₽</div>
+            <input type="number" id="cashReceived" placeholder="Получено ₽" oninput="calculateChange()">
+            <div id="changeDisp" style="text-align:center; font-size:18px; margin-bottom:20px;"></div>
             <button class="btn-black" id="confirmCashBtn" onclick="processExternal('cash')" disabled>Пробить чек</button>
         </div>
     </div>
 
     <script>
-        let cashDeskId = localStorage.getItem('cashDeskId');
-        let isAdmin = false;
-        let categories = [];
-        let products = [];
-        let currentCatId = 0; // 0 = Избранное
-        let cart = [];
-        let total = 0;
+        let cashDeskLogin = localStorage.getItem('cashDeskId');
+        let cashDeskDbId = localStorage.getItem('cashDeskDbId');
+        let isAdmin = false, categories = [], products = [], currentCatId = 0, cart = [], total = 0;
         
-        // Получаем избранное для этой кассы
-        let favs = JSON.parse(localStorage.getItem('favs_' + cashDeskId) || '[]');
-
-        if (!cashDeskId) document.getElementById('loginOverlay').style.display = 'flex';
-        else initApp();
-
-        async function login() {
-            const loginInput = document.getElementById('deskLoginInput').value.trim();
-            try {
-                const res = await fetch('/api/verify_cash_desk', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ login: loginInput }) });
-                if (res.ok) {
-                    const data = await res.json();
-                    localStorage.setItem('cashDeskId', data.login);
-                    cashDeskId = data.login;
-                    favs = JSON.parse(localStorage.getItem('favs_' + cashDeskId) || '[]');
-                    document.getElementById('loginOverlay').style.display = 'none';
-                    initApp();
-                } else document.getElementById('loginError').style.display = "block";
-            } catch (e) {}
+        // Инициализация
+        if (!cashDeskLogin || !cashDeskDbId) {
+            document.getElementById('loginOverlay').style.display = 'flex';
+        } else {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.body.classList.add('logged-in');
+            initApp();
         }
 
-        function logout() { if(confirm("Закрыть смену?")) { localStorage.removeItem('cashDeskId'); location.reload(); } }
+        async function login() {
+            const loginVal = document.getElementById('deskLoginInput').value.trim();
+            if(!loginVal) return;
+            const res = await fetch('/api/verify_cash_desk', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ login: loginVal }) 
+            });
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem('cashDeskId', data.login);
+                localStorage.setItem('cashDeskDbId', data.id); // Сохраняем ID из базы
+                location.reload();
+            } else {
+                document.getElementById('loginError').style.display = "block";
+            }
+        }
+
+        function logout() { if(confirm("Закрыть смену?")) { localStorage.clear(); location.reload(); } }
 
         async function initApp() {
-            document.getElementById('cashDeskLabel').innerText = cashDeskId;
+            document.getElementById('cashDeskLabel').innerText = cashDeskLogin;
             await loadData();
         }
 
         async function loadData() {
-            const [cRes, pRes] = await Promise.all([fetch('/api/categories'), fetch('/api/products')]);
+            const [cRes, pRes] = await Promise.all([
+                fetch('/api/categories'),
+                fetch(`/api/products?cash_desk_login=${cashDeskLogin}`)
+            ]);
             categories = await cRes.json();
             products = await pRes.json();
-            renderCategories();
+            renderCategories(); 
             renderProducts();
         }
 
@@ -217,69 +149,65 @@
             const bar = document.getElementById('categoriesBar');
             let html = `<div class="cat-tab ${currentCatId === 0 ? 'active' : ''}" onclick="selectCat(0)">⭐ Избранное</div>`;
             categories.forEach(c => {
-                html += `<div class="cat-tab ${currentCatId === c.id ? 'active' : ''}" style="position:relative;" onclick="selectCat(${c.id})">
+                html += `<div class="cat-tab ${currentCatId === c.id ? 'active' : ''}" onclick="selectCat(${c.id})">
                     ${c.name}
                     ${isAdmin ? `<button class="delete-btn" onclick="event.stopPropagation(); deleteCat(${c.id})">×</button>` : ''}
                 </div>`;
             });
-            if (isAdmin) html += `<div class="cat-tab" style="border-style: dashed;" onclick="openModal('addCatModal')">+ Вкладка</div>`;
+            if (isAdmin) html += `<div class="cat-tab" style="border: 2px dashed #000;" onclick="openModal('addCatModal')">+ Вкладка</div>`;
             bar.innerHTML = html;
         }
 
         function renderProducts() {
             const grid = document.getElementById('productsGrid');
             let html = '';
-            
+            let favs = JSON.parse(localStorage.getItem('favs_' + cashDeskLogin) || '[]');
             let displayProducts = currentCatId === 0 ? products.filter(p => favs.includes(p.id)) : products.filter(p => p.category_id === currentCatId);
 
             displayProducts.forEach(p => {
                 const isFav = favs.includes(p.id);
-                html += `
-                <div class="product-card" onclick="if(!isAdmin) addToCart('${p.name}', ${p.price})">
-                    <button class="star-btn ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav(${p.id})">${isFav ? '❌' : '⭐'}</button>
+                html += `<div class="product-card" onclick="if(!isAdmin) addToCart('${p.name}', ${p.price})">
+                    <button class="star-btn ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav(${p.id})">★</button>
                     ${isAdmin ? `<button class="delete-btn" onclick="event.stopPropagation(); deleteProduct(${p.id})">×</button>` : ''}
                     <div class="product-name">${p.name}</div>
                     <div class="product-price">${p.price} ₽</div>
                 </div>`;
             });
-
-            if (isAdmin && currentCatId !== 0) html += `<div class="product-card" style="border-style: dashed; display:flex; align-items:center; justify-content:center;" onclick="openModal('addProductModal')">+ Товар</div>`;
+            if (isAdmin && currentCatId !== 0) html += `<div class="product-card" style="border: 2px dashed #ccc;" onclick="openModal('addProductModal')">+ Добавить</div>`;
             grid.innerHTML = html;
         }
 
         function selectCat(id) { currentCatId = id; renderCategories(); renderProducts(); }
-
+        
         function toggleFav(id) {
-            if (favs.includes(id)) favs = favs.filter(f => f !== id);
-            else favs.push(id);
-            localStorage.setItem('favs_' + cashDeskId, JSON.stringify(favs));
+            let favs = JSON.parse(localStorage.getItem('favs_' + cashDeskLogin) || '[]');
+            favs = favs.includes(id) ? favs.filter(f => f !== id) : [...favs, id];
+            localStorage.setItem('favs_' + cashDeskLogin, JSON.stringify(favs));
             renderProducts();
         }
 
-        // --- Админские функции в кассе ---
-        function openAdminAuth() { openModal('adminAuthModal'); document.getElementById('adminPassInput').value = ''; }
-        
+        // РЕЖИМ РЕДАКТОРА
+        async function openAdminAuth() { openModal('adminAuthModal'); }
         async function verifyAdmin() {
             const pwd = document.getElementById('adminPassInput').value;
-            const res = await fetch('/api/verify_desk_password', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ login: cashDeskId, password: pwd }) });
+            const res = await fetch('/api/verify_desk_password', { 
+                method: 'POST', headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ login: cashDeskLogin, password: pwd }) 
+            });
             if (res.ok) {
                 isAdmin = true;
-                document.getElementById('appBody').classList.add('edit-mode');
-                document.getElementById('settingsBtn').style.display = 'none';
-                document.getElementById('adminBadge').style.display = 'inline-block';
-                closeModal('adminAuthModal');
-                renderCategories(); renderProducts();
-            } else alert("Неверный пароль");
+                document.body.classList.add('edit-mode'); // Активируем CSS правила
+                closeModal('adminAuthModal'); renderCategories(); renderProducts();
+            } else alert("Ошибка пароля");
         }
 
-        function exitAdmin() {
-            isAdmin = false;
-            document.getElementById('appBody').classList.remove('edit-mode');
-            document.getElementById('settingsBtn').style.display = 'inline-block';
-            document.getElementById('adminBadge').style.display = 'none';
-            renderCategories(); renderProducts();
+        function exitAdmin() { 
+            isAdmin = false; 
+            document.body.classList.remove('edit-mode'); // Прячем админ-кнопки через CSS
+            renderCategories(); renderProducts(); 
         }
 
+        // СОЗДАНИЕ КАТЕГОРИИ
         async function addCategory() {
             const name = document.getElementById('newCatName').value.trim();
             if(!name) return;
@@ -287,65 +215,88 @@
             closeModal('addCatModal'); document.getElementById('newCatName').value = ''; loadData();
         }
 
+        async function deleteCat(id) {
+            if(confirm("Удалить вкладку?")) {
+                await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+                currentCatId = 0; loadData();
+            }
+        }
+
+        // --- САМАЯ ВАЖНАЯ ФУНКЦИЯ: СОЗДАНИЕ ТОВАРА ---
         async function addProduct() {
             const name = document.getElementById('newProdName').value.trim();
             const price = parseInt(document.getElementById('newProdPrice').value);
-            if(!name || !price) return;
-            await fetch('/api/products', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name, price, category_id: currentCatId }) });
-            closeModal('addProductModal'); document.getElementById('newProdName').value = ''; document.getElementById('newProdPrice').value = ''; loadData();
+            if(!name || !price) { alert("Заполните имя и цену!"); return; }
+
+            const data = {
+                name: name,
+                price: price,
+                category_id: currentCatId,
+                cash_desk_ids: [parseInt(cashDeskDbId)] // Отправляем числовой ID этой кассы
+            };
+
+            const res = await fetch('/api/products', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify(data) 
+            });
+
+            if(res.ok) {
+                closeModal('addProductModal'); 
+                document.getElementById('newProdName').value = ''; 
+                document.getElementById('newProdPrice').value = '';
+                await loadData(); // Обновляем список
+            } else {
+                const err = await res.json();
+                alert("Ошибка сохранения: " + JSON.stringify(err.detail));
+            }
         }
 
-        async function deleteCat(id) { if(confirm("Удалить вкладку и ВСЕ её товары?")) { await fetch(`/api/categories/${id}`, {method:'DELETE'}); currentCatId = 0; loadData(); } }
-        async function deleteProduct(id) { if(confirm("Удалить товар?")) { await fetch(`/api/products/${id}`, {method:'DELETE'}); loadData(); } }
+        async function deleteProduct(id) {
+            if(confirm("Удалить товар?")) {
+                await fetch(`/api/products/${id}`, { method: 'DELETE' });
+                loadData();
+            }
+        }
 
-        // --- Корзина и Оплата (Осталась без изменений) ---
+        // КОРЗИНА И ОПЛАТА
         function addToCart(name, price) {
             let item = cart.find(i => i.name === name);
-            if (item) item.qty += 1; else cart.push({name, price, qty: 1});
+            if (item) item.qty++; else cart.push({name, price, qty: 1});
             renderCart();
         }
 
         function renderCart() {
-            const container = document.getElementById('cartItems'); container.innerHTML = ''; total = 0;
-            cart.forEach((item, index) => {
-                let itemTotal = item.price * item.qty; total += itemTotal;
-                container.innerHTML += `<div class="cart-item">
-                    <div><div class="item-name">${item.name}</div><div class="item-qty">${item.qty} шт. × ${item.price} ₽</div></div>
-                    <div style="display:flex; align-items:center; gap:10px;"><span style="font-weight:bold;">${itemTotal} ₽</span><button class="btn-remove" onclick="removeFromCart(${index})">✕</button></div>
+            const cont = document.getElementById('cartItems'); cont.innerHTML = ''; total = 0;
+            cart.forEach((i, idx) => {
+                total += i.price * i.qty;
+                cont.innerHTML += `<div class="cart-item">
+                    <span>${i.name} (x${i.qty})</span>
+                    <span>${i.price * i.qty} ₽ <button onclick="cart.splice(${idx},1);renderCart()" style="border:none;background:none;color:red;cursor:pointer;">✕</button></span>
                 </div>`;
             });
             document.getElementById('totalDisplay').innerText = total + " ₽";
             document.getElementById('payBtn').disabled = cart.length === 0;
-            let flatCart = []; cart.forEach(i => { for(let k=0; k<i.qty; k++) flatCart.push({name: i.name, price: i.price}); });
-            localStorage.setItem('cart', JSON.stringify(flatCart));
         }
 
-        function removeFromCart(index) { if (cart[index].qty > 1) cart[index].qty -= 1; else cart.splice(index, 1); renderCart(); }
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-        
-        function startCash() { closeModal('paymentMethodModal'); document.getElementById('cashTotalDisp').innerText = total; document.getElementById('cashReceived').value = ''; document.getElementById('changeDisp').style.display = 'none'; document.getElementById('confirmCashBtn').disabled = true; openModal('cashModal'); }
-        function calculateChange() {
-            const r = parseFloat(document.getElementById('cashReceived').value) || 0; const c = document.getElementById('changeDisp'); const btn = document.getElementById('confirmCashBtn');
-            c.style.display = 'block';
-            if (r >= total) { c.innerHTML = `Сдача: <b style="color:#28a745;">${r - total} ₽</b>`; btn.disabled = false; } 
-            else { c.innerHTML = `Не хватает: <b style="color:#dc3545;">${total - r} ₽</b>`; btn.disabled = true; }
-        }
-        async function processExternal(method) {
-            document.getElementById('confirmCashBtn').innerText = "ОБРАБОТКА...";
-            let flatCart = []; cart.forEach(i => { for(let k=0; k<i.qty; k++) flatCart.push({name: i.name, price: i.price}); });
-            try {
-                const res = await fetch('/api/pay_external', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ cash_desk_id: cashDeskId, amount_rub: total, items: flatCart, payment_method: method }) });
-                if (res.ok) { cart = []; renderCart(); closeModal('cashModal'); closeModal('paymentMethodModal'); document.getElementById('confirmCashBtn').innerText = "Пробить чек"; } 
-                else alert("Ошибка сервера.");
-            } catch (e) {}
-        }
-    
-function startInternal() {
-    if (typeof total === 'undefined' || total <= 0) { alert('Корзина пуста!'); return; }
-    window.location.href = "index.html?amount=" + total + "&desk=" + (typeof cashDeskId !== 'undefined' ? cashDeskId : 'unknown');
-}
 
-</script>
+        function startCash() { document.getElementById('cashTotalDisp').innerText = total; openModal('cashModal'); }
+        function calculateChange() {
+            const rec = parseFloat(document.getElementById('cashReceived').value) || 0;
+            const diff = rec - total;
+            document.getElementById('changeDisp').innerHTML = diff >= 0 ? `Сдача: <b style="color:green">${diff} ₽</b>` : `Не хватает: <b style="color:red">${Math.abs(diff)} ₽</b>`;
+            document.getElementById('confirmCashBtn').disabled = rec < total;
+        }
+
+        async function processExternal(method) {
+            let items = []; cart.forEach(i => { for(let k=0; k<i.qty; k++) items.push({name:i.name, price:i.price}) });
+            await fetch('/api/pay_external', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ cash_desk_id: cashDeskLogin, amount_rub: total, items: items, payment_method: method }) });
+            cart = []; renderCart(); closeModal('cashModal'); closeModal('paymentMethodModal'); alert("Успешно!");
+        }
+
+        function startInternal() { window.location.href = `index.html?amount=${total}&desk=${cashDeskLogin}`; }
+    </script>
 </body>
 </html>

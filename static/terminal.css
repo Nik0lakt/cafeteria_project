@@ -1,0 +1,280 @@
+/* --- 1. Глобальные сбросы и база --- */
+* { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+    -webkit-tap-highlight-color: transparent; 
+}
+
+body, html { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+    background: #f8f9fa; 
+    height: 100vh; 
+    width: 100vw;
+    overflow: hidden; 
+    color: #333;
+}
+
+/* --- 2. Главный контейнер и сетка (Layout) --- */
+.app-container { 
+    display: flex; 
+    flex-direction: column; 
+    height: 100vh; 
+}
+
+.top-bar { 
+    background: #fff; 
+    border-bottom: 1px solid #eee; 
+    height: 70px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 0 30px; 
+    flex-shrink: 0; 
+}
+
+.top-bar-left, .top-bar-right { 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+}
+
+.work-area { 
+    display: flex; 
+    flex: 1; 
+    overflow: hidden; 
+    padding: 20px; 
+    gap: 20px; 
+}
+
+/* --- 3. Каталог и Категории --- */
+.catalog-area { 
+    flex: 2; 
+    display: flex; 
+    flex-direction: column; 
+    min-width: 0; 
+}
+
+.category-tabs { 
+    display: grid; 
+    grid-template-columns: repeat(5, 1fr); 
+    gap: 10px; 
+    margin-bottom: 20px; 
+    flex-shrink: 0; 
+}
+
+.cat-tab { 
+    background: #fff; 
+    border: 1px solid #ddd; 
+    padding: 15px 5px; 
+    border-radius: 12px; 
+    font-weight: bold; 
+    text-align: center; 
+    cursor: pointer; 
+    position: relative;
+    transition: 0.2s;
+}
+
+.cat-tab.active { 
+    background: #000; 
+    color: #fff; 
+    border-color: #000; 
+}
+
+/* --- 4. Сетка товаров --- */
+.product-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+    gap: 15px; 
+    overflow-y: auto; 
+    padding-bottom: 20px; 
+    align-content: start;
+}
+
+.product-card { 
+    background: #fff; 
+    border: 1px solid #eee; 
+    border-radius: 12px; 
+    padding: 20px 10px; 
+    text-align: center; 
+    cursor: pointer; 
+    position: relative; 
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: transform 0.1s;
+}
+
+.product-card:active { transform: scale(0.98); }
+
+.product-name { font-size: 14px; margin-bottom: 8px; font-weight: 500; }
+.product-price { font-size: 16px; font-weight: bold; }
+
+/* --- 5. Корзина --- */
+.cart-area { 
+    width: 380px; 
+    background: #fff; 
+    border-radius: 20px; 
+    border: 1px solid #e0e0e0; 
+    padding: 25px; 
+    display: flex; 
+    flex-direction: column; 
+}
+
+.cart-items { 
+    flex: 1; 
+    overflow-y: auto; 
+    margin-bottom: 20px; 
+}
+
+.cart-item { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 12px 0; 
+    border-bottom: 1px solid #eee; 
+}
+
+.total-amount { 
+    font-size: 32px; 
+    font-weight: bold; 
+    text-align: right; 
+    margin-bottom: 20px; 
+}
+
+/* --- 6. Окна и Модалки (Overlays) --- */
+.overlay { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0, 0, 0, 0.85); 
+    display: none; /* По умолчанию скрыты */
+    align-items: center; 
+    justify-content: center; 
+    z-index: 10000; 
+}
+
+.modal-box { 
+    background: #fff; 
+    padding: 40px; 
+    border-radius: 20px; 
+    width: 90%; 
+    max-width: 400px; 
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5); 
+}
+
+/* --- 7. Формы, Инпуты и Кнопки --- */
+input[type="text"], input[type="password"], input[type="number"] { 
+    width: 100%; 
+    padding: 15px; 
+    border: 2px solid #f0f0f0; 
+    border-radius: 12px; 
+    font-size: 16px; 
+    margin-bottom: 15px; 
+    outline: none; 
+}
+
+input:focus { border-color: #000; }
+
+.btn-black { 
+    background: #000; 
+    color: #fff; 
+    border: none; 
+    padding: 18px; 
+    border-radius: 12px; 
+    font-size: 16px; 
+    font-weight: bold; 
+    width: 100%; 
+    cursor: pointer; 
+}
+
+.btn-outline { 
+    background: #fff; 
+    border: 1px solid #ccc; 
+    padding: 8px 15px; 
+    border-radius: 8px; 
+    cursor: pointer; 
+}
+
+.btn-method { 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+    width: 100%; 
+    padding: 15px; 
+    margin-bottom: 10px; 
+    background: #fff; 
+    border: 2px solid #eee; 
+    border-radius: 12px; 
+    font-weight: bold; 
+    cursor: pointer; 
+}
+
+/* --- 8. Режим Редактора (Admin Mode) --- */
+
+/* Прячем все админ-элементы по умолчанию */
+.edit-only { 
+    display: none !important; 
+}
+
+/* Показываем их ТОЛЬКО когда на body висит класс edit-mode */
+body.edit-mode .edit-only { 
+    display: inline-block !important; 
+}
+
+/* Скрываем кнопку "Настройки", если мы уже зашли в них */
+body.edit-mode #settingsBtn { 
+    display: none !important; 
+}
+
+.admin-badge { 
+    background: #dc3545; 
+    color: #fff; 
+    padding: 5px 10px; 
+    border-radius: 6px; 
+    font-weight: bold; 
+    font-size: 12px; 
+}
+
+.desk-badge { 
+    background: #000; 
+    color: #fff; 
+    padding: 5px 12px; 
+    border-radius: 6px; 
+    margin-left: 10px;
+}
+
+/* Кнопки удаления и редактирования на карточках/табах */
+.delete-btn { 
+    position: absolute; 
+    top: -8px; 
+    right: -8px; 
+    background: #dc3545; 
+    color: #fff; 
+    border: none; 
+    width: 24px; 
+    height: 24px; 
+    border-radius: 50%; 
+    font-weight: bold; 
+    cursor: pointer; 
+    z-index: 10;
+}
+
+.star-btn { 
+    position: absolute; 
+    top: 5px; 
+    right: 5px; 
+    background: none; 
+    border: none; 
+    font-size: 20px; 
+    color: #ccc; 
+    cursor: pointer; 
+}
+
+.star-btn.active { color: #ffc107; }
+
+/* Эффект размытия фона при входе */
+body:not(.logged-in) .app-container { 
+    filter: blur(15px); 
+    pointer-events: none; 
+}

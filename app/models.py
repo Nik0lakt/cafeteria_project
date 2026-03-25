@@ -1,9 +1,17 @@
 from datetime import datetime
 from datetime import datetime
-from sqlalchemy import Column, JSON, Integer, String, Float, LargeBinary, ForeignKey, Date, DateTime
+from sqlalchemy import Column, JSON, Integer, String, Float, LargeBinary, ForeignKey, Date, DateTime, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
+
+
+cash_desk_products = Table(
+    'cash_desk_products',
+    Base.metadata,
+    Column('cash_desk_id', Integer, ForeignKey('cash_desks.id'), primary_key=True),
+    Column('product_id', Integer, ForeignKey('products.id'), primary_key=True)
+)
 
 class Employee(Base):
     __tablename__ = "employees"
@@ -62,6 +70,7 @@ class CashDesk(Base):
     login = Column(String, unique=True, index=True)
     description = Column(String, nullable=True)
     password = Column(String, default='1234')
+    products = relationship("Product", secondary=cash_desk_products, back_populates="cash_desks")
 
 class Category(Base):
     __tablename__ = 'categories'
@@ -74,3 +83,4 @@ class Product(Base):
     name = Column(String)
     price = Column(Integer)
     category_id = Column(Integer, ForeignKey('categories.id'))
+    cash_desks = relationship("CashDesk", secondary=cash_desk_products, back_populates="products")
