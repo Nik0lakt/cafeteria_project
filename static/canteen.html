@@ -7,7 +7,7 @@
 </head>
 <body id="appBody">
 
-    <div id="loginOverlay" class="overlay" style="display: flex;">
+    <div id="loginOverlay" class="overlay" style="display: flex; z-index: 99999;">
         <div class="modal-box">
             <h3 style="text-align:center;">Вход в терминал</h3>
             <input type="text" id="deskLoginInput" placeholder="Логин кассы (например: 123)">
@@ -23,7 +23,7 @@
             <div class="top-bar-left">
                 <h3 style="margin:0;">Cafeteria POS</h3>
                 <div class="desk-badge" id="cashDeskLabel">...</div>
-                <div class="admin-badge edit-only" id="adminBadge">РЕЖИМ РЕДАКТОРА</div>
+                <div class="admin-badge edit-only">РЕЖИМ РЕДАКТОРА</div>
             </div>
             <div class="top-bar-right">
                 <button class="btn-outline" id="settingsBtn" onclick="openAdminAuth()">⚙️ Настройки</button>
@@ -56,31 +56,33 @@
         </div>
     </div>
 
-    <div id="addCatModal" class="overlay">
+    <div id="productModal" class="overlay">
         <div class="modal-box">
-            <h3>Новая вкладка (Категория)</h3>
-            <input type="text" id="newCatName" placeholder="Название (Напитки, Еда...)">
-            <button class="btn-black" onclick="addCategory()">Создать</button>
-            <button class="btn-outline" style="width:100%; margin-top:10px;" onclick="closeModal('addCatModal')">Отмена</button>
+            <h3 id="productModalTitle">Товар</h3>
+            <input type="hidden" id="editProductId">
+            <label>Название</label><input type="text" id="prodName">
+            <label>Цена (₽)</label><input type="number" id="prodPrice">
+            <button class="btn-black" onclick="saveProduct()">Сохранить</button>
+            <button class="btn-outline" style="width:100%; margin-top:10px;" onclick="closeModal('productModal')">Отмена</button>
         </div>
     </div>
 
-    <div id="addProductModal" class="overlay">
+    <div id="catModal" class="overlay">
         <div class="modal-box">
-            <h3>Новый товар</h3>
-            <label>Название</label><input type="text" id="newProdName">
-            <label>Цена (₽)</label><input type="number" id="newProdPrice">
-            <button class="btn-black" onclick="addProduct()">Сохранить товар</button>
-            <button class="btn-outline" style="width:100%; margin-top:10px;" onclick="closeModal('addProductModal')">Отмена</button>
+            <h3 id="catModalTitle">Вкладка</h3>
+            <input type="hidden" id="editCatId">
+            <input type="text" id="catNameInput" placeholder="Название вкладки">
+            <button class="btn-black" onclick="saveCategory()">Сохранить</button>
+            <button class="btn-outline" style="width:100%; margin-top:10px;" onclick="closeModal('catModal')">Отмена</button>
         </div>
     </div>
 
     <div id="paymentMethodModal" class="overlay">
         <div class="modal-box">
             <h3 style="text-align:center;">Способ оплаты</h3>
-            <button class="btn-method" onclick="processExternal('bank_card')"><span>💳</span> Карта</button>
-            <button class="btn-method" onclick="startInternal()"><span>🥗</span> Лицо (Дотация)</button>
-            <button class="btn-method" onclick="startCash()"><span>💵</span> Наличные</button>
+            <button class="btn-method" onclick="processExternal('bank_card')">💳 Карта</button>
+            <button class="btn-method" onclick="startInternal()">🥗 Лицо (Дотация)</button>
+            <button class="btn-method" onclick="startCash()">💵 Наличные</button>
             <button class="btn-outline" style="width:100%;" onclick="closeModal('paymentMethodModal')">Отмена</button>
         </div>
     </div>
@@ -96,18 +98,23 @@
     </div>
 
     <script>
+        // --- 1. АВТОРИЗАЦИЯ И ИНИЦИАЛИЗАЦИЯ ---
         let cashDeskLogin = localStorage.getItem('cashDeskId');
         let cashDeskDbId = localStorage.getItem('cashDeskDbId');
         let isAdmin = false, categories = [], products = [], currentCatId = 0, cart = [], total = 0;
-        
-        // Инициализация
-        if (!cashDeskLogin || !cashDeskDbId) {
-            document.getElementById('loginOverlay').style.display = 'flex';
-        } else {
-            document.getElementById('loginOverlay').style.display = 'none';
-            document.body.classList.add('logged-in');
-            initApp();
+
+        function checkAuth() {
+            const overlay = document.getElementById('loginOverlay');
+            if (cashDeskLogin && cashDeskDbId && cashDeskDbId !== "undefined" && cashDeskDbId !== "null") {
+                overlay.style.display = 'none'; // Убираем окно входа
+                document.body.classList.add('logged-in'); // СНИМАЕМ БЛЮР (для CSS)
+                initApp();
+            } else {
+                overlay.style.display = 'flex'; // Показываем окно входа
+                document.body.classList.remove('logged-in'); // ВКЛЮЧАЕМ БЛЮР
+            }
         }
+        checkAuth();
 
         async function login() {
             const loginVal = document.getElementById('deskLoginInput').value.trim();
@@ -120,7 +127,7 @@
             if (res.ok) {
                 const data = await res.json();
                 localStorage.setItem('cashDeskId', data.login);
-                localStorage.setItem('cashDeskDbId', data.id); // Сохраняем ID из базы
+                localStorage.setItem('cashDeskDbId', data.id);
                 location.reload();
             } else {
                 document.getElementById('loginError').style.display = "block";
@@ -129,6 +136,7 @@
 
         function logout() { if(confirm("Закрыть смену?")) { localStorage.clear(); location.reload(); } }
 
+        // --- 2. ЗАГРУЗКА ДАННЫХ ---
         async function initApp() {
             document.getElementById('cashDeskLabel').innerText = cashDeskLogin;
             await loadData();
@@ -145,16 +153,21 @@
             renderProducts();
         }
 
+        // --- 3. ОТРИСОВКА (RENDER) ---
         function renderCategories() {
             const bar = document.getElementById('categoriesBar');
             let html = `<div class="cat-tab ${currentCatId === 0 ? 'active' : ''}" onclick="selectCat(0)">⭐ Избранное</div>`;
             categories.forEach(c => {
                 html += `<div class="cat-tab ${currentCatId === c.id ? 'active' : ''}" onclick="selectCat(${c.id})">
                     ${c.name}
-                    ${isAdmin ? `<button class="delete-btn" onclick="event.stopPropagation(); deleteCat(${c.id})">×</button>` : ''}
+                    ${isAdmin ? `
+                        <div style="position:absolute; top:-10px; right:-10px; display:flex; gap:2px;">
+                            <button class="delete-btn" style="background:#007bff; position:static;" onclick="event.stopPropagation(); openEditCat(${c.id}, '${c.name}')">✎</button>
+                            <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteCat(${c.id})">×</button>
+                        </div>` : ''}
                 </div>`;
             });
-            if (isAdmin) html += `<div class="cat-tab" style="border: 2px dashed #000;" onclick="openModal('addCatModal')">+ Вкладка</div>`;
+            if (isAdmin) html += `<div class="cat-tab" style="border: 2px dashed #000;" onclick="openAddCat()">+ Вкладка</div>`;
             bar.innerHTML = html;
         }
 
@@ -168,26 +181,22 @@
                 const isFav = favs.includes(p.id);
                 html += `<div class="product-card" onclick="if(!isAdmin) addToCart('${p.name}', ${p.price})">
                     <button class="star-btn ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav(${p.id})">★</button>
-                    ${isAdmin ? `<button class="delete-btn" onclick="event.stopPropagation(); deleteProduct(${p.id})">×</button>` : ''}
+                    ${isAdmin ? `
+                        <div style="position:absolute; top:-5px; right:-5px; display:flex; gap:2px;">
+                            <button class="delete-btn" style="background:#007bff; position:static;" onclick="event.stopPropagation(); openEditProduct(${p.id}, '${p.name}', ${p.price})">✎</button>
+                            <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteProduct(${p.id})">×</button>
+                        </div>` : ''}
                     <div class="product-name">${p.name}</div>
                     <div class="product-price">${p.price} ₽</div>
                 </div>`;
             });
-            if (isAdmin && currentCatId !== 0) html += `<div class="product-card" style="border: 2px dashed #ccc;" onclick="openModal('addProductModal')">+ Добавить</div>`;
+            if (isAdmin && currentCatId !== 0) html += `<div class="product-card" style="border: 2px dashed #ccc;" onclick="openAddProduct()">+ Товар</div>`;
             grid.innerHTML = html;
         }
 
         function selectCat(id) { currentCatId = id; renderCategories(); renderProducts(); }
-        
-        function toggleFav(id) {
-            let favs = JSON.parse(localStorage.getItem('favs_' + cashDeskLogin) || '[]');
-            favs = favs.includes(id) ? favs.filter(f => f !== id) : [...favs, id];
-            localStorage.setItem('favs_' + cashDeskLogin, JSON.stringify(favs));
-            renderProducts();
-        }
 
-        // РЕЖИМ РЕДАКТОРА
-        async function openAdminAuth() { openModal('adminAuthModal'); }
+        // --- 4. АДМИН-ФУНКЦИИ ---
         async function verifyAdmin() {
             const pwd = document.getElementById('adminPassInput').value;
             const res = await fetch('/api/verify_desk_password', { 
@@ -196,91 +205,78 @@
             });
             if (res.ok) {
                 isAdmin = true;
-                document.body.classList.add('edit-mode'); // Активируем CSS правила
+                document.body.classList.add('edit-mode');
                 closeModal('adminAuthModal'); renderCategories(); renderProducts();
-            } else alert("Ошибка пароля");
+            } else alert("Неверный пароль");
         }
 
         function exitAdmin() { 
             isAdmin = false; 
-            document.body.classList.remove('edit-mode'); // Прячем админ-кнопки через CSS
+            document.body.classList.remove('edit-mode'); 
             renderCategories(); renderProducts(); 
         }
 
-        // СОЗДАНИЕ КАТЕГОРИИ
-        async function addCategory() {
-            const name = document.getElementById('newCatName').value.trim();
+        // --- 5. CRUD: ВКЛАДКИ (CATEGORIES) ---
+        function openAddCat() { document.getElementById('editCatId').value = ''; document.getElementById('catNameInput').value = ''; document.getElementById('catModalTitle').innerText='Новая вкладка'; openModal('catModal'); }
+        function openEditCat(id, name) { document.getElementById('editCatId').value = id; document.getElementById('catNameInput').value = name; document.getElementById('catModalTitle').innerText='Изменить вкладку'; openModal('catModal'); }
+        
+        async function saveCategory() {
+            const id = document.getElementById('editCatId').value;
+            const name = document.getElementById('catNameInput').value.trim();
             if(!name) return;
-            await fetch('/api/categories', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }) });
-            closeModal('addCatModal'); document.getElementById('newCatName').value = ''; loadData();
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/categories/${id}` : '/api/categories';
+            await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }) });
+            closeModal('catModal'); loadData();
         }
+        async function deleteCat(id) { if(confirm("Удалить вкладку?")) { await fetch(`/api/categories/${id}`, { method: 'DELETE' }); loadData(); } }
 
-        async function deleteCat(id) {
-            if(confirm("Удалить вкладку?")) {
-                await fetch(`/api/categories/${id}`, { method: 'DELETE' });
-                currentCatId = 0; loadData();
-            }
-        }
+        // --- 6. CRUD: ТОВАРЫ (PRODUCTS) ---
+        function openAddProduct() { document.getElementById('editProductId').value = ''; document.getElementById('prodName').value = ''; document.getElementById('prodPrice').value = ''; document.getElementById('productModalTitle').innerText = 'Новый товар'; openModal('productModal'); }
+        function openEditProduct(id, name, price) { document.getElementById('editProductId').value = id; document.getElementById('prodName').value = name; document.getElementById('prodPrice').value = price; document.getElementById('productModalTitle').innerText = 'Изменить товар'; openModal('productModal'); }
 
-        // --- САМАЯ ВАЖНАЯ ФУНКЦИЯ: СОЗДАНИЕ ТОВАРА ---
-        async function addProduct() {
-            const name = document.getElementById('newProdName').value.trim();
-            const price = parseInt(document.getElementById('newProdPrice').value);
-            if(!name || !price) { alert("Заполните имя и цену!"); return; }
+        async function saveProduct() {
+            const id = document.getElementById('editProductId').value;
+            const name = document.getElementById('prodName').value.trim();
+            const price = parseInt(document.getElementById('prodPrice').value);
+            if(!name || !price) return;
 
-            const data = {
-                name: name,
-                price: price,
-                category_id: currentCatId,
-                cash_desk_ids: [parseInt(cashDeskDbId)] // Отправляем числовой ID этой кассы
+            const data = { 
+                name, price, category_id: currentCatId, 
+                cash_desk_ids: [parseInt(cashDeskDbId)] 
             };
-
-            const res = await fetch('/api/products', { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify(data) 
-            });
-
-            if(res.ok) {
-                closeModal('addProductModal'); 
-                document.getElementById('newProdName').value = ''; 
-                document.getElementById('newProdPrice').value = '';
-                await loadData(); // Обновляем список
-            } else {
-                const err = await res.json();
-                alert("Ошибка сохранения: " + JSON.stringify(err.detail));
-            }
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/products/${id}` : '/api/products';
+            await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+            closeModal('productModal'); loadData();
         }
+        async function deleteProduct(id) { if(confirm("Удалить товар?")) { await fetch(`/api/products/${id}`, { method: 'DELETE' }); loadData(); } }
 
-        async function deleteProduct(id) {
-            if(confirm("Удалить товар?")) {
-                await fetch(`/api/products/${id}`, { method: 'DELETE' });
-                loadData();
-            }
-        }
-
-        // КОРЗИНА И ОПЛАТА
+        // --- 7. КОРЗИНА И МОДАЛКИ ---
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        
         function addToCart(name, price) {
             let item = cart.find(i => i.name === name);
             if (item) item.qty++; else cart.push({name, price, qty: 1});
             renderCart();
         }
-
         function renderCart() {
             const cont = document.getElementById('cartItems'); cont.innerHTML = ''; total = 0;
             cart.forEach((i, idx) => {
                 total += i.price * i.qty;
-                cont.innerHTML += `<div class="cart-item">
-                    <span>${i.name} (x${i.qty})</span>
-                    <span>${i.price * i.qty} ₽ <button onclick="cart.splice(${idx},1);renderCart()" style="border:none;background:none;color:red;cursor:pointer;">✕</button></span>
-                </div>`;
+                cont.innerHTML += `<div class="cart-item"><span>${i.name} (x${i.qty})</span><span>${i.price * i.qty} ₽ <button onclick="cart.splice(${idx},1);renderCart()" style="border:none;background:none;color:red;">✕</button></span></div>`;
             });
             document.getElementById('totalDisplay').innerText = total + " ₽";
             document.getElementById('payBtn').disabled = cart.length === 0;
         }
 
-        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function toggleFav(id) {
+            let favs = JSON.parse(localStorage.getItem('favs_' + cashDeskLogin) || '[]');
+            favs = favs.includes(id) ? favs.filter(f => f !== id) : [...favs, id];
+            localStorage.setItem('favs_' + cashDeskLogin, JSON.stringify(favs));
+            renderProducts();
+        }
 
         function startCash() { document.getElementById('cashTotalDisp').innerText = total; openModal('cashModal'); }
         function calculateChange() {
@@ -289,14 +285,13 @@
             document.getElementById('changeDisp').innerHTML = diff >= 0 ? `Сдача: <b style="color:green">${diff} ₽</b>` : `Не хватает: <b style="color:red">${Math.abs(diff)} ₽</b>`;
             document.getElementById('confirmCashBtn').disabled = rec < total;
         }
-
         async function processExternal(method) {
             let items = []; cart.forEach(i => { for(let k=0; k<i.qty; k++) items.push({name:i.name, price:i.price}) });
-            await fetch('/api/pay_external', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ cash_desk_id: cashDeskLogin, amount_rub: total, items: items, payment_method: method }) });
+            await fetch('/api/pay_external', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ cash_desk_id: cashDeskLogin, amount_rub: total, items, payment_method: method }) });
             cart = []; renderCart(); closeModal('cashModal'); closeModal('paymentMethodModal'); alert("Успешно!");
         }
-
         function startInternal() { window.location.href = `index.html?amount=${total}&desk=${cashDeskLogin}`; }
+        function openAdminAuth() { openModal('adminAuthModal'); }
     </script>
 </body>
 </html>
