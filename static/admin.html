@@ -13,6 +13,7 @@
     <div class="nav-item active" onclick="switchTab('emp', this)">👥 <span class="nav-text">Сотрудники</span></div>
     <div class="nav-item" onclick="switchTab('cash', this)">🖥 <span class="nav-text">Терминалы</span></div>
     <div class="nav-item" onclick="switchTab('stat', this)">📈 <span class="nav-text">Статистика</span></div>
+    <div class="nav-item" onclick="switchTab('settings', this)">🛠 <span class="nav-text">Настройки</span></div>
 </div>
 
 <div class="main-content">
@@ -30,7 +31,7 @@
             <div class="box" style="width: 320px;">
                 <h3>Регистрация</h3>
                 <label>ФИО сотрудника</label><input type="text" id="regName">
-                <label>UID Карты</label><input type="text" id="regCard">
+                <label>UID Карты</label><input type="text" id="regCard" placeholder="Приложите карту...">
                 <label>Telegram ID</label><input type="text" id="regTg">
                 <label>Роль</label><select id="regRole"></select>
                 <label>Месячный лимит</label><input type="number" id="regLimit" value="5000">
@@ -111,58 +112,36 @@
             <div style="text-align:center; margin-top:20px;"><button class="btn" style="background:#28a745; width:auto; padding:12px 30px" onclick="document.getElementById('exportModal').style.display='flex'">📥 Выгрузить CSV</button></div>
         </div>
     </div>
-</div>
 
-<div id="roleModal" class="modal">
-    <div class="modal-content">
-        <h3>Настройка ролей</h3>
-        <div id="rolesList" style="margin-bottom: 20px;"></div>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-        <h4 style="margin-bottom: 10px;">Добавить новую роль</h4>
-        <label>Название роли</label>
-        <input type="text" id="newRoleName" placeholder="Например: Офис">
-        <label>Дотация (₽ в день)</label>
-        <input type="number" id="newRoleSubsidy" placeholder="Введите сумму">
-        <button class="btn" onclick="addRole()">+ Добавить роль</button>
-        <button class="btn" style="background: #f5f5f5; color: #333; margin-top: 10px;" onclick="closeModals()">Закрыть</button>
-    </div>
-</div>
+    <div id="tab-settings" style="display: none;">
+        <div class="header"><h1>Настройки</h1></div>
+        <div class="main-layout">
+            <div class="box" style="width: 400px;">
+                <h3>🔌 RFID Считыватель</h3>
+                <div style="margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                        <span id="serialStatusIcon" style="width: 12px; height: 12px; background: #dc3545; border-radius: 50%;"></span>
+                        <span id="serialStatusText" style="font-weight: 600;">Сканер не подключен</span>
+                    </div>
+                    <button id="connectBtn" class="btn" onclick="initSerial()">Подключить сканер</button>
+                </div>
 
-<div id="bioModal" class="modal">
-    <div class="modal-content">
-        <h3>Биометрия</h3>
-        <video id="bioVideo" autoplay muted playsinline style="width:100%; border-radius:8px; background:#000; height:240px; object-fit:cover;"></video>
-        <button class="btn" onclick="captureBio()">Сделать снимок</button>
-        <input type="file" id="bioFile" onchange="uploadBioFile(this)" style="margin-top:10px;">
-        <button class="btn" style="background:#eee; margin-top:10px" onclick="closeModals()">Закрыть</button>
-    </div>
-</div>
-
-<div id="calModal" class="modal">
-    <div class="modal-content">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <button class="action-btn" onclick="changeMonth(-1)">←</button>
-            <h3 id="calTitle" style="margin:0"></h3>
-            <button class="action-btn" onclick="changeMonth(1)">→</button>
+                <h3>🔍 Проверка карт</h3>
+                <label>Тестовое поле</label>
+                <input type="text" id="testCardInput" placeholder="Приложите карту для теста..." readonly style="background: #fff; border: 2px dashed #ccc; font-family: monospace; font-size: 18px; text-align: center;">
+            </div>
+            
+            <div class="box" style="flex: 1;">
+                <h3>Инструкция</h3>
+                <p style="font-size: 14px; line-height: 1.6; color: #555;">
+                    1. Подключите RFID-считыватель к компьютеру.<br>
+                    2. Нажмите кнопку <b>«Подключить сканер»</b>.<br>
+                    3. В окне браузера выберите порт Arduino и нажмите «Подключить».<br>
+                    4. После этого индикатор станет <b>зеленым</b>.<br><br>
+                    При активном подключении номера карт будут автоматически вписываться в поле UID при регистрации или редактировании персонала.
+                </p>
+            </div>
         </div>
-        <div id="calGrid" class="cal-grid" style="margin-top:15px;"></div>
-        <div class="preset-btns">
-            <button class="action-btn" onclick="applyPreset(5,2)">5/2</button>
-            <button class="action-btn" onclick="applyPreset(2,2)">2/2</button>
-            <button class="action-btn" onclick="promptCustomPreset()">Свой режим</button>
-        </div>
-        <button class="btn" style="background:#fff; color:red; border:1px solid red; margin-top:15px;" onclick="resetCal()">Сбросить всё</button>
-        <button class="btn" style="margin-top:10px" onclick="closeModals()">Закрыть</button>
-    </div>
-</div>
-
-<div id="exportModal" class="modal">
-    <div class="modal-content">
-        <h3>Экспорт</h3>
-        <label>С</label><input type="date" id="exportStartDate">
-        <label>По</label><input type="date" id="exportEndDate">
-        <button class="btn" onclick="downloadCSV()">Скачать CSV</button>
-        <button class="btn" style="background:#eee; margin-top:10px" onclick="closeModals()">Отмена</button>
     </div>
 </div>
 
@@ -171,10 +150,27 @@
         <h3>Управление днями</h3>
         <label>Дата</label><input type="date" id="gDate">
         <label>Действие</label>
-        <select id="gAction"><option value="holiday">Выходной</option><option value="work">Рабочий</option></select>
-        <label>Для роли</label><select id="gTarget"></select>
-        <button class="btn" onclick="saveGlobal()">Применить</button>
+        <select id="gAction">
+            <option value="holiday">Выходной (Нет дотации)</option>
+            <option value="work">Рабочий (С дотацией)</option>
+        </select>
+        <label>Для кого</label>
+        <select id="gTarget"></select>
+        <button class="btn" onclick="saveGlobal()">Применить ко всем</button>
         <button class="btn" style="background:#eee; margin-top:10px" onclick="closeModals()">Отмена</button>
+    </div>
+</div>
+
+<div id="roleModal" class="modal">
+    <div class="modal-content">
+        <h3>Настройка ролей</h3>
+        <div id="rolesList"></div>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+        <h4>Добавить новую роль</h4>
+        <label>Название роли</label><input type="text" id="newRoleName">
+        <label>Дотация (₽ в день)</label><input type="number" id="newRoleSubsidy">
+        <button class="btn" onclick="addRole()">+ Добавить роль</button>
+        <button class="btn" style="background:#eee; color:#333; margin-top:10px" onclick="closeModals()">Закрыть</button>
     </div>
 </div>
 
@@ -187,18 +183,93 @@
         <label>Telegram ID</label><input type="text" id="editTg">
         <label>Роль</label><select id="editRole"></select>
         <label>Месячный лимит</label><input type="number" id="editLimit">
-        <button class="btn" onclick="saveEdit()">Сохранить</button>
+        <button class="btn" onclick="saveEdit()">Сохранить изменения</button>
         <button class="btn" style="background:#eee; margin-top:10px" onclick="closeModals()">Отмена</button>
     </div>
 </div>
+
+<div id="calModal" class="modal">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <button class="action-btn" onclick="changeMonth(-1)">←</button>
+            <h3 id="calTitle" style="margin:0"></h3>
+            <button class="action-btn" onclick="changeMonth(1)">→</button>
+        </div>
+        <div id="calGrid" class="cal-grid" style="margin-top:15px;"></div>
+        <div class="preset-btns" style="display:flex; gap:10px; margin-top:20px;">
+            <button class="action-btn" style="flex:1; background:#000 !important; color:#fff !important;" onclick="applyPreset(5,2)">5/2</button>
+            <button class="action-btn" style="flex:1; background:#000 !important; color:#fff !important;" onclick="applyPreset(2,2)">2/2</button>
+            <button class="action-btn" style="flex:1; background:#000 !important; color:#fff !important;" onclick="promptCustomPreset()">Свой режим</button>
+        </div>
+        <button class="btn" style="background:#fff; color:red; border:1px solid red; margin-top:15px;" onclick="resetCal()">Сбросить всё</button>
+        <button class="btn" style="background:#eee; margin-top:10px" onclick="closeModals()">Закрыть</button>
+    </div>
+</div>
+
+<div id="bioModal" class="modal"><div class="modal-content"><h3>Биометрия</h3><video id="bioVideo" autoplay muted playsinline style="width:100%; border-radius:8px; background:#000; height:240px; object-fit:cover;"></video><button class="btn" onclick="captureBio()">Сделать снимок</button><input type="file" id="bioFile" onchange="uploadBioFile(this)" style="margin-top:10px;"><button class="btn" style="background:#eee; margin-top:10px" onclick="closeModals()">Закрыть</button></div></div>
+<div id="exportModal" class="modal"><div class="modal-content"><h3>Экспорт</h3><label>С</label><input type="date" id="exportStartDate"><label>По</label><input type="date" id="exportEndDate"><button class="btn" onclick="downloadCSV()">Скачать CSV</button><button class="btn" style="background:#eee; margin-top:10px" onclick="closeModals()">Закрыть</button></div></div>
 
 <script>
     let allEmployees = [], filteredEmployees = [], rolesData = [], currentEmpId = null, currentUid = null;
     let viewDate = new Date(), workDays = [], currentPage = 1, itemsPerPage = 10, revenueChartInstance = null;
     const video = document.getElementById('bioVideo');
 
+    // --- RFID WEB SERIAL ---
+    let port;
+    let keepReading = false;
+
+    async function initSerial() {
+        if (!("serial" in navigator)) return alert("Браузер не поддерживает Serial. Используйте Chrome.");
+        try {
+            port = await navigator.serial.requestPort();
+            await port.open({ baudRate: 9600 });
+            document.getElementById('serialStatusIcon').style.background = "#28a745";
+            document.getElementById('serialStatusText').innerText = "Сканер подключен (🟢)";
+            document.getElementById('connectBtn').style.display = "none";
+            keepReading = true;
+            readSerialLoop();
+        } catch (err) { console.error(err); }
+    }
+
+    async function readSerialLoop() {
+        const textDecoder = new TextDecoderStream();
+        const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+        const reader = textDecoder.readable.getReader();
+        let buffer = "";
+        try {
+            while (keepReading) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                if (value) {
+                    buffer += value;
+                    if (buffer.includes('\n')) {
+                        const lines = buffer.split('\n');
+                        for (let i = 0; i < lines.length - 1; i++) {
+                            const scannedUid = lines[i].trim().toUpperCase();
+                            if (scannedUid.length > 0) handleIncomingUid(scannedUid);
+                        }
+                        buffer = lines[lines.length - 1];
+                    }
+                }
+            }
+        } catch (error) { 
+            document.getElementById('serialStatusIcon').style.background = "#dc3545";
+            document.getElementById('connectBtn').style.display = "block";
+        } finally { reader.releaseLock(); }
+    }
+
+    function handleIncomingUid(uid) {
+        if (document.getElementById('testCardInput')) document.getElementById('testCardInput').value = uid;
+        if (document.getElementById('editModal').style.display === 'flex') {
+            document.getElementById('editCard').value = uid;
+        } else if (document.getElementById('tab-emp').style.display === 'block') {
+            document.getElementById('regCard').value = uid;
+        }
+    }
+
+    // --- NAV ---
     function switchTab(id, el) {
-        ['tab-emp', 'tab-cash', 'tab-stat'].forEach(t => document.getElementById(t).style.display = 'none');
+        ['tab-emp', 'tab-cash', 'tab-stat', 'tab-settings'].forEach(t => document.getElementById(t).style.display = 'none');
         document.getElementById('tab-' + id).style.display = 'block';
         document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
         el.classList.add('active');
@@ -257,7 +328,7 @@
         load();
     }
 
-    async function delEmp(id) { if(confirm('Удалить сотрудника?')) { await fetch(`/api/employees/${id}`, {method:'DELETE'}); load(); } }
+    async function delEmp(id) { if(confirm('Удалить?')) { await fetch(`/api/employees/${id}`, {method:'DELETE'}); load(); } }
 
     function openEdit(e) {
         document.getElementById('editId').value = e.id; document.getElementById('editName').value = e.full_name;
@@ -289,20 +360,15 @@
     }
 
     async function addRole() {
-        const n = document.getElementById('newRoleName').value;
-        const s = document.getElementById('newRoleSubsidy').value;
+        const n = document.getElementById('newRoleName').value, s = document.getElementById('newRoleSubsidy').value;
         if(n && s) { 
             await fetch('/api/role_settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role_name:n, subsidy_rub:parseFloat(s)})}); 
-            document.getElementById('newRoleName').value = '';
-            document.getElementById('newRoleSubsidy').value = '';
-            openRoles(); 
-            load(); 
-        } else {
-            alert("Заполните имя и дотацию");
+            document.getElementById('newRoleName').value = ''; document.getElementById('newRoleSubsidy').value = '';
+            openRoles(); load(); 
         }
     }
     async function updateRole(n, v) { await fetch('/api/role_settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role_name:n, subsidy_rub:parseFloat(v)})}); load(); }
-    async function deleteRole(n) { if(confirm('Удалить роль?')) { await fetch(`/api/role_settings/${n}`, {method:'DELETE'}); openRoles(); load(); } }
+    async function deleteRole(n) { if(confirm('Удалить?')) { await fetch(`/api/role_settings/${n}`, {method:'DELETE'}); openRoles(); load(); } }
 
     function openGlobal() { document.getElementById('globalModal').style.display = 'flex'; }
     async function saveGlobal() {
@@ -321,7 +387,7 @@
         await fetch('/api/cash_desks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
         loadCashDesks();
     }
-    async function deleteCashDesk(id) { if(confirm('Удалить кассу?')) { await fetch(`/api/cash_desks/${id}`, {method:'DELETE'}); loadCashDesks(); } }
+    async function deleteCashDesk(id) { if(confirm('Удалить?')) { await fetch(`/api/cash_desks/${id}`, {method:'DELETE'}); loadCashDesks(); } }
     async function forceChangePwd(id) { const np = prompt("Новый пароль:"); if(np) await fetch(`/api/cash_desks/${id}/password`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:np})}); }
 
     async function openCal(id, n) { currentEmpId = id; document.getElementById('calTitle').innerText = n; document.getElementById('calModal').style.display='flex'; await refreshCal(); }
@@ -363,32 +429,19 @@
         const period = document.getElementById('statPeriod').value;
         let start, end = new Date().toISOString().split('T')[0];
         if(period === 'custom') { start = document.getElementById('statStartDate').value; end = document.getElementById('statEndDate').value; if(!start || !end) return; }
-        else { let d = new Date(); d.setDate(d.getDate() - (parseInt(period) - 1)); start = d.toISOString().split('T')[0]; }
-
+        else { let d = new Date(); d.setDate(d.getDate() - parseInt(period)); start = d.toISOString().split('T')[0]; }
         const params = new URLSearchParams({start_date: start, end_date: end});
         document.querySelectorAll('.stat-desk-cb:checked').forEach(cb => params.append('cash_desks', cb.value));
         document.querySelectorAll('.stat-pay-cb:checked').forEach(cb => params.append('payment_methods', cb.value));
-
         try {
-            const res = await fetch(`/api/statistics/chart?${params.toString()}`);
+            const res = await fetch(`/api/statistics/chart?${params.toString()}`); 
             const data = await res.json();
-            let sum = 0;
-            data.datasets.forEach(ds => sum += ds.data.reduce((a, b) => a + b, 0));
+            let sum = 0; data.datasets.forEach(ds => sum += ds.data.reduce((a, b) => a + b, 0));
             document.getElementById('totalRevenueDisplay').innerText = Math.round(sum).toLocaleString() + ' ₽';
             document.getElementById('totalTxDisplay').innerText = data.total_count || 0;
-
             const ctx = document.getElementById('revenueChart').getContext('2d');
             if(revenueChartInstance) revenueChartInstance.destroy();
-            revenueChartInstance = new Chart(ctx, {
-                type:'line',
-                data:{
-                    labels:data.labels,
-                    datasets:data.datasets.map((ds,i)=>({
-                        label:ds.label, data:ds.data, borderColor:['#007AFF','#FF9500','#34C759','#AF52DE'][i%4], tension:0.3, pointRadius: 4, fill:false
-                    }))
-                },
-                options:{responsive:true, maintainAspectRatio:false, scales: { y: { beginAtZero: true, ticks: { callback: (v) => v + ' ₽' } } } }
-            });
+            revenueChartInstance = new Chart(ctx, { type:'line', data:{labels:data.labels, datasets:data.datasets.map((ds,i)=>({label:ds.label, data:ds.data, borderColor:['#007AFF','#FF9500','#34C759','#AF52DE'][i%4], tension:0.3, pointRadius: 4, fill:false}))}, options:{responsive:true, maintainAspectRatio:false, scales: { y: { beginAtZero: true, ticks: { callback: (v) => v + ' ₽' } } } } });
         } catch(e) { console.error(e); }
     }
 
