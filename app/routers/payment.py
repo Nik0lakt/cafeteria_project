@@ -315,7 +315,7 @@ def get_statistics_chart(
     db: Session = Depends(get_db)
 ):
     try:
-        # Группируем по дате И по кассе
+        # 1. Запрос для графика (агрегированный)
         query = db.query(
             func.date(Transaction.created_at).label('day'),
             Transaction.cash_desk_id,
@@ -325,39 +325,47 @@ def get_statistics_chart(
             func.date(Transaction.created_at) <= end_date
         )
 
+        # 2. Запрос для подсчета общего кол-ва ЧЕКОВ (чистый)
+        count_query = db.query(Transaction).filter(
+            func.date(Transaction.created_at) >= start_date,
+            func.date(Transaction.created_at) <= end_date
+        )
+
         if payment_methods:
             query = query.filter(Transaction.payment_method.in_(payment_methods))
+            count_query = count_query.filter(Transaction.payment_method.in_(payment_methods))
         if cash_desks:
             query = query.filter(Transaction.cash_desk_id.in_(cash_desks))
+            count_query = count_query.filter(Transaction.cash_desk_id.in_(cash_desks))
 
+        # Выполняем запросы
         results = query.group_by(func.date(Transaction.created_at), Transaction.cash_desk_id).all()
+        total_transactions = count_query.count() # Вот теперь это число чеков!
 
-        # Формируем структуру: { "касса": { "дата": сумма } }
         desk_data = {}
         all_dates = set()
-
         for row in results:
             day, desk_id, total = str(row[0]), str(row[1]), float(row[2] or 0) / 100.0
             all_dates.add(day)
-            if desk_id not in desk_data:
-                desk_data[desk_id] = {}
+            if desk_id not in desk_data: desk_data[desk_id] = {}
             desk_data[desk_id][day] = total
 
-        # Сортируем даты для оси X
         sorted_dates = sorted(list(all_dates))
-
-        # Готовим датасеты для каждой кассы
         datasets = []
         for desk_id, values in desk_data.items():
             datasets.append({
                 "label": f"Касса {desk_id}",
-                "data": [values.get(d, 0) for d in sorted_dates] # Если в этот день нет данных - ставим 0
+                "data": [values.get(d, 0) for d in sorted_dates]
             })
 
-        return {"labels": sorted_dates, "datasets": datasets}
+        return {
+            "labels": sorted_dates, 
+            "datasets": datasets, 
+            "total_count": total_transactions # Отправляем на фронтенд
+        }
     except Exception as e:
-        print(f"Error: {e}")
-        return {"labels": [], "datasets": []}
+        print(f"Ошибка статистики: {e}")
+        return {"labels": [], "datasets": [], "total_count": 0}
 
 @router.get("/statistics/export")
 def export_statistics_csv(
