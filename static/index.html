@@ -47,18 +47,25 @@
         </div>
         <div id="status" class="status-msg">Ожидание карты...</div>
     </div>
+<script>
+        // 1. ПОЛУЧАЕМ ДАННЫЕ ИЗ ПАМЯТИ (localStorage)
+        const amount = localStorage.getItem('pendingAmount') || 0;
+        const pendingItems = localStorage.getItem('pendingCart') || '[]';
+        const currentCashDesk = localStorage.getItem('cashDeskId') || "unknown";
 
-    <script>
-        const amount = new URLSearchParams(location.search).get('amount') || 0;
+        // Отображаем сумму
         document.getElementById('amountDisp').innerText = amount + " ₽";
+        
         const video = document.getElementById('video');
         const status = document.getElementById('status');
         let currentSid = null; let currentUid = null;
 
+        // Запуск камеры
         navigator.mediaDevices.getUserMedia({video:true}).then(s => video.srcObject = s);
 
         let port; let reader; let keepReading = false;
 
+        // Авто-подключение сканера
         document.addEventListener('DOMContentLoaded', async () => {
             if ("serial" in navigator) {
                 const ports = await navigator.serial.getPorts();
@@ -68,7 +75,7 @@
 
         async function connectSerial() {
             if (!("serial" in navigator)) return alert("Браузер не поддерживает Serial API");
-            try { const p = await navigator.serial.requestPort(); connectToPort(p); } 
+            try { const p = await navigator.serial.requestPort(); connectToPort(p); }
             catch (err) { console.error(err); }
         }
 
@@ -166,38 +173,57 @@
             const ctx = document.getElementById('snapCanvas').getContext('2d');
             ctx.drawImage(video, 0, 0, 640, 480, 0, 0, 140, 140);
         }
+	async function finalize(isManual) {
+	    status.innerText = "Проверка баланса и оплата...";
+    
+	    // 1. Берем СВЕЖИЕ данные из памяти прямо сейчас
+    	    const cartData = localStorage.getItem('pendingCart');
+	    const cashDeskId = localStorage.getItem('cashDeskId') || "unknown";
+    
+            // Проверка: если в памяти пусто, ругаемся сразу
+            if (!cartData || cartData === '[]') {
+        	status.innerHTML = `<span class="error-text">ОШИБКА: Корзина пуста (сбросилась память)</span>`;
+       	 	console.error("В localStorage по ключу pendingCart ничего нет!");
+        	return;
+    	    }
 
-        async function finalize(isManual) {
-            status.innerText = "Проверка баланса и оплата...";
-            let livePhoto = isManual ? document.getElementById('snapCanvas').toDataURL('image/jpeg', 0.8) : null;
-            const currentCashDesk = localStorage.getItem('cashDeskId') || "unknown"; // Берем кассу
+    	    let livePhoto = isManual ? document.getElementById('snapCanvas').toDataURL('image/jpeg', 0.8) : null;
+
+    	    try {
+        	const res = await fetch('/api/pay', {
+            	    method: 'POST',
+            	    headers: {'Content-Type': 'application/json'},
+             	    body: JSON.stringify({
+                	session_id: currentSid,
+                	items: JSON.parse(cartData), // Используем cartData, которую только что достали
+                	is_manual: isManual,
+                	live_frame_base64: livePhoto,
+                	cash_desk_id: cashDeskId
+            	    })
+        	});
+
+        	const data = await res.json();
+
+        	if (res.ok) {
+            	    status.innerText = "Оплата прошла успешно!";
             
-            try {
-                const res = await fetch('/api/pay', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ 
-                        session_id: currentSid, 
-                        amount_rub: parseInt(amount), 
-                        items: JSON.parse(localStorage.getItem('cart') || '[]'),
-                        is_manual: isManual,
-                        live_frame_base64: livePhoto,
-                        cash_desk_id: currentCashDesk 
-                    })
-                });
-                const data = await res.json();
-                if(res.ok) { 
-                    status.innerText = "Оплата прошла успешно!";
-                    localStorage.removeItem('cart'); 
-                    currentSid = null;
-                    setTimeout(() => { location.href = 'canteen.html?desk=' + currentCashDesk; }, 1500);
+            	// Очищаем черновики, чтобы не оплатить дважды
+            	    localStorage.removeItem('pendingCart');
+           	    localStorage.removeItem('pendingAmount');
+
+            	     currentSid = null;
+		     setTimeout(() => { location.href = 'canteen.html?desk=' + cashDeskId; }, 1500);
                 } else {
-                    status.innerHTML = `<span class="error-text">ОТКАЗ: ${data.detail}</span>`;
-                    currentSid = null; document.getElementById('manualBtn').style.display = 'none';
-                    document.getElementById('uidInput').value = '';
-                }
-            } catch (e) { status.innerText = "Ошибка сервера"; }
-        }
+            	    status.innerHTML = `<span class="error-text">ОТКАЗ: ${data.detail}</span>`;
+            	    currentSid = null;
+            	    document.getElementById('manualBtn').style.display = 'none';
+            	    document.getElementById('uidInput').value = '';
+        	}
+    	    } catch (e) { 
+        	status.innerText = "Ошибка сервера"; 
+        	console.error(e);
+    	    }
+	}
     </script>
 </body>
 </html>

@@ -98,200 +98,262 @@
     </div>
 
     <script>
-        // --- 1. АВТОРИЗАЦИЯ И ИНИЦИАЛИЗАЦИЯ ---
-        let cashDeskLogin = localStorage.getItem('cashDeskId');
-        let cashDeskDbId = localStorage.getItem('cashDeskDbId');
-        let isAdmin = false, categories = [], products = [], currentCatId = 0, cart = [], total = 0;
+// --- 1. АВТОРИЗАЦИЯ И ИНИЦИАЛИЗАЦИЯ ---
+let cashDeskLogin = localStorage.getItem('cashDeskId');
+let cashDeskDbId = localStorage.getItem('cashDeskDbId');
+let isAdmin = false, categories = [], products = [], currentCatId = 0, cart = [], total = 0;
 
-        function checkAuth() {
-            const overlay = document.getElementById('loginOverlay');
-            if (cashDeskLogin && cashDeskDbId && cashDeskDbId !== "undefined" && cashDeskDbId !== "null") {
-                overlay.style.display = 'none'; // Убираем окно входа
-                document.body.classList.add('logged-in'); // СНИМАЕМ БЛЮР (для CSS)
-                initApp();
-            } else {
-                overlay.style.display = 'flex'; // Показываем окно входа
-                document.body.classList.remove('logged-in'); // ВКЛЮЧАЕМ БЛЮР
-            }
+function checkAuth() {
+    const overlay = document.getElementById('loginOverlay');
+    if (cashDeskLogin && cashDeskDbId && cashDeskDbId !== "undefined" && cashDeskDbId !== "null") {
+        overlay.style.display = 'none';
+        document.body.classList.add('logged-in');
+        initApp();
+    } else {
+        overlay.style.display = 'flex';
+        document.body.classList.remove('logged-in');
+    }
+}
+checkAuth();
+
+async function login() {
+    const loginVal = document.getElementById('deskLoginInput').value.trim();
+    if(!loginVal) return;
+    try {
+        const res = await fetch('/api/verify_cash_desk', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ login: loginVal }) 
+        });
+        if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem('cashDeskId', data.login);
+            localStorage.setItem('cashDeskDbId', data.id);
+            location.reload();
+        } else {
+            document.getElementById('loginError').style.display = "block";
         }
-        checkAuth();
+    } catch(e) { alert("Ошибка связи с сервером"); }
+}
 
-        async function login() {
-            const loginVal = document.getElementById('deskLoginInput').value.trim();
-            if(!loginVal) return;
-            const res = await fetch('/api/verify_cash_desk', { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ login: loginVal }) 
-            });
-            if (res.ok) {
-                const data = await res.json();
-                localStorage.setItem('cashDeskId', data.login);
-                localStorage.setItem('cashDeskDbId', data.id);
-                location.reload();
-            } else {
-                document.getElementById('loginError').style.display = "block";
-            }
-        }
+function logout() { if(confirm("Закрыть смену?")) { localStorage.clear(); location.reload(); } }
 
-        function logout() { if(confirm("Закрыть смену?")) { localStorage.clear(); location.reload(); } }
+async function initApp() {
+    document.getElementById('cashDeskLabel').innerText = cashDeskLogin;
+    await loadData();
+}
 
-        // --- 2. ЗАГРУЗКА ДАННЫХ ---
-        async function initApp() {
-            document.getElementById('cashDeskLabel').innerText = cashDeskLogin;
+async function loadData() {
+    try {
+        const [cRes, pRes] = await Promise.all([
+            fetch(`/api/categories?cash_desk_login=${cashDeskLogin}`),
+            fetch(`/api/products?cash_desk_login=${cashDeskLogin}`)
+        ]);
+        categories = await cRes.json();
+        products = await pRes.json();
+        renderCategories(); 
+        renderProducts();
+    } catch(e) { console.error("Ошибка загрузки данных", e); }
+}
+
+// --- 2. ОТРИСОВКА (RENDER) ---
+function renderCategories() {
+    const bar = document.getElementById('categoriesBar');
+    let html = `<div class="cat-tab ${currentCatId === 0 ? 'active' : ''}" onclick="selectCat(0)">⭐ Избранное</div>`;
+    categories.forEach(c => {
+        html += `<div class="cat-tab ${currentCatId === c.id ? 'active' : ''}" onclick="selectCat(${c.id})">
+            ${c.name}
+            ${isAdmin ? `
+                <div style="position:absolute; top:-10px; right:-10px; display:flex; gap:2px;">
+                    <button class="delete-btn" style="background:#007bff; position:static;" onclick="event.stopPropagation(); openEditCat(${c.id}, '${c.name}')">✎</button>
+                    <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteCat(${c.id})">×</button>
+                </div>` : ''}
+        </div>`;
+    });
+    if (isAdmin) html += `<div class="cat-tab" style="border: 2px dashed #000;" onclick="openAddCat()">+ Вкладка</div>`;
+    bar.innerHTML = html;
+}
+
+function renderProducts() {
+    const grid = document.getElementById('productsGrid');
+    let html = '';
+    let favs = JSON.parse(localStorage.getItem('favs_' + cashDeskLogin) || '[]');
+    let displayProducts = currentCatId === 0 ? products.filter(p => favs.includes(p.id)) : products.filter(p => p.category_id === currentCatId);
+
+    displayProducts.forEach(p => {
+        const isFav = favs.includes(p.id);
+        html += `<div class="product-card" onclick="if(!isAdmin) addToCart(${p.id}, '${p.name}', ${p.price})">
+            <button class="star-btn ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav(${p.id})">★</button>
+            ${isAdmin ? `
+                <div style="position:absolute; top:-5px; right:-5px; display:flex; gap:2px;">
+                    <button class="delete-btn" style="background:#007bff; position:static;" onclick="event.stopPropagation(); openEditProduct(${p.id}, '${p.name}', ${p.price})">✎</button>
+                    <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteProduct(${p.id})">×</button>
+                </div>` : ''}
+            <div class="product-name">${p.name}</div>
+            <div class="product-price">${p.price} ₽</div>
+        </div>`;
+    });
+    if (isAdmin && currentCatId !== 0) html += `<div class="product-card" style="border: 2px dashed #ccc;" onclick="openAddProduct()">+ Товар</div>`;
+    grid.innerHTML = html;
+}
+
+function selectCat(id) { currentCatId = id; renderCategories(); renderProducts(); }
+
+// --- 3. АДМИН-ФУНКЦИИ ---
+async function verifyAdmin() {
+    const pwd = document.getElementById('adminPassInput').value;
+    const res = await fetch('/api/verify_desk_password', { 
+        method: 'POST', headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({ login: cashDeskLogin, password: pwd }) 
+    });
+    if (res.ok) {
+        isAdmin = true;
+        document.body.classList.add('edit-mode');
+        closeModal('adminAuthModal'); renderCategories(); renderProducts();
+    } else alert("Неверный пароль");
+}
+
+function exitAdmin() { 
+    isAdmin = false; 
+    document.body.classList.remove('edit-mode'); 
+    renderCategories(); renderProducts(); 
+}
+
+function openAddCat() { document.getElementById('editCatId').value = ''; document.getElementById('catNameInput').value = ''; document.getElementById('catModalTitle').innerText='Новая вкладка'; openModal('catModal'); }
+function openEditCat(id, name) { document.getElementById('editCatId').value = id; document.getElementById('catNameInput').value = name; document.getElementById('catModalTitle').innerText='Изменить вкладку'; openModal('catModal'); }
+
+async function saveCategory() {
+    const id = document.getElementById('editCatId').value;
+    const name = document.getElementById('catNameInput').value.trim();
+    
+    // Берем ID кассы, который мы сохранили при входе в терминал
+    const deskDbId = localStorage.getItem('cashDeskDbId');
+
+    if (!name) return alert("Введите название вкладки!");
+    if (!deskDbId || deskDbId === "null") {
+        return alert("Ошибка: ID кассы не найден. Перезайдите в терминал.");
+    }
+
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/api/categories/${id}` : '/api/categories';
+
+    // Формируем данные: имя + привязка к кассе
+    const payload = { 
+        name: name,
+        cash_desk_id: parseInt(deskDbId) 
+    };
+
+    try {
+        const res = await fetch(url, { 
+            method: method, 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify(payload) 
+        });
+
+        if (res.ok) {
+            closeModal('catModal');
+            // Очищаем поле ввода, чтобы при следующем открытии оно было пустым
+            document.getElementById('catNameInput').value = '';
+            // Перезагружаем данные, чтобы новая вкладка появилась в меню
             await loadData();
+        } else {
+            const errorData = await res.json();
+            alert("Ошибка сервера: " + (errorData.detail || "Не удалось сохранить"));
         }
+    } catch (e) {
+        console.error("Ошибка при сохранении категории:", e);
+        alert("Ошибка сети");
+    }
+}
 
-        async function loadData() {
-            const [cRes, pRes] = await Promise.all([
-                fetch('/api/categories'),
-                fetch(`/api/products?cash_desk_login=${cashDeskLogin}`)
-            ]);
-            categories = await cRes.json();
-            products = await pRes.json();
-            renderCategories(); 
-            renderProducts();
+async function deleteCat(id) { if(confirm("Удалить вкладку?")) { await fetch(`/api/categories/${id}`, { method: 'DELETE' }); loadData(); } }
+
+function openAddProduct() { document.getElementById('editProductId').value = ''; document.getElementById('prodName').value = ''; document.getElementById('prodPrice').value = ''; document.getElementById('productModalTitle').innerText = 'Новый товар'; openModal('productModal'); }
+function openEditProduct(id, name, price) { document.getElementById('editProductId').value = id; document.getElementById('prodName').value = name; document.getElementById('prodPrice').value = price; document.getElementById('productModalTitle').innerText = 'Изменить товар'; openModal('productModal'); }
+
+async function saveProduct() {
+    const id = document.getElementById('editProductId').value;
+    const name = document.getElementById('prodName').value.trim();
+    const price = parseInt(document.getElementById('prodPrice').value);
+    if(!name || !price) return;
+    const data = { name, price, category_id: currentCatId, cash_desk_ids: [parseInt(cashDeskDbId)] };
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/api/products/${id}` : '/api/products';
+    await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+    closeModal('productModal'); loadData();
+}
+async function deleteProduct(id) { if(confirm("Удалить товар?")) { await fetch(`/api/products/${id}`, { method: 'DELETE' }); loadData(); } }
+
+// --- 4. КОРЗИНА И ОПЛАТА ---
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function addToCart(id, name, price) {
+    let item = cart.find(i => i.id === id);
+    if (item) item.qty++; else cart.push({id, name, price, qty: 1});
+    renderCart();
+}
+
+function renderCart() {
+    const cont = document.getElementById('cartItems'); cont.innerHTML = ''; total = 0;
+    cart.forEach((i, idx) => {
+        total += i.price * i.qty;
+        cont.innerHTML += `<div class="cart-item"><span>${i.name} (x${i.qty})</span><span>${i.price * i.qty} ₽ <button onclick="cart.splice(${idx},1);renderCart()" style="border:none;background:none;color:red;">✕</button></span></div>`;
+    });
+    document.getElementById('totalDisplay').innerText = total + " ₽";
+    document.getElementById('payBtn').disabled = cart.length === 0;
+}
+
+function toggleFav(id) {
+    let favs = JSON.parse(localStorage.getItem('favs_' + cashDeskLogin) || '[]');
+    favs = favs.includes(id) ? favs.filter(f => f !== id) : [...favs, id];
+    localStorage.setItem('favs_' + cashDeskLogin, JSON.stringify(favs));
+    renderProducts();
+}
+
+function startCash() { document.getElementById('cashTotalDisp').innerText = total; openModal('cashModal'); }
+function calculateChange() {
+    const rec = parseFloat(document.getElementById('cashReceived').value) || 0;
+    const diff = rec - total;
+    document.getElementById('changeDisp').innerHTML = diff >= 0 ? `Сдача: <b style="color:green">${diff} ₽</b>` : `Не хватает: <b style="color:red">${Math.abs(diff)} ₽</b>`;
+    document.getElementById('confirmCashBtn').disabled = rec < total;
+}
+
+async function processExternal(method) {
+    // Шлем на сервер только product_id и количество
+    const items = cart.map(i => ({ product_id: i.id, quantity: i.qty }));
+    try {
+        const res = await fetch('/api/pay_external', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ 
+                cash_desk_id: cashDeskLogin, 
+                items: items, 
+                payment_method: method 
+            }) 
+        });
+        if(res.ok) {
+            cart = []; renderCart(); 
+            closeModal('cashModal'); closeModal('paymentMethodModal'); 
+            alert("Оплата принята!");
+        } else {
+            alert("Ошибка при оплате");
         }
+    } catch(e) { alert("Ошибка сети"); }
+}
 
-        // --- 3. ОТРИСОВКА (RENDER) ---
-        function renderCategories() {
-            const bar = document.getElementById('categoriesBar');
-            let html = `<div class="cat-tab ${currentCatId === 0 ? 'active' : ''}" onclick="selectCat(0)">⭐ Избранное</div>`;
-            categories.forEach(c => {
-                html += `<div class="cat-tab ${currentCatId === c.id ? 'active' : ''}" onclick="selectCat(${c.id})">
-                    ${c.name}
-                    ${isAdmin ? `
-                        <div style="position:absolute; top:-10px; right:-10px; display:flex; gap:2px;">
-                            <button class="delete-btn" style="background:#007bff; position:static;" onclick="event.stopPropagation(); openEditCat(${c.id}, '${c.name}')">✎</button>
-                            <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteCat(${c.id})">×</button>
-                        </div>` : ''}
-                </div>`;
-            });
-            if (isAdmin) html += `<div class="cat-tab" style="border: 2px dashed #000;" onclick="openAddCat()">+ Вкладка</div>`;
-            bar.innerHTML = html;
-        }
+function startInternal() {
+    if (cart.length === 0) return alert("Корзина пуста!");
+    
+    // Сохраняем товары (только ID и количество для "Стены")
+    localStorage.setItem('pendingCart', JSON.stringify(cart.map(i => ({ product_id: i.id, quantity: i.qty }))));
+    // Сохраняем общую сумму для красоты на экране оплаты
+    localStorage.setItem('pendingAmount', total);
+    
+    window.location.href = 'index.html';
+}
 
-        function renderProducts() {
-            const grid = document.getElementById('productsGrid');
-            let html = '';
-            let favs = JSON.parse(localStorage.getItem('favs_' + cashDeskLogin) || '[]');
-            let displayProducts = currentCatId === 0 ? products.filter(p => favs.includes(p.id)) : products.filter(p => p.category_id === currentCatId);
-
-            displayProducts.forEach(p => {
-                const isFav = favs.includes(p.id);
-                html += `<div class="product-card" onclick="if(!isAdmin) addToCart('${p.name}', ${p.price})">
-                    <button class="star-btn ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav(${p.id})">★</button>
-                    ${isAdmin ? `
-                        <div style="position:absolute; top:-5px; right:-5px; display:flex; gap:2px;">
-                            <button class="delete-btn" style="background:#007bff; position:static;" onclick="event.stopPropagation(); openEditProduct(${p.id}, '${p.name}', ${p.price})">✎</button>
-                            <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteProduct(${p.id})">×</button>
-                        </div>` : ''}
-                    <div class="product-name">${p.name}</div>
-                    <div class="product-price">${p.price} ₽</div>
-                </div>`;
-            });
-            if (isAdmin && currentCatId !== 0) html += `<div class="product-card" style="border: 2px dashed #ccc;" onclick="openAddProduct()">+ Товар</div>`;
-            grid.innerHTML = html;
-        }
-
-        function selectCat(id) { currentCatId = id; renderCategories(); renderProducts(); }
-
-        // --- 4. АДМИН-ФУНКЦИИ ---
-        async function verifyAdmin() {
-            const pwd = document.getElementById('adminPassInput').value;
-            const res = await fetch('/api/verify_desk_password', { 
-                method: 'POST', headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ login: cashDeskLogin, password: pwd }) 
-            });
-            if (res.ok) {
-                isAdmin = true;
-                document.body.classList.add('edit-mode');
-                closeModal('adminAuthModal'); renderCategories(); renderProducts();
-            } else alert("Неверный пароль");
-        }
-
-        function exitAdmin() { 
-            isAdmin = false; 
-            document.body.classList.remove('edit-mode'); 
-            renderCategories(); renderProducts(); 
-        }
-
-        // --- 5. CRUD: ВКЛАДКИ (CATEGORIES) ---
-        function openAddCat() { document.getElementById('editCatId').value = ''; document.getElementById('catNameInput').value = ''; document.getElementById('catModalTitle').innerText='Новая вкладка'; openModal('catModal'); }
-        function openEditCat(id, name) { document.getElementById('editCatId').value = id; document.getElementById('catNameInput').value = name; document.getElementById('catModalTitle').innerText='Изменить вкладку'; openModal('catModal'); }
-        
-        async function saveCategory() {
-            const id = document.getElementById('editCatId').value;
-            const name = document.getElementById('catNameInput').value.trim();
-            if(!name) return;
-            const method = id ? 'PUT' : 'POST';
-            const url = id ? `/api/categories/${id}` : '/api/categories';
-            await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }) });
-            closeModal('catModal'); loadData();
-        }
-        async function deleteCat(id) { if(confirm("Удалить вкладку?")) { await fetch(`/api/categories/${id}`, { method: 'DELETE' }); loadData(); } }
-
-        // --- 6. CRUD: ТОВАРЫ (PRODUCTS) ---
-        function openAddProduct() { document.getElementById('editProductId').value = ''; document.getElementById('prodName').value = ''; document.getElementById('prodPrice').value = ''; document.getElementById('productModalTitle').innerText = 'Новый товар'; openModal('productModal'); }
-        function openEditProduct(id, name, price) { document.getElementById('editProductId').value = id; document.getElementById('prodName').value = name; document.getElementById('prodPrice').value = price; document.getElementById('productModalTitle').innerText = 'Изменить товар'; openModal('productModal'); }
-
-        async function saveProduct() {
-            const id = document.getElementById('editProductId').value;
-            const name = document.getElementById('prodName').value.trim();
-            const price = parseInt(document.getElementById('prodPrice').value);
-            if(!name || !price) return;
-
-            const data = { 
-                name, price, category_id: currentCatId, 
-                cash_desk_ids: [parseInt(cashDeskDbId)] 
-            };
-            const method = id ? 'PUT' : 'POST';
-            const url = id ? `/api/products/${id}` : '/api/products';
-            await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            closeModal('productModal'); loadData();
-        }
-        async function deleteProduct(id) { if(confirm("Удалить товар?")) { await fetch(`/api/products/${id}`, { method: 'DELETE' }); loadData(); } }
-
-        // --- 7. КОРЗИНА И МОДАЛКИ ---
-        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-        
-        function addToCart(name, price) {
-            let item = cart.find(i => i.name === name);
-            if (item) item.qty++; else cart.push({name, price, qty: 1});
-            renderCart();
-        }
-        function renderCart() {
-            const cont = document.getElementById('cartItems'); cont.innerHTML = ''; total = 0;
-            cart.forEach((i, idx) => {
-                total += i.price * i.qty;
-                cont.innerHTML += `<div class="cart-item"><span>${i.name} (x${i.qty})</span><span>${i.price * i.qty} ₽ <button onclick="cart.splice(${idx},1);renderCart()" style="border:none;background:none;color:red;">✕</button></span></div>`;
-            });
-            document.getElementById('totalDisplay').innerText = total + " ₽";
-            document.getElementById('payBtn').disabled = cart.length === 0;
-        }
-
-        function toggleFav(id) {
-            let favs = JSON.parse(localStorage.getItem('favs_' + cashDeskLogin) || '[]');
-            favs = favs.includes(id) ? favs.filter(f => f !== id) : [...favs, id];
-            localStorage.setItem('favs_' + cashDeskLogin, JSON.stringify(favs));
-            renderProducts();
-        }
-
-        function startCash() { document.getElementById('cashTotalDisp').innerText = total; openModal('cashModal'); }
-        function calculateChange() {
-            const rec = parseFloat(document.getElementById('cashReceived').value) || 0;
-            const diff = rec - total;
-            document.getElementById('changeDisp').innerHTML = diff >= 0 ? `Сдача: <b style="color:green">${diff} ₽</b>` : `Не хватает: <b style="color:red">${Math.abs(diff)} ₽</b>`;
-            document.getElementById('confirmCashBtn').disabled = rec < total;
-        }
-        async function processExternal(method) {
-            let items = []; cart.forEach(i => { for(let k=0; k<i.qty; k++) items.push({name:i.name, price:i.price}) });
-            await fetch('/api/pay_external', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ cash_desk_id: cashDeskLogin, amount_rub: total, items, payment_method: method }) });
-            cart = []; renderCart(); closeModal('cashModal'); closeModal('paymentMethodModal'); alert("Успешно!");
-        }
-        function startInternal() { window.location.href = `index.html?amount=${total}&desk=${cashDeskLogin}`; }
-        function openAdminAuth() { openModal('adminAuthModal'); }
+function openAdminAuth() { openModal('adminAuthModal'); }
     </script>
 </body>
 </html>

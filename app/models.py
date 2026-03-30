@@ -5,14 +5,6 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 
-
-cash_desk_products = Table(
-    'cash_desk_products',
-    Base.metadata,
-    Column('cash_desk_id', Integer, ForeignKey('cash_desks.id'), primary_key=True),
-    Column('product_id', Integer, ForeignKey('products.id'), primary_key=True)
-)
-
 class Employee(Base):
     __tablename__ = "employees"
     id = Column(Integer, primary_key=True, index=True)
@@ -63,24 +55,40 @@ class LivenessSession(Base):
     card_uid = Column(String)
     timestamp = Column(DateTime, default=datetime.now)
 
-
 class CashDesk(Base):
     __tablename__ = 'cash_desks'
     id = Column(Integer, primary_key=True, index=True)
     login = Column(String, unique=True, index=True)
     description = Column(String, nullable=True)
     password = Column(String, default='1234')
-    products = relationship("Product", secondary=cash_desk_products, back_populates="cash_desks")
+    
+    # Связь через промежуточный класс
+    products_association = relationship("CashDeskProduct", back_populates="cash_desk")
 
 class Category(Base):
     __tablename__ = 'categories'
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True)
+    name = Column(String)
+    cash_desk_id = Column(Integer, ForeignKey('cash_desks.id'))
 
 class Product(Base):
     __tablename__ = 'products'
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
-    price = Column(Integer)
+    price = Column(Integer) # Базовая цена
     category_id = Column(Integer, ForeignKey('categories.id'))
-    cash_desks = relationship("CashDesk", secondary=cash_desk_products, back_populates="products")
+    
+    # Связь через промежуточный класс
+    cash_desks_association = relationship("CashDeskProduct", back_populates="product")
+
+class CashDeskProduct(Base):
+    __tablename__ = "cash_desk_products"
+    cash_desk_id = Column(Integer, ForeignKey('cash_desks.id'), primary_key=True)
+    product_id = Column(Integer, ForeignKey('products.id'), primary_key=True)
+    price = Column(Integer, nullable=False, default=0) # Цена именно для этой кассы
+
+    # Добавляем связи, чтобы удобно было доставать данные
+    cash_desk = relationship("CashDesk", back_populates="products_association")
+    product = relationship("Product", back_populates="cash_desks_association")
+
+

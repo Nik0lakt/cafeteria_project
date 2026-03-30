@@ -1,42 +1,40 @@
 import os
 import urllib.request, json, base64
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
-from app.models import CashDesk, Employee, Category, Product, Card, Transaction, WorkDay, RoleSetting, LivenessSession
+from app.models import CashDesk, Employee, Category, Product, Card, Transaction, WorkDay, RoleSetting, LivenessSession, CashDeskProduct
 from pydantic import BaseModel
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from typing import List, Optional
 import csv
 import io
-from datetime import date, datetime, timedelta
-from fastapi import Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func
-
 
 router = APIRouter()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 
+# --- СХЕМЫ ДАННЫХ ---
+
 class OrderItem(BaseModel):
-    name: str
-    price: int
+    product_id: int
+    quantity: int
 
 class ExternalPaymentRequest(BaseModel):
     cash_desk_id: str
-    amount_rub: float
-    items: Optional[List[OrderItem]] = []
+    items: List[OrderItem]
     payment_method: str
 
 class PaymentRequest(BaseModel):
     session_id: str
-    amount_rub: int
-    items: Optional[List[OrderItem]] = []
+    items: List[OrderItem]
     is_manual: bool = False
     live_frame_base64: Optional[str] = None
     cash_desk_id: Optional[str] = "unknown"
+
+# --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 
 def send_tg_msg(chat_id, text):
     if not chat_id or not TELEGRAM_BOT_TOKEN: return
@@ -68,10 +66,31 @@ def send_tg_report(chat_id, db_photo_path, live_photo_b64, caption):
     try: urllib.request.urlopen(req, timeout=15)
     except: pass
 
+def calculate_secure_total(db: Session, cash_desk_login: str, items: List[OrderItem]):
+    total_kop = 0
+    detailed_items = []
+    desk = db.query(CashDesk).filter(CashDesk.login == cash_desk_login).first()
+    if not desk:
+        raise HTTPException(status_code=400, detail="Касса не найдена")
+    for item in items:
+        mapping = db.query(CashDeskProduct).filter(
+            CashDeskProduct.product_id == item.product_id,
+            CashDeskProduct.cash_desk_id == desk.id
+        ).first()
+        product = db.query(Product).filter(Product.id == item.product_id).first()
+        if not product: continue
+        price = mapping.price if mapping else product.price
+        total_kop += (price * item.quantity * 100)
+        detailed_items.append({"name": product.name, "price": price, "qty": item.quantity})
+    return int(total_kop), detailed_items
+
+# --- РОУТЫ ОПЛАТЫ ---
+
 @router.post("/pay_external")
 def pay_external(data: ExternalPaymentRequest, db: Session = Depends(get_db)):
-    total_bill_kop = int(data.amount_rub * 100)
-    
+    total_bill_kop, detailed_items = calculate_secure_total(db, data.cash_desk_id, data.items)
+    if not detailed_items or total_bill_kop <= 0:
+        raise HTTPException(status_code=400, detail="Заказ пуст")
     new_tx = Transaction(
         employee_id=None,
         amount_total_kopecks=total_bill_kop,
@@ -81,42 +100,29 @@ def pay_external(data: ExternalPaymentRequest, db: Session = Depends(get_db)):
         created_at=datetime.now(),
         cash_desk_id=data.cash_desk_id,
         payment_method=data.payment_method,
-        items=[item.dict() for item in data.items]
+        items=detailed_items
     )
     db.add(new_tx)
     db.commit()
-
-    counts = {}
-    for i in data.items:
-        if i.name not in counts: counts[i.name] = {"qty": 0, "price": i.price}
-        counts[i.name]["qty"] += 1
-    items_html = "".join([f"• {name} ({v['qty']} шт.) — {v['price']*v['qty']} руб.\n" for name, v in counts.items()])
-
-    method_name = "БАНКОВСКОЙ КАРТОЙ" if data.payment_method == 'bank_card' else "НАЛИЧНЫМИ"
-    admin_caption = (
-        f"💳 <b>ОПЛАТА {method_name}</b>\n"
-        f"🖥 Касса: {data.cash_desk_id}\n"
-        f"💵 Сумма: {data.amount_rub} ₽\n"
-        f"🛒 <b>Заказ:</b>\n{items_html}"
-    )
-    send_tg_msg(ADMIN_CHAT_ID, admin_caption)
-    return {"status": "success"}
+    return {"status": "success", "total_paid": total_bill_kop / 100}
 
 @router.post("/pay")
 def pay(data: PaymentRequest, db: Session = Depends(get_db)):
     sess = db.query(LivenessSession).filter(LivenessSession.id == data.session_id).first()
     if not sess: raise HTTPException(404, "Сессия не найдена")
-
     card = db.query(Card).filter(Card.uid == sess.card_uid).first()
+    if not card: raise HTTPException(404, "Карта не найдена")
     emp = db.query(Employee).filter(Employee.id == card.employee_id).first()
+
+    total_bill_kop, detailed_items = calculate_secure_total(db, data.cash_desk_id, data.items)
+    if not detailed_items or total_bill_kop <= 0:
+        raise HTTPException(status_code=400, detail="Список товаров пуст")
 
     is_work_day = db.query(WorkDay).filter(WorkDay.employee_id == emp.id, WorkDay.date == date.today()).first() is not None
     role_set = db.query(RoleSetting).filter(RoleSetting.role_name == emp.role).first()
     daily_subsidy_limit_kop = float(role_set.subsidy_rub * 100) if (role_set and is_work_day) else 0.0
 
-    total_bill_kop = float(data.amount_rub * 100)
     applied_subsidy_kop = 0.0
-
     if daily_subsidy_limit_kop > 0:
         start_of_today = datetime.combine(date.today(), time.min)
         raw_used = db.query(func.sum(Transaction.subsidy_part_kopecks)).filter(
@@ -124,14 +130,12 @@ def pay(data: PaymentRequest, db: Session = Depends(get_db)):
             Transaction.created_at >= start_of_today
         ).scalar()
         used_today_kop = float(raw_used) if raw_used is not None else 0.0
-        
         available_today_kop = max(0.0, daily_subsidy_limit_kop - used_today_kop)
         applied_subsidy_kop = min(total_bill_kop, available_today_kop)
 
     withdraw_rub = (total_bill_kop - applied_subsidy_kop) / 100.0
-
     if emp.month_limit_rub < withdraw_rub:
-        raise HTTPException(status_code=400, detail="Недостаточно личных средств")
+        raise HTTPException(status_code=400, detail="Недостаточно средств")
 
     new_tx = Transaction(
         employee_id=emp.id,
@@ -142,32 +146,22 @@ def pay(data: PaymentRequest, db: Session = Depends(get_db)):
         created_at=datetime.now(),
         cash_desk_id=data.cash_desk_id,
         payment_method="internal",
-        items=[item.dict() for item in data.items]
+        items=detailed_items
     )
-    
     emp.month_limit_rub -= withdraw_rub
     db.add(new_tx)
     db.delete(sess)
     db.commit()
 
-    counts = {}
-    for i in data.items:
-        if i.name not in counts: counts[i.name] = {"qty": 0, "price": i.price}
-        counts[i.name]["qty"] += 1
-    
-    items_html = ""
-    for name, v in counts.items():
-        qty = v["qty"]
-        items_html += f"• {name}{f' ({qty} шт.)' if qty > 1 else ''} — {v['price'] * qty} руб.\n"
-
+    items_html = "".join([f"• {i['name']} (x{i['qty']}) — {i['price'] * i['qty']} руб.\n" for i in detailed_items])
     user_receipt = (
         f"💳 <b>Оплата принята</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"🛒 <b>Состав заказа:</b>\n{items_html}"
+        f"🛒 <b>Заказ:</b>\n{items_html}"
         f"━━━━━━━━━━━━━━━\n"
-        f"💰 Сумма: {float(data.amount_rub):.2f} ₽\n"
-        f"🥗 Дотация: {float(applied_subsidy_kop/100):.2f} ₽\n"
-        f"💳 Из лимита: {float(withdraw_rub):.2f} ₽\n\n"
+        f"💰 Сумма: {total_bill_kop/100:.2f} ₽\n"
+        f"🥗 Дотация: {applied_subsidy_kop/100:.2f} ₽\n"
+        f"💳 Из лимита: {withdraw_rub:.2f} ₽\n\n"
         f"📉 <b>Остаток: {round(emp.month_limit_rub, 1)} ₽</b>"
     )
     send_tg_msg(emp.telegram_id, user_receipt)
@@ -175,37 +169,33 @@ def pay(data: PaymentRequest, db: Session = Depends(get_db)):
     if data.is_manual and data.live_frame_base64:
         db_photo = f"/app/static/photos/{sess.card_uid}.jpg"
         if os.path.exists(db_photo):
-            admin_caption = (f"⚠️ <b>РУЧНАЯ ОПЛАТА</b>\n━━━━━━━━━━━━━━━\n👤 <b>{emp.full_name}</b>\n"
-                             f"🖥 Касса: {data.cash_desk_id}\n"
-                             f"💵 Сумма: {data.amount_rub} ₽\n🛒 <b>Заказ:</b>\n{items_html}")
+            admin_caption = (
+                f"⚠️ <b>РУЧНАЯ ОПЛАТА</b>\n"
+                f"━━━━━━━━━━━━━━━\n"
+                f"👤 <b>{emp.full_name}</b>\n"
+                f"🖥 Касса: {data.cash_desk_id}\n"
+                f"💵 Сумма: {total_bill_kop/100:.2f} ₽\n"
+                f"🛒 <b>Заказ:</b>\n{items_html}"
+            )
             send_tg_report(ADMIN_CHAT_ID, db_photo, data.live_frame_base64, admin_caption)
 
     return {"status": "success", "remaining_limit": round(emp.month_limit_rub, 2)}
 
-class CashDeskCreate(BaseModel):
-    login: str
-    description: str
-    password: str
-
-class CashDeskLogin(BaseModel):
-    login: str
+# --- АДМИНКА И ТОВАРЫ ---
 
 @router.post("/verify_cash_desk")
-def verify_cash_desk(data: CashDeskLogin, db: Session = Depends(get_db)):
-    desk = db.query(CashDesk).filter(CashDesk.login == data.login).first()
-    if not desk:
-        raise HTTPException(status_code=401, detail="Касса не найдена")
-    return {"status": "ok", "login": desk.login, "id": desk.id, "description": desk.description}
+def verify_cash_desk(data: dict, db: Session = Depends(get_db)):
+    desk = db.query(CashDesk).filter(CashDesk.login == data.get("login")).first()
+    if not desk: raise HTTPException(status_code=401, detail="Касса не найдена")
+    return {"status": "ok", "login": desk.login, "id": desk.id}
 
 @router.get("/cash_desks")
 def get_cash_desks(db: Session = Depends(get_db)):
     return db.query(CashDesk).all()
 
 @router.post("/cash_desks")
-def add_cash_desk(data: CashDeskCreate, db: Session = Depends(get_db)):
-    if db.query(CashDesk).filter(CashDesk.login == data.login).first():
-        raise HTTPException(status_code=400, detail="Логин занят")
-    new_desk = CashDesk(login=data.login, description=data.description, password=data.password)
+def add_cash_desk(data: dict, db: Session = Depends(get_db)):
+    new_desk = CashDesk(login=data.get("login"), description=data.get("description"), password=data.get("password"))
     db.add(new_desk)
     db.commit()
     return {"status": "success"}
@@ -218,206 +208,84 @@ def delete_cash_desk(desk_id: int, db: Session = Depends(get_db)):
         db.commit()
     return {"status": "success"}
 
-class CategoryCreate(BaseModel):
-    name: str
-
-class ProductCreate(BaseModel):
-    name: str
-    price: int
-    category_id: int
-    cash_desk_ids: List[int] = [] 
-
-class DeskPassword(BaseModel):
-    password: str
-
-class VerifyDeskPassword(BaseModel):
-    login: str
-    password: str
-
 @router.get("/categories")
-def get_categories(db: Session = Depends(get_db)):
+def get_categories(cash_desk_login: Optional[str] = None, db: Session = Depends(get_db)):
+    if cash_desk_login:
+        return db.query(Category).join(CashDesk).filter(CashDesk.login == cash_desk_login).all()
     return db.query(Category).all()
 
 @router.post("/categories")
-def add_category(data: CategoryCreate, db: Session = Depends(get_db)):
-    cat = Category(name=data.name)
+def add_category(data: dict, db: Session = Depends(get_db)):
+    desk_id = data.get("cash_desk_id")
+    if not desk_id:
+        raise HTTPException(status_code=400, detail="Не указан ID кассы")
+    cat = Category(name=data.get("name"), cash_desk_id=desk_id)
     db.add(cat)
-    db.commit()
-    return {"status": "ok"}
-
-@router.delete("/categories/{cat_id}")
-def delete_category(cat_id: int, db: Session = Depends(get_db)):
-    db.query(Product).filter(Product.category_id == cat_id).delete()
-    db.query(Category).filter(Category.id == cat_id).delete()
     db.commit()
     return {"status": "ok"}
 
 @router.get("/products")
 def get_products(cash_desk_login: Optional[str] = None, db: Session = Depends(get_db)):
     if cash_desk_login:
-        return db.query(Product).join(Product.cash_desks).filter(CashDesk.login == cash_desk_login).all()
+        desk = db.query(CashDesk).filter(CashDesk.login == cash_desk_login).first()
+        if not desk: return []
+        mappings = db.query(CashDeskProduct).filter(CashDeskProduct.cash_desk_id == desk.id).all()
+        result = []
+        for m in mappings:
+            prod = db.query(Product).filter(Product.id == m.product_id).first()
+            if prod:
+                result.append({"id": prod.id, "name": prod.name, "price": m.price, "category_id": prod.category_id})
+        return result
     return db.query(Product).all()
 
 @router.post("/products")
-def add_product(data: ProductCreate, db: Session = Depends(get_db)):
-    # 1. Создаем сам объект товара
-    new_p = Product(name=data.name, price=data.price, category_id=data.category_id)
-    
-    # 2. Если терминал прислал ID кассы, находим эту кассу в базе и связываем
-    if data.cash_desk_ids:
-        desks = db.query(CashDesk).filter(CashDesk.id.in_(data.cash_desk_ids)).all()
-        new_p.cash_desks = desks # SQLAlchemy сама запишет это в таблицу-связку
-        
+def add_product(data: dict, db: Session = Depends(get_db)):
+    new_p = Product(name=data.get("name"), price=data.get("price"), category_id=data.get("category_id"))
     db.add(new_p)
     db.commit()
-    return {"status": "ok"}
-
-@router.delete("/products/{p_id}")
-def delete_product(p_id: int, db: Session = Depends(get_db)):
-    db.query(Product).filter(Product.id == p_id).delete()
-    db.commit()
-    return {"status": "ok"}
-
-
-@router.put("/products/{p_id}")
-def edit_product(p_id: int, data: ProductCreate, db: Session = Depends(get_db)):
-    p = db.query(Product).filter(Product.id == p_id).first()
-    if p:
-        p.name = data.name
-        p.price = data.price
-        p.category_id = data.category_id
+    db.refresh(new_p)
+    if data.get("cash_desk_ids"):
+        for d_id in data.get("cash_desk_ids"):
+            db.add(CashDeskProduct(cash_desk_id=d_id, product_id=new_p.id, price=data.get("price")))
         db.commit()
-        return {"status": "ok"}
-    raise HTTPException(404, "Товар не найден")
+    return {"status": "ok"}
 
 @router.post("/verify_desk_password")
-def verify_desk_password(data: VerifyDeskPassword, db: Session = Depends(get_db)):
-    desk = db.query(CashDesk).filter(CashDesk.login == data.login).first()
-    if desk and desk.password == data.password:
-        return {"status": "ok"}
+def verify_desk_password(data: dict, db: Session = Depends(get_db)):
+    desk = db.query(CashDesk).filter(CashDesk.login == data.get("login")).first()
+    if desk and desk.password == data.get("password"): return {"status": "ok"}
     raise HTTPException(403, "Неверный пароль")
 
-@router.put("/cash_desks/{desk_id}/password")
-def update_desk_password(desk_id: int, data: DeskPassword, db: Session = Depends(get_db)):
-    desk = db.query(CashDesk).filter(CashDesk.id == desk_id).first()
-    if desk:
-        desk.password = data.password
-        db.commit()
-        return {"status": "ok"}
-    raise HTTPException(404, "Касса не найдена")
-
-@router.get("/statistics/chart")
-def get_statistics_chart(
-    start_date: str = Query(...),
-    end_date: str = Query(...),
-    payment_methods: Optional[List[str]] = Query(None),
-    cash_desks: Optional[List[str]] = Query(None),
-    db: Session = Depends(get_db)
-):
-    try:
-        # 1. Запрос для графика (агрегированный)
-        query = db.query(
-            func.date(Transaction.created_at).label('day'),
-            Transaction.cash_desk_id,
-            func.sum(Transaction.amount_total_kopecks).label('total')
-        ).filter(
-            func.date(Transaction.created_at) >= start_date,
-            func.date(Transaction.created_at) <= end_date
-        )
-
-        # 2. Запрос для подсчета общего кол-ва ЧЕКОВ (чистый)
-        count_query = db.query(Transaction).filter(
-            func.date(Transaction.created_at) >= start_date,
-            func.date(Transaction.created_at) <= end_date
-        )
-
-        if payment_methods:
-            query = query.filter(Transaction.payment_method.in_(payment_methods))
-            count_query = count_query.filter(Transaction.payment_method.in_(payment_methods))
-        if cash_desks:
-            query = query.filter(Transaction.cash_desk_id.in_(cash_desks))
-            count_query = count_query.filter(Transaction.cash_desk_id.in_(cash_desks))
-
-        # Выполняем запросы
-        results = query.group_by(func.date(Transaction.created_at), Transaction.cash_desk_id).all()
-        total_transactions = count_query.count() # Вот теперь это число чеков!
-
-        desk_data = {}
-        all_dates = set()
-        for row in results:
-            day, desk_id, total = str(row[0]), str(row[1]), float(row[2] or 0) / 100.0
-            all_dates.add(day)
-            if desk_id not in desk_data: desk_data[desk_id] = {}
-            desk_data[desk_id][day] = total
-
-        sorted_dates = sorted(list(all_dates))
-        datasets = []
-        for desk_id, values in desk_data.items():
-            datasets.append({
-                "label": f"Касса {desk_id}",
-                "data": [values.get(d, 0) for d in sorted_dates]
-            })
-
-        return {
-            "labels": sorted_dates, 
-            "datasets": datasets, 
-            "total_count": total_transactions # Отправляем на фронтенд
-        }
-    except Exception as e:
-        print(f"Ошибка статистики: {e}")
-        return {"labels": [], "datasets": [], "total_count": 0}
+# --- СТАТИСТИКА И ЭКСПОРТ ---
 
 @router.get("/statistics/export")
-def export_statistics_csv(
-    start_date: date = Query(...),
-    end_date: date = Query(...),
-    db: Session = Depends(get_db)
-):
-    # 1. Загружаем транзакции с сортировкой по УБЫВАНИЮ даты
+def export_statistics_csv(start_date: date = Query(...), end_date: date = Query(...), db: Session = Depends(get_db)):
     transactions = db.query(Transaction).filter(
         func.date(Transaction.created_at) >= start_date,
         func.date(Transaction.created_at) <= end_date
-    ).order_by(Transaction.created_at.desc()).all() # .desc() — новые сверху
-
-    # StringIO для записи CSV
+    ).order_by(Transaction.created_at.desc()).all()
     stream = io.StringIO()
     writer = csv.writer(stream, delimiter=';', dialect='excel')
-
-    # 2. Заголовки (Добавили "Сотрудник" и "Состав заказа")
     writer.writerow(["ID", "Дата", "Сотрудник", "Касса", "Метод", "Сумма (РУБ)", "Состав заказа"])
-
     for t in transactions:
-        # Конвертируем копейки в рубли
         rubles = float(t.amount_total_kopecks) / 100.0 if t.amount_total_kopecks else 0.0
-        
-        # 3. Собираем состав заказа из JSON
         item_summary = {}
         if t.items and isinstance(t.items, list):
             for item in t.items:
                 name = item.get('name', 'Товар')
-                item_summary[name] = item_summary.get(name, 0) + 1
-        
-        # Превращаем словарь в строку: "Кофе x2, Булочка x1"
+                qty = item.get('qty', 1)
+                item_summary[name] = item_summary.get(name, 0) + qty
         items_str = ", ".join([f"{name} x{qty}" for name, qty in item_summary.items()])
-
-        # Имя сотрудника (благодаря relationship, который мы добавили в Шаге 1)
         emp_name = t.employee.full_name if t.employee else "Внешняя оплата"
-
         writer.writerow([
-            t.id,
-            t.created_at.strftime("%Y-%m-%d %H:%M:%S") if t.created_at else "",
-            emp_name,
-            t.cash_desk_id,
-            t.payment_method,
-            f"{rubles:.2f}".replace('.', ','), # Запятая для Excel
-            items_str
+            t.id, t.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            emp_name, t.cash_desk_id, t.payment_method,
+            f"{rubles:.2f}".replace('.', ','), items_str
         ])
-
-    # Кодировка для Excel (UTF-8 с BOM)
     content = u'\ufeff' + stream.getvalue()
-    
     return StreamingResponse(
         iter([content.encode("utf-8-sig")]), 
         media_type="text/csv; charset=utf-8-sig",
-        headers={"Content-Disposition": f"attachment; filename=report_{start_date}_{end_date}.csv"}
+        headers={"Content-Disposition": f"attachment; filename=report.csv"}
     )
+
