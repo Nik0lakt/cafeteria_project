@@ -21,7 +21,7 @@
     <div class="app-container">
         <div class="top-bar">
             <div class="top-bar-left">
-                <h3 style="margin:0;">Cafeteria POS</h3>
+                <h3 style="margin:0;">Касса</h3>
                 <div class="desk-badge" id="cashDeskLabel">...</div>
                 <div class="admin-badge edit-only">РЕЖИМ РЕДАКТОРА</div>
             </div>
@@ -294,11 +294,31 @@ function addToCart(id, name, price) {
     renderCart();
 }
 
+function removeFromCart(id) {
+    let itemIndex = cart.findIndex(i => i.id === id);
+    
+    if (itemIndex !== -1) {
+        if (cart[itemIndex].qty > 1) {
+            // Если товара больше одного — просто уменьшаем количество на 1
+            cart[itemIndex].qty--;
+        } else {
+            // Если остался последний — удаляем строку целиком
+            cart.splice(itemIndex, 1);
+        }
+    }
+    renderCart(); // Обновляем чек на экране
+}
+
 function renderCart() {
     const cont = document.getElementById('cartItems'); cont.innerHTML = ''; total = 0;
     cart.forEach((i, idx) => {
         total += i.price * i.qty;
-        cont.innerHTML += `<div class="cart-item"><span>${i.name} (x${i.qty})</span><span>${i.price * i.qty} ₽ <button onclick="cart.splice(${idx},1);renderCart()" style="border:none;background:none;color:red;">✕</button></span></div>`;
+        cont.innerHTML += `<div class="cart-item">
+    	    <span>${i.name} (x${i.qty})</span>
+    	    <span>${i.price * i.qty} ₽ 
+                <button onclick="removeFromCart(${i.id})" style="border:none;background:none;color:red;cursor:pointer;font-weight:bold;padding:0 5px;">✕</button>
+            </span>
+        </div>`;
     });
     document.getElementById('totalDisplay').innerText = total + " ₽";
     document.getElementById('payBtn').disabled = cart.length === 0;
