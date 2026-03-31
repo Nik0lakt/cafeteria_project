@@ -4,6 +4,21 @@
     <meta charset="UTF-8">
     <title>Панель управления | Cafeteria Control</title>
     <link rel="stylesheet" href="/static/style.css">
+    <script>
+        // Проверка сессии при каждой загрузке страницы
+        (function() {
+            const today = new Date().toLocaleDateString();
+            const sessionDate = localStorage.getItem('admin_login_date');
+            const savedPass = localStorage.getItem('admin_pass');
+
+            // Если даты нет, или она старая, или нет пароля — уходим на логин
+            if (!sessionDate || sessionDate !== today || !savedPass) {
+                localStorage.removeItem('admin_pass');
+                localStorage.removeItem('admin_login_date');
+                window.location.href = "/login.html";
+            }
+        })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -273,9 +288,12 @@
         document.getElementById('tab-' + id).style.display = 'block';
         document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
         el.classList.add('active');
-        if(id === 'stat') buildChart();
+    
+        // Фикс для Chart.js: даем браузеру 50мс, чтобы вкладка стала видимой
+        if(id === 'stat') {
+            setTimeout(buildChart, 50); 
+        } 
     }
-
     async function load() {
         const res = await fetch('/api/employees'); allEmployees = await res.json();
         rolesData = await (await fetch('/api/role_settings')).json();
@@ -425,25 +443,80 @@
     }
     function uploadBioFile(input) { if(input.files[0]) sendBio(input.files[0]); }
 
-    async function buildChart() {
-        const period = document.getElementById('statPeriod').value;
-        let start, end = new Date().toISOString().split('T')[0];
-        if(period === 'custom') { start = document.getElementById('statStartDate').value; end = document.getElementById('statEndDate').value; if(!start || !end) return; }
-        else { let d = new Date(); d.setDate(d.getDate() - parseInt(period)); start = d.toISOString().split('T')[0]; }
-        const params = new URLSearchParams({start_date: start, end_date: end});
-        document.querySelectorAll('.stat-desk-cb:checked').forEach(cb => params.append('cash_desks', cb.value));
-        document.querySelectorAll('.stat-pay-cb:checked').forEach(cb => params.append('payment_methods', cb.value));
-        try {
-            const res = await fetch(`/api/statistics/chart?${params.toString()}`); 
-            const data = await res.json();
-            let sum = 0; data.datasets.forEach(ds => sum += ds.data.reduce((a, b) => a + b, 0));
-            document.getElementById('totalRevenueDisplay').innerText = Math.round(sum).toLocaleString() + ' ₽';
-            document.getElementById('totalTxDisplay').innerText = data.total_count || 0;
-            const ctx = document.getElementById('revenueChart').getContext('2d');
-            if(revenueChartInstance) revenueChartInstance.destroy();
-            revenueChartInstance = new Chart(ctx, { type:'line', data:{labels:data.labels, datasets:data.datasets.map((ds,i)=>({label:ds.label, data:ds.data, borderColor:['#007AFF','#FF9500','#34C759','#AF52DE'][i%4], tension:0.3, pointRadius: 4, fill:false}))}, options:{responsive:true, maintainAspectRatio:false, scales: { y: { beginAtZero: true, ticks: { callback: (v) => v + ' ₽' } } } } });
-        } catch(e) { console.error(e); }
+async function buildChart() {
+    const period = document.getElementById('statPeriod').value;
+    let start, end = new Date().toISOString().split('T')[0];
+    if(period === 'custom') { 
+        start = document.getElementById('statStartDate').value; 
+        end = document.getElementById('statEndDate').value; 
+        if(!start || !end) return; 
+    } else { 
+        let d = new Date(); d.setDate(d.getDate() - parseInt(period)); 
+        start = d.toISOString().split('T')[0]; 
     }
+
+    const params = new URLSearchParams({start_date: start, end_date: end});
+    document.querySelectorAll('.stat-desk-cb:checked').forEach(cb => params.append('cash_desks', cb.value));
+    document.querySelectorAll('.stat-pay-cb:checked').forEach(cb => params.append('payment_methods', cb.value));
+
+    try {
+        const res = await fetch(`/api/statistics/chart?${params.toString()}`);
+        if(!res.ok) return;
+        const data = await res.json();
+        
+        let sum = 0; 
+        if(data.datasets) data.datasets.forEach(ds => sum += ds.data.reduce((a, b) => a + b, 0));
+        document.getElementById('totalRevenueDisplay').innerText = Math.round(sum).toLocaleString() + ' ₽';
+        document.getElementById('totalTxDisplay').innerText = data.total_count || 0;
+
+        const ctx = document.getElementById('revenueChart').getContext('2d');
+        if(revenueChartInstance) revenueChartInstance.destroy();
+
+        revenueChartInstance = new Chart(ctx, { 
+            type:'line', 
+            data:{
+                labels: data.labels, // Здесь по-прежнему приходят даты с годом (ГГГГ-ММ-ДД)
+                datasets: (data.datasets || []).map((ds, i) => ({
+                    label: ds.label, 
+                    data: ds.data, 
+                    borderColor: ['#007AFF','#FF9500','#34C759','#AF52DE'][i%4], 
+                    tension: 0.3, 
+                    pointRadius: 3, 
+                    fill: false
+                }))
+            }, 
+            options: {
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false } // Легенда убрана
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            autoSkip: true,
+                            maxTicksLimit: 20,
+                            maxRotation: 45, // Наклон сохранен
+                            minRotation: 45,
+                            // ФУНКЦИЯ ОТОБРАЖЕНИЯ ТОЛЬКО ДЕНЬ.МЕСЯЦ
+                            callback: function(val, index) {
+                                const fullDate = this.getLabelForValue(val); // Берем "2026-03-31"
+                                const parts = fullDate.split('-'); 
+                                return parts[2] + '.' + parts[1]; // Возвращаем "31.03"
+                            },
+                            font: { size: 10 }
+                        },
+                        grid: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: (v) => v + ' ₽' }
+                    }
+                }
+            } 
+        });
+    } catch(e) { console.error("Ошибка графика:", e); }
+}    
 
     function toggleCustomDates() { document.getElementById('customDatesWrapper').style.display = document.getElementById('statPeriod').value === 'custom' ? 'flex' : 'none'; }
     function downloadCSV() { window.location.href = `/api/statistics/export?start_date=${document.getElementById('exportStartDate').value}&end_date=${document.getElementById('exportEndDate').value}`; }

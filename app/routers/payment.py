@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 router = APIRouter()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "1234")
 
 # --- СХЕМЫ ДАННЫХ ---
 
@@ -257,6 +258,77 @@ def verify_desk_password(data: dict, db: Session = Depends(get_db)):
     raise HTTPException(403, "Неверный пароль")
 
 # --- СТАТИСТИКА И ЭКСПОРТ ---
+
+class AdminLoginRequest(BaseModel):
+    password: str
+
+@router.post("/login")
+async def admin_login(data: AdminLoginRequest):
+    if data.password == ADMIN_PASSWORD:
+        return {"success": True}
+    return {"success": False}
+
+@router.get("/statistics/chart")
+def get_chart_data(
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    cash_desks: Optional[List[str]] = Query(None),
+    payment_methods: Optional[List[str]] = Query(None),
+    db: Session = Depends(get_db)
+):
+    # Генерируем даты для оси X
+    labels = []
+    curr = start_date
+    while curr <= end_date:
+        labels.append(curr.strftime("%Y-%m-%d"))
+        curr += timedelta(days=1)
+
+    query = db.query(Transaction).filter(
+        func.date(Transaction.created_at) >= start_date,
+        func.date(Transaction.created_at) <= end_date,
+        Transaction.status == "COMPLETED"
+    )
+
+    if cash_desks:
+        query = query.filter(Transaction.cash_desk_id.in_(cash_desks))
+    if payment_methods:
+        query = query.filter(Transaction.payment_method.in_(payment_methods))
+
+    transactions = query.all()
+
+    # Группировка выручки
+# Группировка выручки ПО КАССАМ
+    datasets = []
+    
+    # Определяем список касс, которые участвовали в транзакциях
+    # Если транзакций нет, создаем пустой список, чтобы график не упал
+    active_desks = list(set(t.cash_desk_id for t in transactions)) if transactions else []
+
+    for desk_id in active_desks:
+        daily_sums = {label: 0.0 for label in labels}
+        
+        # Фильтруем транзакции только для текущей кассы
+        for tx in [t for t in transactions if t.cash_desk_id == desk_id]:
+            day_key = tx.created_at.strftime("%Y-%m-%d")
+            if day_key in daily_sums:
+                # Переводим копейки в рубли
+                amount = float(tx.amount_total_kopecks) / 100.0 if tx.amount_total_kopecks else 0.0
+                daily_sums[day_key] += amount
+
+        datasets.append({
+            "label": f"Касса {desk_id}", # Подпись линии — номер кассы
+            "data": [round(daily_sums[label], 2) for label in labels]
+        })
+
+    # Если данных совсем нет, возвращаем пустую линию для корректной отрисовки
+    if not datasets:
+        datasets.append({"label": "Нет данных", "data": [0] * len(labels)})
+
+    return {
+        "labels": labels, # Сохраняем полный формат ГГГГ-ММ-ДД для фронтенда
+        "datasets": datasets,
+        "total_count": len(transactions)
+    }
 
 @router.get("/statistics/export")
 def export_statistics_csv(start_date: date = Query(...), end_date: date = Query(...), db: Session = Depends(get_db)):

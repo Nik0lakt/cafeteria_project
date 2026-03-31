@@ -2,45 +2,171 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Вход в систему</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход | Админ-панель</title>
     <style>
-        body { background: #1a1a1a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #2a2a2a; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; }
-        input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #444; background: #333; color: white; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background: #4CAF50; border: none; color: white; cursor: pointer; border-radius: 4px; }
-        #msg { color: #ff5252; margin-top: 10px; }
+        /* Общие стили системы (как в canteen.html) */
+        body { 
+            margin: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: #f8f9fa; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+        }
+
+        .login-card { 
+            background: #ffffff; 
+            width: 360px; 
+            padding: 40px; 
+            border-radius: 16px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.04); 
+            text-align: center; 
+        }
+
+        .icon-circle {
+            width: 64px;
+            height: 64px;
+            background: #f0f2f5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 32px;
+        }
+
+        h2 { 
+            margin: 0 0 10px; 
+            font-size: 22px; 
+            font-weight: 600; 
+            color: #1a1a1a; 
+        }
+
+        p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        input { 
+            width: 100%; 
+            padding: 14px; 
+            margin-bottom: 15px; 
+            border-radius: 10px; 
+            border: 1px solid #e0e0e0; 
+            background: #fcfcfc; 
+            font-size: 16px; 
+            box-sizing: border-box; 
+            outline: none; 
+            transition: border-color 0.2s;
+        }
+
+        input:focus { 
+            border-color: #007AFF; 
+            background: #fff;
+        }
+
+        button { 
+            width: 100%; 
+            padding: 14px; 
+            background: #1a1a1a; /* Черная кнопка как в терминале */
+            border: none; 
+            color: white; 
+            font-size: 16px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            border-radius: 10px; 
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.9; }
+        button:active { transform: scale(0.98); }
+
+        #msg { 
+            color: #dc3545; 
+            margin-top: 15px; 
+            font-size: 13px; 
+            min-height: 18px;
+            font-weight: 500;
+        }
+
+        .footer-text {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #bbb;
+        }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2>🛡 Вход в IronNet</h2>
-        <input type="password" id="pw" placeholder="Пароль" autofocus>
-        <button onclick="doLogin()">Войти</button>
+
+    <div class="login-card">
+        <div class="icon-circle">⚙️</div>
+        <h2>Админ-панель</h2>
+        <p>Введите пароль для управления системой</p>
+
+        <input type="password" id="pw" placeholder="Пароль администратора" autofocus>
+        <button id="loginBtn" onclick="doLogin()">Войти в систему</button>
+        
         <div id="msg"></div>
+
+        <div class="footer-text">Cafeteria POS v3.0</div>
     </div>
+
     <script>
         async function doLogin() {
+            const btn = document.getElementById('loginBtn');
+            const msg = document.getElementById('msg');
             const pass = document.getElementById('pw').value;
-            const res = await fetch("/api/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ "password": pass }) // Важно: имя поля "password"
-            });
-            
-            if (res.status === 422) {
-                document.getElementById('msg').innerText = "Ошибка формата (422). Проверьте бэкенд.";
+
+            if (!pass) {
+                msg.innerText = "Введите пароль";
                 return;
             }
 
-            const data = await res.json();
-            if (data.success) {
-                localStorage.setItem("admin_pass", pass);
-                window.location.href = "/admin.html";
-            } else {
-                document.getElementById('msg').innerText = "Неверный пароль!";
+            btn.disabled = true;
+            btn.innerText = "Проверка...";
+            msg.innerText = "";
+
+            try {
+                const res = await fetch("/api/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ "password": pass })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success) {
+                        // СОХРАНЯЕМ СЕССИЮ И ДАТУ (чтобы выкидывало каждый день)
+                        const today = new Date().toLocaleDateString();
+                        localStorage.setItem("admin_pass", pass);
+                        localStorage.setItem("admin_login_date", today);
+                        
+                        window.location.href = "/admin.html";
+                    } else {
+                        msg.innerText = "Неверный пароль администратора";
+                        btn.disabled = false;
+                        btn.innerText = "Войти в систему";
+                    }
+                } else {
+                    msg.innerText = "Ошибка сервера (" + res.status + ")";
+                    btn.disabled = false;
+                    btn.innerText = "Войти в систему";
+                }
+            } catch (e) {
+                msg.innerText = "Ошибка сети. Проверьте соединение.";
+                btn.disabled = false;
+                btn.innerText = "Войти в систему";
             }
         }
-        document.getElementById('pw').onkeypress = e => { if(e.key==='Enter') doLogin() };
+
+        // Вход по нажатию Enter
+        document.getElementById('pw').onkeypress = e => { 
+            if(e.key === 'Enter') doLogin();
+        };
     </script>
 </body>
 </html>
+
