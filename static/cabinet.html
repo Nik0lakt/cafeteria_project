@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Личный кабинет</title>
+    <style>
+        :root { --bg: #F2F2F7; --card: #FFFFFF; --accent: #007AFF; --text: #000000; --sec: #8E8E93; }
+        body { background: var(--bg); font-family: -apple-system, system-ui, sans-serif; color: var(--text); margin: 0; padding: 0; }
+        .container { max-width: 480px; margin: 0 auto; padding: 20px; box-sizing: border-box; }
+        
+        /* Дизайн карточек как в терминале */
+        .card { background: var(--card); border-radius: 20px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin: 20px 0; }
+        .u-name { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+        
+        .balance-card { background: var(--accent); color: #fff; }
+        .balance-label { font-size: 13px; font-weight: 600; text-transform: uppercase; opacity: 0.8; margin-bottom: 5px; }
+        .balance-val { font-size: 42px; font-weight: 800; }
+
+        /* Прогресс обеда */
+        .subsidy-row { background: rgba(255,255,255,0.15); padding: 15px; border-radius: 15px; margin-top: 15px; }
+        .bar-bg { height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; margin: 10px 0; overflow: hidden; }
+        .bar-fill { height: 100%; background: #fff; width: 0%; transition: width 1s ease; }
+
+        /* Календарь Пн-Вс */
+        .cal-head { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 11px; color: var(--sec); font-weight: 700; margin-bottom: 10px; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+        .day { font-size: 14px; padding: 10px 0; border-radius: 10px; text-align: center; background: #fff; border: 1px solid #E5E5EA; font-weight: 600; }
+        .work { background: var(--accent) !important; color: #fff !important; border: none; }
+        .today { border: 2px solid var(--accent); color: var(--accent); }
+
+        /* Тумблер уведомлений */
+        .switch-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; }
+        .switch { position: relative; width: 51px; height: 31px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background-color: #E5E5EA; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 27px; width: 27px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        input:checked + .slider { background-color: #34C759; }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* Список чеков */
+        .hist-item { border-bottom: 1px solid #F2F2F7; padding: 15px 0; cursor: pointer; }
+        .hist-item:last-child { border: none; }
+        .hist-row { display: flex; justify-content: space-between; align-items: center; }
+        .hist-det { display: none; padding-top: 10px; color: var(--sec); font-size: 14px; line-height: 1.6; }
+        .qty { color: var(--accent); font-weight: 700; margin-left: 10px; }
+
+        .btn-black { background: #000; color: #fff; border: none; width: 100%; padding: 18px; border-radius: 15px; font-size: 17px; font-weight: 600; cursor: pointer; }
+        .overlay { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    </style>
+</head>
+<body>
+
+<div id="loginOverlay" class="overlay">
+    <div class="container" style="text-align: center;">
+        <h1 style="margin-bottom: 30px;">Вход</h1>
+        <div class="card">
+            <input type="text" id="cardUid" placeholder="ID вашей карты" style="width:100%; padding:15px; border-radius:12px; border:1px solid #ddd; margin-bottom:15px; text-align:center; font-size:18px; outline:none;">
+            <button class="btn-black" onclick="login()">Войти</button>
+        </div>
+    </div>
+</div>
+
+<div class="container" id="mainApp" style="display: none;">
+    <div class="header">
+        <div>
+            <div id="uName" class="u-name">Привет!</div>
+            <div id="uRole" style="color: var(--accent); font-weight: 600; font-size: 14px; text-transform: uppercase;">...</div>
+        </div>
+        <button onclick="logout()" style="background:none; border:none; font-size: 24px; cursor:pointer;">🚪</button>
+    </div>
+
+    <div class="card balance-card">
+        <div class="balance-label">Доступный лимит</div>
+        <div class="balance-val" id="uLimit">0 ₽</div>
+        
+        <div class="subsidy-row">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700;">
+                <span id="subsTitle">Дотация сегодня</span>
+                <span id="subsLabel">0 / 0 ₽</span>
+            </div>
+            <div class="bar-bg"><div id="subsBar" class="bar-fill"></div></div>
+        </div>
+    </div>
+
+    <div class="card" style="padding: 10px 20px;">
+        <div class="switch-row">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 22px;">🔔</span>
+                <div>
+                    <div style="font-weight: 700; font-size: 15px;">Чеки в Telegram</div>
+                    <div id="tgStatus" style="font-size: 12px; color: var(--sec);">...</div>
+                </div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="tgToggle" onchange="handleToggle()">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="balance-label" style="color: var(--sec); margin-bottom: 15px;">График работы</div>
+        <div class="cal-head"><div>ПН</div><div>ВТ</div><div>СР</div><div>ЧТ</div><div>ПТ</div><div>СБ</div><div>ВС</div></div>
+        <div id="calGrid" class="cal-grid"></div>
+    </div>
+
+    <h3 style="margin: 25px 5px 15px; font-size: 22px; font-weight: 700;">Последние чеки</h3>
+    <div class="card" id="historyList" style="padding: 5px 20px;"></div>
+</div>
+
+<script>
+    async function login() {
+        const uid = document.getElementById('cardUid').value.trim().toUpperCase();
+        const res = await fetch('/api/user/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({card_uid:uid})});
+        if(res.ok) { localStorage.setItem('cab_emp_id', (await res.json()).emp_id); init(); }
+        else alert("Карта не найдена");
+    }
+    
+    function logout() { localStorage.clear(); location.reload(); }
+
+    async function handleToggle() {
+        const id = localStorage.getItem('cab_emp_id');
+        const res = await fetch(`/api/user/toggle_notifications/${id}`, {method:'POST'});
+        if(res.ok) {
+            const d = await res.json();
+            updateTgUI(d.enabled);
+        }
+    }
+
+    function updateTgUI(enabled) {
+        const status = document.getElementById('tgStatus');
+        const toggle = document.getElementById('tgToggle');
+        toggle.checked = enabled;
+        status.innerText = enabled ? "Включены" : "Выключены";
+        // ИСПРАВЛЕНО: добавили кавычки вокруг цвета
+        status.style.color = enabled ? "#34C759" : "#8E8E93"; 
+    }
+
+    async function init() {
+        const id = localStorage.getItem('cab_emp_id'); if(!id) return;
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+
+        const res = await fetch(`/api/user/full_data/${id}`);
+        const d = await res.json();
+
+        // Имя
+        const parts = d.info.name.split(' ');
+        document.getElementById('uName').innerText = "Привет, " + parts.slice(0, 2).join(' ') + "!";
+        document.getElementById('uRole').innerText = d.info.role;
+        document.getElementById('uLimit').innerText = d.info.limit + " ₽";
+        
+        // Уведомления
+        updateTgUI(d.info.notifications_enabled);
+        if(!d.info.tg_linked) {
+            document.getElementById('tgStatus').innerText = "Бот не привязан (/start)";
+            document.getElementById('tgToggle').disabled = true;
+        }
+
+        // Дотация
+        document.getElementById('subsLabel').innerText = `${d.subsidy.used} / ${d.subsidy.max} ₽`;
+        const percent = d.subsidy.max > 0 ? (d.subsidy.used / d.subsidy.max * 100) : 0;
+        setTimeout(() => { document.getElementById('subsBar').style.width = Math.min(percent, 100) + "%"; }, 200);
+        if(!d.subsidy.is_work) document.getElementById('subsTitle').innerText = "Сегодня выходной";
+
+        renderCal(d.schedule);
+        renderHistory(d.history);
+    }
+
+    function renderCal(workDays) {
+        const grid = document.getElementById('calGrid'); grid.innerHTML = '';
+        const now = new Date();
+        const first = new Date(now.getFullYear(), now.getMonth(), 1);
+        const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        let offset = (first.getDay() + 6) % 7;
+        for(let i=0; i<offset; i++) grid.innerHTML += '<div style="visibility:hidden"></div>';
+        for(let i=1; i<=last; i++) {
+            const dStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+            grid.innerHTML += `<div class="day ${workDays.includes(dStr)?'work':''} ${i===now.getDate()?'today':''}">${i}</div>`;
+        }
+    }
+
+    function renderHistory(history) {
+        const list = document.getElementById('historyList');
+        if(!history.length) return;
+        
+        list.innerHTML = history.map((t, i) => {
+            const counts = {};
+            t.items.forEach(it => { counts[it.name] = (counts[it.name] || 0) + (it.qty || 1); });
+
+            return `
+            <div class="hist-item" onclick="toggleDet(${i})">
+                <div class="hist-row">
+                    <div>
+                        <div style="font-weight:700;">${t.date}</div>
+                        <div style="font-size:11px; color:var(--sec);">Чек №${t.id}</div>
+                    </div>
+                    <div style="text-align:right">
+                        <div style="font-size:18px; font-weight:800;">${t.total} ₽</div>
+                    </div>
+                </div>
+                <div id="det-${i}" class="hist-det">
+                    ${Object.entries(counts).map(([name, qty]) => `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span>• ${name}</span>
+                            <span class="qty">${qty} шт.</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `}).join('');
+    }
+
+    function toggleDet(i) {
+        const el = document.getElementById(`det-${i}`);
+        el.style.display = el.style.display === 'block' ? 'none' : 'block';
+    }
+
+    if(localStorage.getItem('cab_emp_id')) init();
+</script>
+</body>
+</html>

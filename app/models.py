@@ -1,11 +1,15 @@
 from datetime import datetime
 from datetime import datetime
-from sqlalchemy import Column, JSON, Integer, String, Float, LargeBinary, ForeignKey, Date, DateTime, Table
+from sqlalchemy import Column, JSON, Integer, String, Float, LargeBinary, ForeignKey, Date, DateTime, Table, Integer
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, JSON, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 
 class Employee(Base):
+    web_login = Column(String, unique=True, nullable=True)
+    web_password = Column(String, nullable=True)
+    is_first_login = Column(Boolean, default=True)
     __tablename__ = "employees"
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String)
@@ -14,6 +18,7 @@ class Employee(Base):
     face_embedding = Column(LargeBinary, nullable=True)
     telegram_id = Column(String, nullable=True)
     work_days = relationship("WorkDay", back_populates="employee")
+    notifications_enabled = Column(Boolean, default=True)
 
 class Card(Base):
     __tablename__ = "cards"

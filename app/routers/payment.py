@@ -11,6 +11,8 @@ from typing import List, Optional
 import csv
 import io
 from fastapi.responses import StreamingResponse
+import random
+import string
 
 router = APIRouter()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -107,6 +109,14 @@ def pay_external(data: ExternalPaymentRequest, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "success", "total_paid": total_bill_kop / 100}
 
+@router.post("/user/toggle_notifications/{emp_id}")
+def toggle_notifications(emp_id: int, db: Session = Depends(get_db)):
+    emp = db.query(Employee).filter(Employee.id == emp_id).first()
+    if not emp: raise HTTPException(404)
+    emp.notifications_enabled = not emp.notifications_enabled
+    db.commit()
+    return {"enabled": emp.notifications_enabled}
+
 @router.post("/pay")
 def pay(data: PaymentRequest, db: Session = Depends(get_db)):
     sess = db.query(LivenessSession).filter(LivenessSession.id == data.session_id).first()
@@ -165,7 +175,9 @@ def pay(data: PaymentRequest, db: Session = Depends(get_db)):
         f"💳 Из лимита: {withdraw_rub:.2f} ₽\n\n"
         f"📉 <b>Остаток: {round(emp.month_limit_rub, 1)} ₽</b>"
     )
-    send_tg_msg(emp.telegram_id, user_receipt)
+
+    if emp.notifications_enabled:
+        send_tg_msg(emp.telegram_id, user_receipt)
 
     if data.is_manual and data.live_frame_base64:
         db_photo = f"/app/static/photos/{sess.card_uid}.jpg"
@@ -361,3 +373,90 @@ def export_statistics_csv(start_date: date = Query(...), end_date: date = Query(
         headers={"Content-Disposition": f"attachment; filename=report.csv"}
     )
 
+# Схема для входа
+class UserLoginRequest(BaseModel):
+    card_uid: Optional[str] = None
+    login: Optional[str] = None
+    password: Optional[str] = None
+
+@router.post("/user/login")
+def user_login(data: UserLoginRequest, db: Session = Depends(get_db)):
+    # Вход только по карте, максимально просто
+    card = db.query(Card).filter(Card.uid == data.card_uid.upper()).first()
+    if not card: raise HTTPException(404, "Карта не найдена")
+    return {"status": "success", "emp_id": card.employee_id}
+
+@router.get("/user/full_data/{emp_id}")
+def get_user_full_data(emp_id: int, db: Session = Depends(get_db)):
+    emp = db.query(Employee).filter(Employee.id == emp_id).first()
+    if not emp: raise HTTPException(404)
+
+    today = date.today()
+
+    # ИСПРАВЛЕНИЕ 1: Сравнение только даты через func.date
+    # Это решает проблему "сегодня выходной", когда день на самом деле рабочий
+    is_work = db.query(WorkDay).filter(
+        WorkDay.employee_id == emp.id, 
+        func.date(WorkDay.date) == today
+    ).first()
+    
+    role = db.query(RoleSetting).filter(RoleSetting.role_name == emp.role).first()
+    daily_limit = role.subsidy_rub if (role and is_work) else 0
+
+    # ИСПРАВЛЕНИЕ 2: Корректный расчет потраченной дотации за сегодня
+    used_subsidy_kopecks = db.query(func.sum(Transaction.subsidy_part_kopecks)).filter(
+        Transaction.employee_id == emp.id,
+        func.date(Transaction.created_at) == today
+    ).scalar() or 0
+
+    # История последних 30 чеков
+    txs = db.query(Transaction).filter(Transaction.employee_id == emp_id).order_by(Transaction.created_at.desc()).limit(30).all()
+
+    return {
+        "info": {
+            "name": emp.full_name,
+            "role": emp.role,
+            "limit": round(emp.month_limit_rub, 2),
+            "tg_linked": bool(emp.telegram_id),
+            "notifications_enabled": emp.notifications_enabled
+    },
+        "subsidy": {
+            "max": daily_limit,
+            "used": round(used_subsidy_kopecks / 100, 2),
+            "is_work": bool(is_work)
+        },
+        "schedule": [d[0].isoformat() for d in db.query(WorkDay.date).filter(WorkDay.employee_id == emp.id, WorkDay.date >= today.replace(day=1)).all()],
+        "history": [{
+            "id": t.id,
+            "date": t.created_at.strftime("%d.%m %H:%M"),
+            "total": t.amount_total_kopecks / 100,
+            "items": t.items # Передаем список как есть
+        } for t in txs]
+    }
+
+@router.get("/user/info/{emp_id}")
+def get_user_info(emp_id: int, db: Session = Depends(get_db)):
+    emp = db.query(Employee).filter(Employee.id == emp_id).first()
+    if not emp: raise HTTPException(404)
+    # Считаем остаток дотации на сегодня
+    is_work = db.query(WorkDay).filter(WorkDay.employee_id == emp.id, WorkDay.date == date.today()).first()
+    role = db.query(RoleSetting).filter(RoleSetting.role_name == emp.role).first()
+    daily_limit = role.subsidy_rub if (role and is_work) else 0
+    # Суммируем потраченное из дотации за сегодня
+    used_subsidy = db.query(func.sum(Transaction.subsidy_part_kopecks)).filter(
+        Transaction.employee_id == emp.id, 
+        func.date(Transaction.created_at) == date.today()
+    ).scalar() or 0
+    
+    return {
+        "full_name": emp.full_name,
+        "role": emp.role,
+        "balance": round(emp.month_limit_rub, 2),
+        "subsidy_today": daily_limit,
+        "subsidy_used": used_subsidy / 100
+    }
+
+@router.get("/user/history/{emp_id}")
+def get_user_history(emp_id: int, db: Session = Depends(get_db)):
+    txs = db.query(Transaction).filter(Transaction.employee_id == emp_id).order_by(Transaction.created_at.desc()).limit(20).all()
+    return txs # Возвращаем список последних 20 покупок
