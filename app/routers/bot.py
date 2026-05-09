@@ -1,22 +1,33 @@
-import os, time as time_module, json, urllib.request, threading, sys
-from sqlalchemy.orm import Session
+import os
+import sys
+import time as time_module
+import json
+import urllib.request
+import threading
+from datetime import datetime, time, date
+
 from sqlalchemy import func
+from sqlalchemy.orm import Session
+
 from app.database import SessionLocal
 from app.models import Employee, Transaction, WorkDay, RoleSetting
-from datetime import datetime, time, date # Импортируем классы времени
 
-# Загружаем токен сразу при импорте модуля
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
-def send_reply(chat_id, text):
-    if not TELEGRAM_BOT_TOKEN: return
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    data = json.dumps({"chat_id": chat_id, "text": text, "parse_mode": "HTML"}).encode('utf-8')
-    req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
-    try: urllib.request.urlopen(req, timeout=5)
-    except: pass
 
-def process_message(db, chat_id, text):
+def send_reply(chat_id, text):
+    if not TELEGRAM_BOT_TOKEN:
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    data = json.dumps({"chat_id": chat_id, "text": text, "parse_mode": "HTML"}).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    try:
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        pass
+
+
+def process_message(db: Session, chat_id, text):
     text = text.lower()
     if text == "/start":
         send_reply(chat_id, "Привет! Напиши 'баланс' или /my для проверки лимитов.")
@@ -25,32 +36,39 @@ def process_message(db, chat_id, text):
         if not emp:
             send_reply(chat_id, f"❌ Вы не зарегистрированы. Ваш ID: {chat_id}")
             return
-            
-        is_work_day = db.query(WorkDay).filter(WorkDay.employee_id == emp.id, WorkDay.date == date.today()).first() is not None
+
+        is_work_day = (
+            db.query(WorkDay)
+            .filter(WorkDay.employee_id == emp.id, WorkDay.date == date.today())
+            .first()
+        ) is not None
         role_set = db.query(RoleSetting).filter(RoleSetting.role_name == emp.role).first()
         daily_limit = role_set.subsidy_rub if (role_set and is_work_day) else 0
-        
-        # --- ФИКС: Считаем потраченное строго с начала текущих суток ---
+
         start_of_today = datetime.combine(date.today(), time.min)
         used_today_kop = db.query(func.sum(Transaction.subsidy_part_kopecks)).filter(
-            Transaction.employee_id == emp.id, 
-            Transaction.created_at >= start_of_today
+            Transaction.employee_id == emp.id,
+            Transaction.created_at >= start_of_today,
         ).scalar() or 0
-        
+
         used_today_rub = used_today_kop / 100
-        subsidy_status = f"✅ Доступно: {daily_limit} ₽ (Потрачено: {used_today_rub} ₽)" if daily_limit > 0 else "❌ Сегодня нет дотации"
-        
+        subsidy_status = (
+            f"✅ Доступно: {daily_limit} ₽ (Потрачено: {used_today_rub} ₽)"
+            if daily_limit > 0
+            else "❌ Сегодня нет дотации"
+        )
+
         msg = (
             f"👤 <b>{emp.full_name}</b>\n"
             f"━━━━━━━━━━━━━━━\n"
             f"🥗 <b>Дотация:</b>\n{subsidy_status}\n\n"
-            f"💳 <b>Лимит:</b> {round(emp.month_limit_rub, 2)} ₽"
+            f"💳 <b>Лимит:</b> {emp.month_limit_kopecks / 100:.2f} ₽"
         )
         send_reply(chat_id, msg)
 
+
 def bot_polling():
     offset = 0
-    # Ждем немного, чтобы основной процесс успел загрузить .env
     time_module.sleep(2)
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
@@ -68,11 +86,14 @@ def bot_polling():
                         chat_id = update["message"]["chat"]["id"]
                         text = update["message"].get("text", "")
                         db = SessionLocal()
-                        try: process_message(db, chat_id, text)
-                        finally: db.close()
+                        try:
+                            process_message(db, chat_id, text)
+                        finally:
+                            db.close()
         except Exception as e:
             print(f"--- POLLING ERROR: {e}", file=sys.stderr)
             time_module.sleep(10)
+
 
 def start_bot():
     thread = threading.Thread(target=bot_polling, daemon=True)

@@ -3,170 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход | Админ-панель</title>
+    <title>Вход | Cafeteria</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Общие стили системы (как в canteen.html) */
-        body { 
-            margin: 0; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            background: #f8f9fa; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            height: 100vh; 
-        }
+        *, *::before, *::after { box-sizing: border-box; }
 
-        .login-card { 
-            background: #ffffff; 
-            width: 360px; 
-            padding: 40px; 
-            border-radius: 16px; 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.04); 
-            text-align: center; 
-        }
-
-        .icon-circle {
-            width: 64px;
-            height: 64px;
-            background: #f0f2f5;
-            border-radius: 50%;
+        body {
+            margin: 0;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #F1F5F9;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 32px;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
         }
 
-        h2 { 
-            margin: 0 0 10px; 
-            font-size: 22px; 
-            font-weight: 600; 
-            color: #1a1a1a; 
+        .page {
+            width: 100%;
+            max-width: 400px;
+            padding: 24px;
         }
 
-        p {
-            color: #666;
+        /* Логотип / бренд */
+        .brand {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .brand-logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px; height: 56px;
+            background: #4F46E5;
+            border-radius: 16px;
+            font-size: 28px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 24px rgba(79,70,229,0.30);
+        }
+
+        .brand-name {
+            font-size: 22px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0 0 4px;
+            letter-spacing: -0.3px;
+        }
+
+        .brand-sub {
             font-size: 14px;
-            margin-bottom: 30px;
+            color: #6B7280;
+            margin: 0;
         }
 
-        input { 
-            width: 100%; 
-            padding: 14px; 
-            margin-bottom: 15px; 
-            border-radius: 10px; 
-            border: 1px solid #e0e0e0; 
-            background: #fcfcfc; 
-            font-size: 16px; 
-            box-sizing: border-box; 
-            outline: none; 
-            transition: border-color 0.2s;
-        }
-
-        input:focus { 
-            border-color: #007AFF; 
+        /* Карточка входа */
+        .card {
             background: #fff;
+            border-radius: 14px;
+            padding: 32px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.07);
+            border: 1px solid #E5E7EB;
         }
 
-        button { 
-            width: 100%; 
-            padding: 14px; 
-            background: #1a1a1a; /* Черная кнопка как в терминале */
-            border: none; 
-            color: white; 
-            font-size: 16px; 
-            font-weight: 600; 
-            cursor: pointer; 
-            border-radius: 10px; 
-            transition: opacity 0.2s;
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0 0 4px;
         }
 
-        button:hover { opacity: 0.9; }
-        button:active { transform: scale(0.98); }
+        .card-sub {
+            font-size: 13px;
+            color: #6B7280;
+            margin: 0 0 24px;
+        }
 
-        #msg { 
-            color: #dc3545; 
-            margin-top: 15px; 
-            font-size: 13px; 
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6B7280;
+            margin-bottom: 6px;
+        }
+
+        input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid #E5E7EB;
+            border-radius: 8px;
+            background: #FAFAFA;
+            font-size: 15px;
+            font-family: inherit;
+            color: #111827;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+            margin-bottom: 20px;
+        }
+
+        input:focus {
+            border-color: #4F46E5;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.10);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #4F46E5;
+            border: none;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            font-family: inherit;
+            transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+        }
+
+        button:hover   { background: #4338CA; box-shadow: 0 4px 14px rgba(79,70,229,0.28); }
+        button:active  { transform: scale(0.98); }
+        button:disabled { background: #D1D5DB; cursor: not-allowed; }
+
+        #msg {
+            color: #EF4444;
+            margin-top: 14px;
+            font-size: 13px;
             min-height: 18px;
             font-weight: 500;
+            text-align: center;
         }
 
-        .footer-text {
-            margin-top: 30px;
+        .footer {
+            text-align: center;
+            margin-top: 24px;
             font-size: 12px;
-            color: #bbb;
+            color: #9CA3AF;
         }
     </style>
 </head>
 <body>
 
-    <div class="login-card">
-        <div class="icon-circle">⚙️</div>
-        <h2>Админ-панель</h2>
-        <p>Введите пароль для управления системой</p>
-
-        <input type="password" id="pw" placeholder="Пароль администратора" autofocus>
-        <button id="loginBtn" onclick="doLogin()">Войти в систему</button>
-        
-        <div id="msg"></div>
-
-        <div class="footer-text">Cafeteria POS v3.0</div>
+<div class="page">
+    <div class="brand">
+        <div class="brand-logo">🍽</div>
+        <p class="brand-name">Cafeteria</p>
+        <p class="brand-sub">Система управления корпоративной столовой</p>
     </div>
 
-    <script>
-        async function doLogin() {
-            const btn = document.getElementById('loginBtn');
-            const msg = document.getElementById('msg');
-            const pass = document.getElementById('pw').value;
+    <div class="card">
+        <p class="card-title">Вход в панель управления</p>
+        <p class="card-sub">Введите пароль администратора</p>
 
-            if (!pass) {
-                msg.innerText = "Введите пароль";
-                return;
-            }
+        <label for="pw">Пароль</label>
+        <input type="password" id="pw" placeholder="Введите пароль..." autofocus>
 
-            btn.disabled = true;
-            btn.innerText = "Проверка...";
-            msg.innerText = "";
+        <button id="loginBtn" onclick="doLogin()">Войти</button>
+        <div id="msg"></div>
+    </div>
 
-            try {
-                const res = await fetch("/api/login", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ "password": pass })
-                });
+    <div class="footer">Cafeteria POS v3.0</div>
+</div>
 
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.success) {
-                        // СОХРАНЯЕМ СЕССИЮ И ДАТУ (чтобы выкидывало каждый день)
-                        const today = new Date().toLocaleDateString();
-                        localStorage.setItem("admin_pass", pass);
-                        localStorage.setItem("admin_login_date", today);
-                        
-                        window.location.href = "/admin.html";
-                    } else {
-                        msg.innerText = "Неверный пароль администратора";
-                        btn.disabled = false;
-                        btn.innerText = "Войти в систему";
-                    }
-                } else {
-                    msg.innerText = "Ошибка сервера (" + res.status + ")";
-                    btn.disabled = false;
-                    btn.innerText = "Войти в систему";
-                }
-            } catch (e) {
-                msg.innerText = "Ошибка сети. Проверьте соединение.";
-                btn.disabled = false;
-                btn.innerText = "Войти в систему";
-            }
+<script>
+    async function doLogin() {
+        const btn = document.getElementById('loginBtn');
+        const msg = document.getElementById('msg');
+        const pass = document.getElementById('pw').value;
+
+        if (!pass) {
+            msg.innerText = "Введите пароль";
+            return;
         }
 
-        // Вход по нажатию Enter
-        document.getElementById('pw').onkeypress = e => { 
-            if(e.key === 'Enter') doLogin();
-        };
-    </script>
+        btn.disabled = true;
+        btn.innerText = "Проверка...";
+        msg.innerText = "";
+
+        try {
+            const res = await fetch("/api/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ "password": pass })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success) {
+                    const today = new Date().toLocaleDateString();
+                    localStorage.setItem("admin_pass", pass);
+                    localStorage.setItem("admin_login_date", today);
+                    localStorage.setItem("admin_token", data.token || "");
+
+                    window.location.href = "/admin.html";
+                } else {
+                    msg.innerText = "Неверный пароль администратора";
+                    btn.disabled = false;
+                    btn.innerText = "Войти";
+                }
+            } else {
+                msg.innerText = "Ошибка сервера (" + res.status + ")";
+                btn.disabled = false;
+                btn.innerText = "Войти";
+            }
+        } catch (e) {
+            msg.innerText = "Ошибка сети. Проверьте соединение.";
+            btn.disabled = false;
+            btn.innerText = "Войти";
+        }
+    }
+
+    // Вход по нажатию Enter
+    document.getElementById('pw').onkeypress = e => {
+        if (e.key === 'Enter') doLogin();
+    };
+</script>
 </body>
 </html>
-

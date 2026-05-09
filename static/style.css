@@ -1,439 +1,359 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-/* --- Глобальные стили --- */
-body { 
-    font-family: 'Segoe UI', -apple-system, sans-serif; 
-    background: #f4f6f9; 
-    margin: 0; 
-    padding: 0; 
-    color: #333; 
-    overflow-x: hidden; 
+/* ── Tokens ──────────────────────────────── */
+:root {
+  --indigo:     #4F46E5;
+  --indigo-dk:  #4338CA;
+  --indigo-lt:  #EEF2FF;
+  --indigo-mid: #818CF8;
+
+  --sb:         #0F172A;
+  --sb-hover:   rgba(255,255,255,0.06);
+  --sb-active:  rgba(99,102,241,0.18);
+  --sb-text:    #94A3B8;
+  --sb-border:  rgba(255,255,255,0.06);
+
+  --bg:         #F1F5F9;
+  --card:       #FFFFFF;
+  --t1:         #0F172A;
+  --t2:         #334155;
+  --t3:         #64748B;
+  --t4:         #94A3B8;
+  --border:     #E2E8F0;
+  --border-lt:  #F1F5F9;
+
+  --green:      #10B981;
+  --green-lt:   #ECFDF5;
+  --red:        #EF4444;
+  --red-lt:     #FEF2F2;
+  --amber:      #F59E0B;
+  --blue:       #3B82F6;
+
+  --r-xs: 5px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+
+  --sh-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --sh:    0 1px 3px rgba(0,0,0,0.07), 0 4px 8px rgba(0,0,0,0.04);
+  --sh-lg: 0 8px 24px rgba(0,0,0,0.09);
+  --sh-xl: 0 24px 64px rgba(0,0,0,0.16);
 }
 
-.main-content { 
-    margin-left: 60px; 
-    padding: 30px; 
-    min-height: 100vh; 
-    transition: margin-left 0.3s; 
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--t2);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* --- Боковая панель (Sidebar) --- */
-.app-sidebar { 
-    position: fixed; 
-    top: 0; 
-    left: 0; 
-    height: 100vh; 
-    width: 60px; 
-    background: #111; 
-    color: #fff; 
-    transition: width 0.3s; 
-    overflow: hidden; 
-    z-index: 9999; 
-    box-shadow: 2px 0 15px rgba(0,0,0,0.2); 
+/* ── Sidebar ─────────────────────────────── */
+.app-sidebar {
+  position: fixed; top: 0; left: 0;
+  height: 100vh; width: 60px;
+  background: var(--sb);
+  border-right: 1px solid var(--sb-border);
+  transition: width 0.26s cubic-bezier(.4,0,.2,1);
+  overflow: hidden; z-index: 9999;
+  display: flex; flex-direction: column;
+}
+.app-sidebar:hover { width: 232px; }
+
+.nav-header {
+  padding: 0 14px;
+  min-height: 60px;
+  display: flex; align-items: center; gap: 11px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--sb-border);
+  flex-shrink: 0;
 }
 
-.app-sidebar:hover { 
-    width: 250px; 
+.nav-logo {
+  width: 32px; height: 32px;
+  background: var(--indigo);
+  border-radius: var(--r-xs);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex-shrink: 0;
 }
 
-.nav-header { 
-    padding: 20px; 
-    font-weight: bold; 
-    border-bottom: 1px solid #333; 
-    display: flex; 
-    align-items: center; 
-    white-space: nowrap; 
+.nav-brand { display: flex; flex-direction: column; }
+.nav-brand-name { font-size: 13px; font-weight: 700; color: #fff; }
+.nav-brand-sub  { font-size: 11px; color: var(--sb-text); margin-top: 1px; }
+
+.nav-body { flex: 1; padding: 10px 8px; overflow-y: auto; overflow-x: hidden; }
+
+.nav-item {
+  padding: 9px 10px;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 11px;
+  color: var(--sb-text);
+  white-space: nowrap;
+  transition: all 0.14s;
+  font-size: 13.5px; font-weight: 500;
+  border-radius: var(--r-xs);
+  margin-bottom: 2px;
 }
 
-.nav-item { 
-    padding: 15px 20px; 
-    cursor: pointer; 
-    display: flex; 
-    align-items: center; 
-    color: #aaa; 
-    white-space: nowrap; 
-    transition: 0.2s; 
+.nav-item:hover  { background: var(--sb-hover); color: #CBD5E1; }
+.nav-item.active { background: var(--sb-active); color: #fff; }
+
+.nav-icon { width: 20px; text-align: center; font-size: 15px; flex-shrink: 0; }
+
+.nav-text { opacity: 0; transition: opacity 0.18s; font-size: 13.5px; }
+.app-sidebar:hover .nav-text { opacity: 1; }
+
+/* ── Content ─────────────────────────────── */
+.main-content {
+  margin-left: 60px;
+  padding: 28px 32px;
+  min-height: 100vh;
 }
 
-.nav-item:hover, .nav-item.active { 
-    background: #222; 
-    color: #fff; 
-    border-left: 4px solid #fff; 
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 26px;
 }
 
-.nav-text { 
-    margin-left: 15px; 
-    opacity: 0; 
-    transition: 0.3s; 
+.header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--t1);
+  letter-spacing: -0.3px;
 }
 
-.app-sidebar:hover .nav-text { 
-    opacity: 1; 
+.main-layout { display: flex; gap: 20px; align-items: flex-start; }
+
+/* ── Cards ───────────────────────────────── */
+.box {
+  background: var(--card);
+  padding: 22px;
+  border-radius: var(--r-md);
+  box-shadow: var(--sh);
+  border: 1px solid var(--border);
+  margin-bottom: 20px;
 }
 
-/* --- Контейнеры и Сетка --- */
-.header { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    margin-bottom: 30px; 
+.box h3 {
+  font-size: 14px; font-weight: 700;
+  color: var(--t1); margin: 0 0 18px;
 }
 
-.main-layout { 
-    display: flex; 
-    gap: 30px; 
+/* ── Forms ───────────────────────────────── */
+label {
+  display: block;
+  font-size: 11.5px; color: var(--t3);
+  margin-bottom: 5px; font-weight: 600;
+  letter-spacing: 0.1px;
 }
 
-.box { 
-    background: #fff; 
-    padding: 25px; 
-    border-radius: 12px; 
-    box-shadow: 0 2px 15px rgba(0,0,0,0.05); 
-    margin-bottom: 20px; 
+input, select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  background: #F8FAFC;
+  margin-bottom: 12px;
+  font-size: 13.5px; outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  color: var(--t1); font-family: inherit;
 }
 
-/* --- Формы и Инпуты --- */
-label { 
-    display: block; 
-    font-size: 11px; 
-    color: #999; 
-    margin-bottom: 5px; 
-    font-weight: 600; 
-    text-transform: uppercase; 
+input:focus, select:focus {
+  border-color: var(--indigo);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.10);
 }
 
-input, select { 
-    width: 100%; 
-    padding: 12px; 
-    border: 1px solid #eee; 
-    border-radius: 8px; 
-    box-sizing: border-box; 
-    background: #fafafa; 
-    margin-bottom: 15px; 
-    font-size: 14px; 
-    outline: none;
-    transition: border-color 0.2s;
+input::placeholder { color: var(--t4); }
+
+/* ── Buttons ─────────────────────────────── */
+.btn {
+  width: 100%; background: var(--indigo); color: #fff;
+  border: none; padding: 10px 16px;
+  border-radius: var(--r-sm); font-weight: 600; font-size: 13.5px;
+  cursor: pointer; transition: all 0.15s; font-family: inherit;
 }
 
-input:focus {
-    border-color: #000;
+.btn:hover  { background: var(--indigo-dk); box-shadow: 0 4px 14px rgba(79,70,229,0.28); }
+.btn:active { transform: scale(0.98); }
+
+.action-btn {
+  background: var(--card); border: 1.5px solid var(--border);
+  padding: 6px 11px; border-radius: var(--r-sm);
+  cursor: pointer; margin-right: 4px;
+  font-size: 12.5px; font-weight: 500; color: var(--t3);
+  transition: all 0.14s; font-family: inherit; box-shadow: var(--sh-sm);
 }
 
-/* --- Кнопки --- */
-.btn { 
-    width: 100%; 
-    background: #000; 
-    color: #fff; 
-    border: none; 
-    padding: 12px; 
-    border-radius: 8px; 
-    font-weight: 600; 
-    cursor: pointer; 
-    transition: opacity 0.2s;
+.action-btn:hover {
+  background: var(--indigo-lt); border-color: var(--indigo);
+  color: var(--indigo); box-shadow: none;
 }
 
-.btn:hover {
-    opacity: 0.8;
+.btn-red { color: var(--red) !important; background: var(--card) !important; border-color: #FECACA !important; }
+.btn-red:hover { background: var(--red-lt) !important; border-color: var(--red) !important; }
+
+/* ── Tables ──────────────────────────────── */
+table { width: 100%; border-collapse: collapse; }
+
+th {
+  text-align: left; font-size: 11px; color: var(--t3);
+  padding: 0 12px 10px;
+  border-bottom: 1.5px solid var(--border);
+  font-weight: 600; white-space: nowrap;
+  letter-spacing: 0.4px; text-transform: uppercase;
 }
 
-/* Обновленные кнопки действий (теперь не сливаются с фоном) */
-.action-btn { 
-    background: #ffffff; 
-    border: 1px solid #d1d5db; 
-    padding: 8px 14px; 
-    border-radius: 8px; 
-    cursor: pointer; 
-    margin-right: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #374151;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border-lt);
+  font-size: 13.5px; vertical-align: middle; color: var(--t2);
 }
 
-.action-btn:hover { 
-    background: #f9fafb; 
-    border-color: #9ca3af;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transform: translateY(-1px);
-}
+tbody tr { transition: background 0.1s; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--indigo-lt); }
 
-.btn-red { 
-    color: #dc3545 !important; 
-    background: #fff !important; 
-    border-color: #fecaca !important; 
-}
-
-.btn-red:hover { 
-    background: #fff5f5 !important; 
-    border-color: #fc8181 !important; 
-}
-
-/* --- Таблицы --- */
-table { 
-    width: 100%; 
-    border-collapse: collapse; 
-}
-
-th { 
-    text-align: left; 
-    font-size: 11px; 
-    color: #999; 
-    padding-bottom: 15px; 
-    border-bottom: 1px solid #f0f0f0; 
-    text-transform: uppercase;
-}
-
-td { 
-    padding: 12px 0; 
-    border-bottom: 1px solid #f8f8f8; 
-    font-size: 14px; 
-}
-
-.status-dot { 
-    display: inline-block; 
-    width: 8px; 
-    height: 8px; 
-    border-radius: 50%; 
-    margin-right: 5px; 
+.status-dot {
+  display: inline-block; width: 7px; height: 7px;
+  border-radius: 50%; margin-right: 5px;
 }
 
 .card-tag {
-    background: #edf2f7;
-    border: 1px solid #e2e8f0;
-    color: #4a5568;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 12px;
+  background: #F8FAFC; border: 1px solid var(--border);
+  color: #475569; padding: 2px 7px; border-radius: 4px;
+  font-family: 'SF Mono','Fira Code',monospace; font-size: 11.5px;
 }
 
-/* --- Статистика и Аналитика --- */
-.summary-row { 
-    display: flex; 
-    gap: 20px; 
-    margin-bottom: 20px; 
+/* ── Stat Cards ──────────────────────────── */
+.summary-row { display: flex; gap: 16px; margin-bottom: 24px; }
+
+.stat-card.box {
+  background: var(--indigo) !important;
+  border: none !important;
+  flex: 1;
 }
 
-/* Темные карточки как на твоем скриншоте */
-.stat-card { 
-    flex: 1; 
-    background: #1a202c !important; 
-    color: #fff !important; 
-    border: none !important; 
+.stat-card label {
+  color: rgba(255,255,255,0.6) !important;
+  font-size: 10.5px !important; text-transform: uppercase; letter-spacing: 0.6px;
 }
 
-.stat-card label { 
-    color: #a0aec0 !important; 
+.stat-card .value {
+  font-size: 30px; font-weight: 800; color: #fff !important;
+  margin-top: 6px; letter-spacing: -1.5px; line-height: 1;
 }
 
-.stat-card .value { 
-    font-size: 26px; 
-    font-weight: bold; 
-    color: #fff !important; 
-    margin-top: 5px;
+/* ── Stats controls ──────────────────────── */
+.stats-controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; align-items: end; }
+
+.check-list-box {
+  background: #F8FAFC; border: 1.5px solid var(--border);
+  border-radius: var(--r-sm); padding: 10px 12px;
+  max-height: 102px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 7px;
 }
 
-.stats-controls { 
-    display: grid; 
-    grid-template-columns: 1fr 1fr 1fr; 
-    gap: 15px; 
-    align-items: end; 
+.check-item { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; color: var(--t2); }
+.check-item input { width: auto; margin: 0; padding: 0; }
+
+/* ── Pagination ──────────────────────────── */
+.pagination { display: flex; justify-content: center; gap: 4px; margin-top: 20px; }
+
+.page-btn {
+  padding: 6px 11px; border-radius: var(--r-sm);
+  border: 1.5px solid var(--border); background: var(--card);
+  cursor: pointer; font-size: 13px; font-weight: 500;
+  color: var(--t3); transition: all 0.14s; font-family: inherit;
+}
+.page-btn:hover { border-color: var(--indigo); color: var(--indigo); }
+.page-btn.active { background: var(--indigo); color: #fff; border-color: var(--indigo); }
+
+/* ── Modals ──────────────────────────────── */
+.modal {
+  display: none; position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(15,23,42,0.55);
+  align-items: center; justify-content: center;
+  z-index: 10000; backdrop-filter: blur(4px);
 }
 
-.check-list-box { 
-    background: #fafafa; 
-    border: 1px solid #eee; 
-    border-radius: 8px; 
-    padding: 10px; 
-    max-height: 100px; 
-    overflow-y: auto; 
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
+.modal-content {
+  background: var(--card);
+  padding: 28px 30px;
+  border-radius: var(--r-lg); width: 430px;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: var(--sh-xl);
 }
 
-.check-item { 
-    display: flex; 
-    align-items: center; 
-    gap: 8px; 
-    font-size: 13px; 
-    cursor: pointer;
+.modal-content h3 {
+  font-size: 17px; font-weight: 700;
+  margin: 0 0 22px; color: var(--t1);
 }
 
-.check-item input { 
-    width: auto; 
-    margin: 0; 
+/* ── Calendar ────────────────────────────── */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+
+.cal-day {
+  padding: 8px; text-align: center;
+  border: 1.5px solid var(--border); border-radius: var(--r-sm);
+  cursor: pointer; font-size: 12.5px; font-weight: 500;
+  color: var(--t3); transition: all 0.12s;
+}
+.cal-day:hover { border-color: var(--indigo); color: var(--indigo); background: var(--indigo-lt); }
+.cal-day.workday { background: var(--indigo); color: #fff; border-color: var(--indigo); font-weight: 600; }
+
+/* ── Roles ───────────────────────────────── */
+.role-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px; background: #F8FAFC; border-radius: var(--r-sm); margin-bottom: 8px;
 }
 
-/* --- Пагинация --- */
-.pagination { 
-    display: flex; 
-    justify-content: center; 
-    gap: 5px; 
-    margin-top: 20px; 
-}
-
-.page-btn { 
-    padding: 6px 12px; 
-    border-radius: 6px; 
-    border: 1px solid #eee; 
-    background: #fff; 
-    cursor: pointer; 
-}
-
-.page-btn.active { 
-    background: #000; 
-    color: #fff; 
-}
-
-/* --- Модальные окна --- */
-.modal { 
-    display:none; 
-    position:fixed; 
-    top:0; 
-    left:0; 
-    width:100%; 
-    height:100%; 
-    background:rgba(0,0,0,0.6); 
-    align-items:center; 
-    justify-content:center; 
-    z-index:10000; 
-}
-
-.modal-content { 
-    background:#fff; 
-    padding:30px; 
-    border-radius:16px; 
-    width:420px; 
-    max-height: 90vh; 
-    overflow-y: auto; 
-}
-
-/* --- Календарь --- */
-.cal-grid { 
-    display: grid; 
-    grid-template-columns: repeat(7, 1fr); 
-    gap: 5px; 
-}
-
-.cal-day { 
-    padding: 10px; 
-    text-align: center; 
-    border: 1px solid #eee; 
-    border-radius: 6px; 
-    cursor: pointer; 
-    font-size: 13px; 
-}
-
-.cal-day.workday { 
-    background: #007AFF; 
-    color: #fff; 
-    border-color: #007AFF;
-}
-
-/* --- Роли --- */
-.role-row { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    padding: 10px; 
-    background: #f9f9f9; 
-    border-radius: 8px; 
-    margin-bottom: 10px; 
-}
-
-/* Улучшение для полей ввода графика в календаре */
-#pWork, #pRest {
-    display: inline-block;
-    width: 60px;
-    padding: 8px;
-    text-align: center;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-weight: bold;
-    margin-top: 5px;
-}
-
-#calModal .action-btn {
-    margin-top: 5px;
-}
-
-/* Фикс для кнопок-карандашей */
-.action-btn i {
-    pointer-events: none;
-}
-
-/* Кнопки пресетов в календаре - делаем их одинаковыми */
-.preset-btns {
-    display: flex;
-    gap: 10px;
-    margin-top: 20px;
-}
-
-/* Кнопки режимов (5/2, 2/2, Свой режим) — КРАСИМ В ЧЕРНЫЙ */
-.preset-btns .action-btn {
-    background: #000 !important;
-    color: #fff !important;
-    border: none !important;
-    flex: 1; /* Чтобы были одинаковой ширины */
-    padding: 10px !important;
-    font-weight: 600;
-}
-
-.preset-btns .action-btn:hover {
-    opacity: 0.8;
-}
-
-/* Оформление списка ролей */
 .role-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px;
-    background: #f9fafb;
-    border: 1px solid #eee;
-    border-radius: 10px;
-    margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px; background: #F8FAFC;
+  border: 1.5px solid var(--border); border-radius: var(--r-sm); margin-bottom: 8px;
 }
 
-.role-item b {
-    flex: 1;
-    font-size: 14px;
-    color: #111;
-}
-
-.role-item .role-input-wrap {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.role-item input {
-    width: 80px !important;
-    margin: 0 !important;
-    padding: 6px !important;
-    text-align: center;
-}
+.role-item b { flex: 1; font-size: 13.5px; color: var(--t1); font-weight: 600; }
+.role-item .role-input-wrap { display: flex; align-items: center; gap: 6px; }
+.role-item input { width: 80px !important; margin: 0 !important; padding: 6px 8px !important; text-align: center; }
 
 .role-item .btn-delete {
-    background: #fff5f5;
-    color: #dc3545;
-    border: 1px solid #fecaca;
-    padding: 6px 10px;
-    border-radius: 6px;
-    cursor: pointer;
+  background: var(--red-lt); color: var(--red);
+  border: 1.5px solid #FECACA; padding: 5px 10px;
+  border-radius: var(--r-xs); cursor: pointer; font-family: inherit;
+  transition: all 0.14s; font-size: 12.5px;
 }
+.role-item .btn-delete:hover { background: var(--red); color: #fff; }
+
+/* ── Calendar presets ────────────────────── */
+.preset-btns { display: flex; gap: 8px; margin-top: 16px; }
+.preset-btns .action-btn {
+  background: var(--indigo) !important; color: #fff !important;
+  border: none !important; flex: 1; padding: 10px !important;
+  font-weight: 600; text-align: center; box-shadow: none !important;
+}
+.preset-btns .action-btn:hover { background: var(--indigo-dk) !important; }
 
 #calModal .btn[onclick*="resetCal"] {
-    background: #fff !important;
-    color: #dc3545 !important;
-    border: 1px solid #dc3545 !important;
+  background: var(--red-lt) !important; color: var(--red) !important;
+  border: 1.5px solid #FECACA !important;
+}
+#calModal .btn[onclick*="closeModals"] {
+  background: #F8FAFC !important; color: var(--t3) !important;
+  border: 1.5px solid var(--border) !important; margin-top: 8px;
 }
 
-/* Кнопка "Закрыть" — КРАСИМ В СЕРЫЙ */
-#calModal .btn[onclick*="closeModals"] {
-    background: #eee !important;
-    color: #333 !important;
-    border: none !important;
-    margin-top: 10px;
+/* ── Misc ────────────────────────────────── */
+#pWork, #pRest {
+  display: inline-block; width: 60px; padding: 7px;
+  text-align: center; border: 1.5px solid var(--border);
+  border-radius: var(--r-xs); font-weight: bold; margin-top: 5px;
 }
+.action-btn i { pointer-events: none; }

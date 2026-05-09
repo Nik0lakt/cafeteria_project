@@ -2,36 +2,181 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Оплата заказа</title>
+    <title>Оплата дотацией | Cafeteria</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; font-family: -apple-system, sans-serif; background: #fcfcfc; display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column;}
-        .card { background: #fff; width: 420px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 25px rgba(0,0,0,0.03); text-align: center; position: relative; }
-        .amount { font-size: 48px; font-weight: 500; margin-bottom: 20px; }
-        .video-box { width: 100%; height: 240px; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 20px; border: 1px solid #eee; }
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #F1F5F9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+            color: #111827;
+        }
+
+        .card {
+            background: #fff;
+            width: 440px;
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.07);
+            border: 1px solid #E5E7EB;
+            text-align: center;
+            position: relative;
+        }
+
+        .amount {
+            font-size: 52px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            letter-spacing: -2px;
+            color: #111827;
+        }
+
+        .video-box {
+            width: 100%;
+            height: 240px;
+            background: #111827;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: 1px solid #E5E7EB;
+        }
+
         video { width: 100%; height: 100%; object-fit: cover; }
-        input { width: 100%; padding: 15px; border: 1px solid #f0f0f0; border-radius: 8px; margin-bottom: 10px; text-align: center; font-size: 16px; outline: none; }
-        .btn { background: #007AFF; color: #fff; border: none; width: 100%; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
-        .btn-manual { background: none; border: none; color: #007AFF; font-size: 14px; cursor: pointer; margin-top: 15px; opacity: 0.7; }
-        #comparison { display: none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; }
-        .photo-pair { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
-        .photo-pair img, .photo-pair canvas { width: 140px; height: 140px; object-fit: cover; border-radius: 8px; border: 2px solid #eee; background: #f8f8f8; }
-        .status-msg { font-size: 13px; color: #999; margin-top: 15px; white-space: pre-line; }
-        .error-text { color: #dc3545; font-weight: bold; }
-        .scanner-status { font-size: 12px; margin-bottom: 10px; color: #dc3545; display: flex; align-items: center; justify-content: center; gap: 5px; }
-        .scanner-status.connected { color: #28a745; }
-        .connect-btn { background: #6c757d; font-size: 12px; padding: 5px 10px; width: auto; margin-bottom: 15px; }
+
+        input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #E5E7EB;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            text-align: center;
+            font-size: 15px;
+            outline: none;
+            font-family: inherit;
+            color: #111827;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            background: #FAFAFA;
+        }
+
+        input:focus {
+            border-color: #4F46E5;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.10);
+        }
+
+        .btn {
+            background: #4F46E5;
+            color: #fff;
+            border: none;
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s;
+        }
+
+        .btn:hover { background: #4338CA; box-shadow: 0 4px 14px rgba(79,70,229,0.28); }
+
+        .btn-manual {
+            background: none;
+            border: none;
+            color: #4F46E5;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 14px;
+            font-family: inherit;
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        .btn-manual:hover { opacity: 1; }
+
+        #comparison {
+            display: none;
+            margin-top: 20px;
+            border-top: 1px solid #E5E7EB;
+            padding-top: 20px;
+        }
+
+        .photo-pair {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .photo-pair img, .photo-pair canvas {
+            width: 140px; height: 140px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 2px solid #E5E7EB;
+            background: #F9FAFB;
+        }
+
+        .status-msg {
+            font-size: 14px;
+            color: #6B7280;
+            margin-top: 16px;
+            white-space: pre-line;
+            font-weight: 500;
+        }
+
+        .error-text { color: #EF4444; font-weight: 700; }
+
+        .scanner-status {
+            font-size: 13px;
+            margin-bottom: 10px;
+            color: #EF4444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+
+        .scanner-status.connected { color: #10B981; }
+
+        .connect-btn {
+            background: #6B7280;
+            font-size: 12px;
+            padding: 6px 14px;
+            width: auto;
+            margin-bottom: 16px;
+            border-radius: 7px;
+        }
+
+        .connect-btn:hover { background: #4B5563; }
+
+        #userName {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #111827;
+        }
     </style>
 </head>
 <body>
     <div class="card">
         <div id="scannerControl">
-            <div id="connectionStatus" class="scanner-status">🔴 Сканер не подключен</div>
+            <div id="connectionStatus" class="scanner-status">🔴 Сканер не подключён</div>
             <button id="connectBtn" class="btn connect-btn" onclick="connectSerial()">🔌 Подключить сканер</button>
         </div>
-        <h1 id="userName" style="font-size: 18px; margin-bottom: 10px;">Оплата заказа</h1>
+        <h1 id="userName" style="font-size: 18px; margin-bottom: 10px;">Оплата дотацией</h1>
         <div class="amount" id="amountDisp">0 ₽</div>
         <div class="video-box"><video id="video" autoplay playsinline muted></video></div>
-        
+
         <div id="mainUI">
             <input type="text" id="uidInput" placeholder="Приложите карту или введите ID" autocomplete="off">
             <button class="btn" onclick="startProcess()">Подтвердить карту</button>
@@ -40,10 +185,10 @@
 
         <div id="comparison">
             <div class="photo-pair">
-                <div><img id="dbPhoto" alt="База"></div>
+                <div><img id="dbPhoto" alt="Фото из базы"></div>
                 <div><canvas id="snapCanvas" width="140" height="140"></canvas></div>
             </div>
-            <button class="btn" style="background:#34c759" onclick="finalize(true)">ПОДТВЕРДИТЬ ЛИЧНОСТЬ</button>
+            <button class="btn" style="background:#22C55E" onclick="finalize(true)">ПОДТВЕРДИТЬ ЛИЧНОСТЬ</button>
         </div>
         <div id="status" class="status-msg">Ожидание карты...</div>
     </div>
@@ -55,7 +200,7 @@
 
         // Отображаем сумму
         document.getElementById('amountDisp').innerText = amount + " ₽";
-        
+
         const video = document.getElementById('video');
         const status = document.getElementById('status');
         let currentSid = null; let currentUid = null;
@@ -82,7 +227,7 @@
         async function connectToPort(p) {
             try {
                 port = p; await port.open({ baudRate: 9600 });
-                document.getElementById('connectionStatus').innerText = "🟢 Сканер подключен";
+                document.getElementById('connectionStatus').innerText = "🟢 Сканер подключён";
                 document.getElementById('connectionStatus').classList.add('connected');
                 document.getElementById('connectBtn').style.display = 'none';
                 keepReading = true; readSerialLoop();
@@ -123,8 +268,8 @@
         function handleScan(uid) {
             const input = document.getElementById('uidInput');
             input.value = uid;
-            input.style.backgroundColor = "#e8f0fe";
-            setTimeout(() => input.style.backgroundColor = "#fff", 300);
+            input.style.backgroundColor = "#EEF2FF";
+            setTimeout(() => input.style.backgroundColor = "#FAFAFA", 300);
             startProcess();
         }
 
@@ -175,11 +320,11 @@
         }
 	async function finalize(isManual) {
 	    status.innerText = "Проверка баланса и оплата...";
-    
+
 	    // 1. Берем СВЕЖИЕ данные из памяти прямо сейчас
     	    const cartData = localStorage.getItem('pendingCart');
 	    const cashDeskId = localStorage.getItem('cashDeskId') || "unknown";
-    
+
             // Проверка: если в памяти пусто, ругаемся сразу
             if (!cartData || cartData === '[]') {
         	status.innerHTML = `<span class="error-text">ОШИБКА: Корзина пуста (сбросилась память)</span>`;
@@ -206,7 +351,7 @@
 
         	if (res.ok) {
             	    status.innerText = "Оплата прошла успешно!";
-            
+
             	// Очищаем черновики, чтобы не оплатить дважды
             	    localStorage.removeItem('pendingCart');
            	    localStorage.removeItem('pendingAmount');
@@ -219,8 +364,8 @@
             	    document.getElementById('manualBtn').style.display = 'none';
             	    document.getElementById('uidInput').value = '';
         	}
-    	    } catch (e) { 
-        	status.innerText = "Ошибка сервера"; 
+    	    } catch (e) {
+        	status.innerText = "Ошибка сервера";
         	console.error(e);
     	    }
 	}

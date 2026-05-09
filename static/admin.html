@@ -2,18 +2,19 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Панель управления | Cafeteria Control</title>
+    <title>Панель управления | Cafeteria</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
     <script>
-        // Проверка сессии при каждой загрузке страницы
         (function() {
             const today = new Date().toLocaleDateString();
             const sessionDate = localStorage.getItem('admin_login_date');
             const savedPass = localStorage.getItem('admin_pass');
-
-            // Если даты нет, или она старая, или нет пароля — уходим на логин
-            if (!sessionDate || sessionDate !== today || !savedPass) {
+            const savedToken = localStorage.getItem('admin_token');
+            if (!sessionDate || sessionDate !== today || !savedPass || !savedToken) {
                 localStorage.removeItem('admin_pass');
+                localStorage.removeItem('admin_token');
                 localStorage.removeItem('admin_login_date');
                 window.location.href = "/login.html";
             }
@@ -24,42 +25,68 @@
 <body>
 
 <div class="app-sidebar">
-    <div class="nav-header">⚙️ <span class="nav-text">Админ-панель</span></div>
-    <div class="nav-item active" onclick="switchTab('emp', this)">👥 <span class="nav-text">Сотрудники</span></div>
-    <div class="nav-item" onclick="switchTab('cash', this)">🖥 <span class="nav-text">Терминалы</span></div>
-    <div class="nav-item" onclick="switchTab('stat', this)">📈 <span class="nav-text">Статистика</span></div>
-    <div class="nav-item" onclick="switchTab('settings', this)">🛠 <span class="nav-text">Настройки</span></div>
+    <div class="nav-header">
+        <div class="nav-logo">🍽</div>
+        <div class="nav-brand">
+            <span class="nav-brand-name">Cafeteria</span>
+            <span class="nav-brand-sub">Управление</span>
+        </div>
+    </div>
+    <div class="nav-body">
+        <div class="nav-item active" onclick="switchTab('emp', this)">
+            <span class="nav-icon">👥</span><span class="nav-text">Сотрудники</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('cash', this)">
+            <span class="nav-icon">🖥</span><span class="nav-text">Терминалы</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('stat', this)">
+            <span class="nav-icon">📈</span><span class="nav-text">Статистика</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('settings', this)">
+            <span class="nav-icon">⚙️</span><span class="nav-text">Настройки</span>
+        </div>
+    </div>
 </div>
 
 <div class="main-content">
-    
+
+    <!-- ── Сотрудники ── -->
     <div id="tab-emp">
         <div class="header">
-            <h1>Управление персоналом</h1>
+            <h1>Управление сотрудниками</h1>
             <div style="display:flex; gap:10px;">
-                <button class="action-btn" onclick="openRoles()">⚙️ Настройка ролей</button>
+                <button class="action-btn" onclick="openRoles()">📋 Роли и дотации</button>
                 <button class="action-btn" onclick="openGlobal()">📅 Общий график</button>
             </div>
         </div>
 
         <div class="main-layout">
-            <div class="box" style="width: 320px;">
-                <h3>Регистрация</h3>
-                <label>ФИО сотрудника</label><input type="text" id="regName">
-                <label>UID Карты</label><input type="text" id="regCard" placeholder="Приложите карту...">
-                <label>Telegram ID</label><input type="text" id="regTg">
+            <div class="box" style="width: 300px; flex-shrink:0;">
+                <h3>Новый сотрудник</h3>
+                <label>Полное имя</label><input type="text" id="regName" placeholder="Иванов Иван Иванович">
+                <label>UID карты</label><input type="text" id="regCard" placeholder="Приложите карту к сканеру...">
+                <label>Telegram ID</label><input type="text" id="regTg" placeholder="Необязательно">
                 <label>Роль</label><select id="regRole"></select>
-                <label>Месячный лимит</label><input type="number" id="regLimit" value="5000">
-                <button class="btn" onclick="createRecord()">Создать запись</button>
+                <label>Месячный лимит, ₽</label><input type="number" id="regLimit" value="5000">
+                <button class="btn" onclick="createRecord()">Добавить сотрудника</button>
             </div>
-            
-            <div class="box" style="flex: 1;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3 style="margin: 0;">Список персонала</h3>
-                    <input type="text" id="empSearch" placeholder="🔍 Поиск по ФИО..." oninput="handleSearch()" style="width: 250px; margin-bottom: 0;">
+
+            <div class="box" style="flex: 1; min-width: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin: 0;">Список сотрудников</h3>
+                    <input type="text" id="empSearch" placeholder="Поиск по имени или карте..." oninput="handleSearch()" style="width: 240px; margin-bottom: 0;">
                 </div>
                 <table>
-                    <thead><tr><th>Имя</th><th>Карта</th><th>Лицо</th><th>Сегодня</th><th>Лимит</th><th>Действия</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>Сотрудник</th>
+                            <th>Карта</th>
+                            <th>Биометрия</th>
+                            <th>Дотация сегодня</th>
+                            <th>Лимит / мес.</th>
+                            <th></th>
+                        </tr>
+                    </thead>
                     <tbody id="pTable"></tbody>
                 </table>
                 <div id="pPagination" class="pagination"></div>
@@ -67,18 +94,19 @@
         </div>
     </div>
 
+    <!-- ── Терминалы ── -->
     <div id="tab-cash" style="display: none;">
         <div class="header"><h1>Кассовые терминалы</h1></div>
         <div class="main-layout">
-            <div class="box" style="width: 320px;">
-                <h3>Новая касса</h3>
-                <label>Логин кассы</label><input type="text" id="newDeskLogin">
-                <label>Описание</label><input type="text" id="newDeskDesc">
+            <div class="box" style="width: 300px; flex-shrink:0;">
+                <h3>Добавить кассу</h3>
+                <label>Логин</label><input type="text" id="newDeskLogin" placeholder="Например: касса-1">
+                <label>Описание</label><input type="text" id="newDeskDesc" placeholder="Например: Зал на 1-м этаже">
                 <label>Пароль</label><input type="text" id="newDeskPass" value="1234">
-                <button class="btn" onclick="addCashDesk()">Создать</button>
+                <button class="btn" onclick="addCashDesk()">Добавить кассу</button>
             </div>
             <div class="box" style="flex: 1;">
-                <h3>Активные кассы</h3>
+                <h3>Подключённые кассы</h3>
                 <table>
                     <thead><tr><th>ID</th><th>Логин</th><th>Описание</th><th style="text-align:right">Действия</th></tr></thead>
                     <tbody id="cashDesksTableBody"></tbody>
@@ -87,6 +115,7 @@
         </div>
     </div>
 
+    <!-- ── Статистика ── -->
     <div id="tab-stat" style="display: none;">
         <div class="header"><h1>Статистика</h1></div>
         <div class="summary-row">
@@ -95,7 +124,7 @@
                 <div class="value" id="totalRevenueDisplay">0 ₽</div>
             </div>
             <div class="box stat-card">
-                <label>Количество операций</label>
+                <label>Число транзакций</label>
                 <div class="value" id="totalTxDisplay">0</div>
             </div>
         </div>
@@ -109,100 +138,110 @@
                         <option value="custom">Свой период</option>
                     </select>
                 </div>
-                <div><label>Кассы</label><div id="cashDesksContainer" class="check-list-box"></div></div>
                 <div>
-                    <label>Методы оплаты</label>
+                    <label>Фильтр по кассам</label>
+                    <div id="cashDesksContainer" class="check-list-box"></div>
+                </div>
+                <div>
+                    <label>Способ оплаты</label>
                     <div class="check-list-box">
-                        <label class="check-item"><input type="checkbox" value="bank_card" class="stat-pay-cb" checked onchange="buildChart()"> Карты</label>
+                        <label class="check-item"><input type="checkbox" value="bank_card" class="stat-pay-cb" checked onchange="buildChart()"> Карта</label>
                         <label class="check-item"><input type="checkbox" value="cash" class="stat-pay-cb" checked onchange="buildChart()"> Наличные</label>
-                        <label class="check-item"><input type="checkbox" value="internal" class="stat-pay-cb" checked onchange="buildChart()"> Лицо</label>
+                        <label class="check-item"><input type="checkbox" value="internal" class="stat-pay-cb" checked onchange="buildChart()"> Дотация (лицо)</label>
                     </div>
                 </div>
             </div>
             <div id="customDatesWrapper" style="display:none; gap:10px; margin-top:15px;">
-                <div style="flex:1"><label>С</label><input type="date" id="statStartDate" onchange="buildChart()"></div>
-                <div style="flex:1"><label>По</label><input type="date" id="statEndDate" onchange="buildChart()"></div>
+                <div style="flex:1"><label>Начало периода</label><input type="date" id="statStartDate" onchange="buildChart()"></div>
+                <div style="flex:1"><label>Конец периода</label><input type="date" id="statEndDate" onchange="buildChart()"></div>
             </div>
             <div style="height:400px; margin-top:30px;"><canvas id="revenueChart"></canvas></div>
-            <div style="text-align:center; margin-top:20px;"><button class="btn" style="background:#28a745; width:auto; padding:12px 30px" onclick="document.getElementById('exportModal').style.display='flex'">📥 Выгрузить CSV</button></div>
+            <div style="text-align:center; margin-top:20px;">
+                <button class="btn" style="background:#22C55E; width:auto; padding:11px 28px;" onclick="document.getElementById('exportModal').style.display='flex'">📥 Выгрузить в CSV</button>
+            </div>
         </div>
     </div>
 
+    <!-- ── Настройки ── -->
     <div id="tab-settings" style="display: none;">
         <div class="header"><h1>Настройки</h1></div>
         <div class="main-layout">
             <div class="box" style="width: 400px;">
-                <h3>🔌 RFID Считыватель</h3>
-                <div style="margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee;">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                        <span id="serialStatusIcon" style="width: 12px; height: 12px; background: #dc3545; border-radius: 50%;"></span>
-                        <span id="serialStatusText" style="font-weight: 600;">Сканер не подключен</span>
+                <h3>🔌 RFID-считыватель</h3>
+                <div style="margin: 16px 0; padding: 16px; background: #FAFAFA; border-radius: 8px; border: 1px solid #E5E7EB;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+                        <span id="serialStatusIcon" style="width: 10px; height: 10px; background: #EF4444; border-radius: 50%; flex-shrink:0;"></span>
+                        <span id="serialStatusText" style="font-weight: 600; font-size:14px;">Сканер не подключён</span>
                     </div>
                     <button id="connectBtn" class="btn" onclick="initSerial()">Подключить сканер</button>
                 </div>
 
-                <h3>🔍 Проверка карт</h3>
-                <label>Тестовое поле</label>
-                <input type="text" id="testCardInput" placeholder="Приложите карту для теста..." readonly style="background: #fff; border: 2px dashed #ccc; font-family: monospace; font-size: 18px; text-align: center;">
+                <h3>🔍 Тест сканера</h3>
+                <label>Поле для тестирования</label>
+                <input type="text" id="testCardInput" placeholder="Приложите карту — UID появится здесь" readonly
+                    style="background:#fff; border: 1.5px dashed #E5E7EB; font-family: monospace; font-size: 16px; text-align: center; color:#374151;">
             </div>
-            
+
             <div class="box" style="flex: 1;">
-                <h3>Инструкция</h3>
-                <p style="font-size: 14px; line-height: 1.6; color: #555;">
-                    1. Подключите RFID-считыватель к компьютеру.<br>
-                    2. Нажмите кнопку <b>«Подключить сканер»</b>.<br>
-                    3. В окне браузера выберите порт Arduino и нажмите «Подключить».<br>
-                    4. После этого индикатор станет <b>зеленым</b>.<br><br>
-                    При активном подключении номера карт будут автоматически вписываться в поле UID при регистрации или редактировании персонала.
+                <h3>Как подключить считыватель</h3>
+                <p style="font-size: 14px; line-height: 1.7; color: #6B7280;">
+                    1. Подключите RFID-считыватель к компьютеру через USB.<br>
+                    2. Нажмите <b>«Подключить сканер»</b> и в диалоге браузера выберите COM-порт Arduino.<br>
+                    3. После подключения индикатор станет <b style="color:#22C55E">зелёным</b>.<br><br>
+                    При активном подключении UID карты автоматически подставляются в поля при регистрации и редактировании сотрудников.
                 </p>
             </div>
         </div>
     </div>
 </div>
 
+<!-- ── Модал: Общий график ── -->
 <div id="globalModal" class="modal">
     <div class="modal-content">
-        <h3>Управление днями</h3>
+        <h3>Массовое управление расписанием</h3>
         <label>Дата</label><input type="date" id="gDate">
         <label>Действие</label>
         <select id="gAction">
-            <option value="holiday">Выходной (Нет дотации)</option>
-            <option value="work">Рабочий (С дотацией)</option>
+            <option value="holiday">Выходной — без дотации</option>
+            <option value="work">Рабочий день — с дотацией</option>
         </select>
-        <label>Для кого</label>
+        <label>Применить для</label>
         <select id="gTarget"></select>
-        <button class="btn" onclick="saveGlobal()">Применить ко всем</button>
-        <button class="btn" style="background:#eee; margin-top:10px" onclick="closeModals()">Отмена</button>
+        <button class="btn" onclick="saveGlobal()">Применить</button>
+        <button class="btn" style="background:#F3F4F6; color:#374151; margin-top:10px;" onclick="closeModals()">Отмена</button>
     </div>
 </div>
 
+<!-- ── Модал: Роли ── -->
 <div id="roleModal" class="modal">
     <div class="modal-content">
-        <h3>Настройка ролей</h3>
+        <h3>Роли и дотации</h3>
         <div id="rolesList"></div>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-        <h4>Добавить новую роль</h4>
-        <label>Название роли</label><input type="text" id="newRoleName">
-        <label>Дотация (₽ в день)</label><input type="number" id="newRoleSubsidy">
-        <button class="btn" onclick="addRole()">+ Добавить роль</button>
-        <button class="btn" style="background:#eee; color:#333; margin-top:10px" onclick="closeModals()">Закрыть</button>
+        <hr style="border: 0; border-top: 1px solid #E5E7EB; margin: 20px 0;">
+        <h4 style="margin:0 0 14px; font-size:14px;">Добавить новую роль</h4>
+        <label>Название роли</label><input type="text" id="newRoleName" placeholder="Например: Менеджер">
+        <label>Размер дотации, ₽/день</label><input type="number" id="newRoleSubsidy" placeholder="100">
+        <button class="btn" onclick="addRole()">Добавить роль</button>
+        <button class="btn" style="background:#F3F4F6; color:#374151; margin-top:10px;" onclick="closeModals()">Закрыть</button>
     </div>
 </div>
 
+<!-- ── Модал: Редактирование сотрудника ── -->
 <div id="editModal" class="modal">
     <div class="modal-content">
-        <h3>Правка сотрудника</h3>
+        <h3>Редактирование сотрудника</h3>
         <input type="hidden" id="editId">
-        <label>ФИО сотрудника</label><input type="text" id="editName">
-        <label>UID Карты</label><input type="text" id="editCard">
-        <label>Telegram ID</label><input type="text" id="editTg">
+        <label>Полное имя</label><input type="text" id="editName">
+        <label>UID карты</label><input type="text" id="editCard">
+        <label>Telegram ID</label><input type="text" id="editTg" placeholder="Необязательно">
         <label>Роль</label><select id="editRole"></select>
-        <label>Месячный лимит</label><input type="number" id="editLimit">
+        <label>Месячный лимит, ₽</label><input type="number" id="editLimit">
         <button class="btn" onclick="saveEdit()">Сохранить изменения</button>
-        <button class="btn" style="background:#eee; margin-top:10px" onclick="closeModals()">Отмена</button>
+        <button class="btn" style="background:#F3F4F6; color:#374151; margin-top:10px;" onclick="closeModals()">Отмена</button>
     </div>
 </div>
 
+<!-- ── Модал: Календарь ── -->
 <div id="calModal" class="modal">
     <div class="modal-content">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -212,22 +251,57 @@
         </div>
         <div id="calGrid" class="cal-grid" style="margin-top:15px;"></div>
         <div class="preset-btns" style="display:flex; gap:10px; margin-top:20px;">
-            <button class="action-btn" style="flex:1; background:#000 !important; color:#fff !important;" onclick="applyPreset(5,2)">5/2</button>
-            <button class="action-btn" style="flex:1; background:#000 !important; color:#fff !important;" onclick="applyPreset(2,2)">2/2</button>
-            <button class="action-btn" style="flex:1; background:#000 !important; color:#fff !important;" onclick="promptCustomPreset()">Свой режим</button>
+            <button class="action-btn" style="flex:1; background:#4F46E5 !important; color:#fff !important;" onclick="applyPreset(5,2)">5 / 2</button>
+            <button class="action-btn" style="flex:1; background:#4F46E5 !important; color:#fff !important;" onclick="applyPreset(2,2)">2 / 2</button>
+            <button class="action-btn" style="flex:1; background:#4F46E5 !important; color:#fff !important;" onclick="promptCustomPreset()">Свой режим</button>
         </div>
-        <button class="btn" style="background:#fff; color:red; border:1px solid red; margin-top:15px;" onclick="resetCal()">Сбросить всё</button>
-        <button class="btn" style="background:#eee; margin-top:10px" onclick="closeModals()">Закрыть</button>
+        <button class="btn" style="background:#FEF2F2; color:#EF4444; border:1.5px solid #FECACA; margin-top:15px;" onclick="resetCal()">Сбросить расписание</button>
+        <button class="btn" style="background:#F3F4F6; color:#374151; margin-top:10px;" onclick="closeModals()">Закрыть</button>
     </div>
 </div>
 
-<div id="bioModal" class="modal"><div class="modal-content"><h3>Биометрия</h3><video id="bioVideo" autoplay muted playsinline style="width:100%; border-radius:8px; background:#000; height:240px; object-fit:cover;"></video><button class="btn" onclick="captureBio()">Сделать снимок</button><input type="file" id="bioFile" onchange="uploadBioFile(this)" style="margin-top:10px;"><button class="btn" style="background:#eee; margin-top:10px" onclick="closeModals()">Закрыть</button></div></div>
-<div id="exportModal" class="modal"><div class="modal-content"><h3>Экспорт</h3><label>С</label><input type="date" id="exportStartDate"><label>По</label><input type="date" id="exportEndDate"><button class="btn" onclick="downloadCSV()">Скачать CSV</button><button class="btn" style="background:#eee; margin-top:10px" onclick="closeModals()">Закрыть</button></div></div>
+<!-- ── Модал: Биометрия ── -->
+<div id="bioModal" class="modal">
+    <div class="modal-content">
+        <h3>Регистрация лица</h3>
+        <video id="bioVideo" autoplay muted playsinline style="width:100%; border-radius:8px; background:#111827; height:240px; object-fit:cover; margin-bottom:12px;"></video>
+        <button class="btn" onclick="captureBio()">📷 Сделать снимок</button>
+        <input type="file" id="bioFile" onchange="uploadBioFile(this)" style="margin-top:10px; font-size:13px; color:#6B7280;">
+        <button class="btn" style="background:#F3F4F6; color:#374151; margin-top:10px;" onclick="closeModals()">Закрыть</button>
+    </div>
+</div>
+
+<!-- ── Модал: Экспорт ── -->
+<div id="exportModal" class="modal">
+    <div class="modal-content">
+        <h3>Экспорт в CSV</h3>
+        <label>Начало периода</label><input type="date" id="exportStartDate">
+        <label>Конец периода</label><input type="date" id="exportEndDate">
+        <button class="btn" onclick="downloadCSV()">Скачать CSV</button>
+        <button class="btn" style="background:#F3F4F6; color:#374151; margin-top:10px;" onclick="closeModals()">Отмена</button>
+    </div>
+</div>
 
 <script>
     let allEmployees = [], filteredEmployees = [], rolesData = [], currentEmpId = null, currentUid = null;
     let viewDate = new Date(), workDays = [], currentPage = 1, itemsPerPage = 10, revenueChartInstance = null;
     const video = document.getElementById('bioVideo');
+
+    // Обёртка над fetch: добавляет JWT-токен и перенаправляет на логин при 401
+    function authFetch(url, opts = {}) {
+        const token = localStorage.getItem('admin_token');
+        opts.headers = opts.headers || {};
+        if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+        return fetch(url, opts).then(res => {
+            if (res.status === 401) {
+                localStorage.removeItem('admin_pass');
+                localStorage.removeItem('admin_token');
+                localStorage.removeItem('admin_login_date');
+                window.location.href = '/login.html';
+            }
+            return res;
+        });
+    }
 
     // --- RFID WEB SERIAL ---
     let port;
@@ -267,7 +341,7 @@
                     }
                 }
             }
-        } catch (error) { 
+        } catch (error) {
             document.getElementById('serialStatusIcon').style.background = "#dc3545";
             document.getElementById('connectBtn').style.display = "block";
         } finally { reader.releaseLock(); }
@@ -288,15 +362,14 @@
         document.getElementById('tab-' + id).style.display = 'block';
         document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
         el.classList.add('active');
-    
-        // Фикс для Chart.js: даем браузеру 50мс, чтобы вкладка стала видимой
-        if(id === 'stat') {
-            setTimeout(buildChart, 50); 
-        } 
+        if (id === 'stat') setTimeout(buildChart, 50);
     }
+
     async function load() {
-        const res = await fetch('/api/employees'); allEmployees = await res.json();
-        rolesData = await (await fetch('/api/role_settings')).json();
+        const res = await authFetch('/api/employees');
+        allEmployees = await res.json();
+        const rolesRes = await authFetch('/api/role_settings');
+        rolesData = await rolesRes.json();
         const opts = rolesData.map(r => `<option value="${r.role_name}">${r.role_name}</option>`).join('');
         document.getElementById('regRole').innerHTML = opts;
         document.getElementById('editRole').innerHTML = opts;
@@ -318,11 +391,11 @@
             return `<tr>
                 <td><b>${e.full_name}</b><br><small style="color:#aaa">${e.role}</small></td>
                 <td><span class="card-tag">${e.card_uid}</span></td>
-                <td><span class="status-dot" style="background:${e.has_face?'#28a745':'#ccc'}"></span> ${e.has_face?'Да':'Нет'}</td>
+                <td><span class="status-dot" style="background:${e.has_face?'#28a745':'#ccc'}"></span> ${e.has_face?'Есть':'Нет'}</td>
                 <td>${rInfo ? e.daily_used + '/' + rInfo.subsidy_rub : '—'}</td>
                 <td>${e.month_limit_rub} ₽</td>
                 <td>
-                    <button class="action-btn" onclick='openEdit(${JSON.stringify(e).replace(/'/g, "&apos;")})'>⚙️</button>
+                    <button class="action-btn" onclick='openEdit(${JSON.stringify(e).replace(/'/g, "&apos;")})'>✏️</button>
                     <button class="action-btn" onclick="openCal(${e.id},'${e.full_name}')">📅</button>
                     <button class="action-btn" onclick="openBio(${e.id},'${e.card_uid}','${e.full_name}')">📷</button>
                     <button class="action-btn btn-red" onclick="delEmp(${e.id})">×</button>
@@ -335,35 +408,58 @@
     function renderPagination() {
         const pages = Math.ceil(filteredEmployees.length / itemsPerPage);
         const cont = document.getElementById('pPagination'); cont.innerHTML = '';
-        if(pages <= 1) return;
-        for(let i=1; i<=pages; i++) cont.innerHTML += `<button class="page-btn ${i===currentPage?'active':''}" onclick="currentPage=${i};renderTable()">${i}</button>`;
+        if (pages <= 1) return;
+        for (let i = 1; i <= pages; i++) cont.innerHTML += `<button class="page-btn ${i===currentPage?'active':''}" onclick="currentPage=${i};renderTable()">${i}</button>`;
     }
 
     async function createRecord() {
-        const p = {full_name:document.getElementById('regName').value, role:document.getElementById('regRole').value, card_uid:document.getElementById('regCard').value, telegram_id:document.getElementById('regTg').value, month_limit_rub:parseInt(document.getElementById('regLimit').value)};
-        await fetch('/api/employees', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
-        document.getElementById('regName').value = ''; document.getElementById('regCard').value = ''; document.getElementById('regTg').value = '';
+        const p = {
+            full_name: document.getElementById('regName').value,
+            role: document.getElementById('regRole').value,
+            card_uid: document.getElementById('regCard').value,
+            telegram_id: document.getElementById('regTg').value,
+            month_limit_rub: parseInt(document.getElementById('regLimit').value)
+        };
+        await authFetch('/api/employees', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
+        document.getElementById('regName').value = '';
+        document.getElementById('regCard').value = '';
+        document.getElementById('regTg').value = '';
         load();
     }
 
-    async function delEmp(id) { if(confirm('Удалить?')) { await fetch(`/api/employees/${id}`, {method:'DELETE'}); load(); } }
+    async function delEmp(id) {
+        if (confirm('Удалить сотрудника?')) {
+            await authFetch(`/api/employees/${id}`, {method:'DELETE'});
+            load();
+        }
+    }
 
     function openEdit(e) {
-        document.getElementById('editId').value = e.id; document.getElementById('editName').value = e.full_name;
-        document.getElementById('editCard').value = e.card_uid; document.getElementById('editTg').value = e.telegram_id || '';
-        document.getElementById('editLimit').value = e.month_limit_rub; document.getElementById('editRole').value = e.role;
+        document.getElementById('editId').value = e.id;
+        document.getElementById('editName').value = e.full_name;
+        document.getElementById('editCard').value = e.card_uid;
+        document.getElementById('editTg').value = e.telegram_id || '';
+        document.getElementById('editLimit').value = e.month_limit_rub;
+        document.getElementById('editRole').value = e.role;
         document.getElementById('editModal').style.display = 'flex';
     }
 
     async function saveEdit() {
         const id = document.getElementById('editId').value;
-        const p = {full_name:document.getElementById('editName').value, card_uid:document.getElementById('editCard').value, telegram_id:document.getElementById('editTg').value, month_limit_rub:parseInt(document.getElementById('editLimit').value), role:document.getElementById('editRole').value};
-        await fetch(`/api/employees/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
+        const p = {
+            full_name: document.getElementById('editName').value,
+            card_uid: document.getElementById('editCard').value,
+            telegram_id: document.getElementById('editTg').value,
+            month_limit_rub: parseInt(document.getElementById('editLimit').value),
+            role: document.getElementById('editRole').value
+        };
+        await authFetch(`/api/employees/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
         closeModals(); load();
     }
 
     async function openRoles() {
-        const roles = await (await fetch('/api/role_settings')).json();
+        const res = await authFetch('/api/role_settings');
+        const roles = await res.json();
         document.getElementById('rolesList').innerHTML = roles.map(r => `
             <div class="role-item">
                 <b>${r.role_name}</b>
@@ -378,151 +474,234 @@
     }
 
     async function addRole() {
-        const n = document.getElementById('newRoleName').value, s = document.getElementById('newRoleSubsidy').value;
-        if(n && s) { 
-            await fetch('/api/role_settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role_name:n, subsidy_rub:parseFloat(s)})}); 
-            document.getElementById('newRoleName').value = ''; document.getElementById('newRoleSubsidy').value = '';
-            openRoles(); load(); 
+        const n = document.getElementById('newRoleName').value;
+        const s = document.getElementById('newRoleSubsidy').value;
+        if (n && s) {
+            await authFetch('/api/role_settings', {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({role_name: n, subsidy_rub: parseFloat(s)})
+            });
+            document.getElementById('newRoleName').value = '';
+            document.getElementById('newRoleSubsidy').value = '';
+            openRoles(); load();
         }
     }
-    async function updateRole(n, v) { await fetch('/api/role_settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role_name:n, subsidy_rub:parseFloat(v)})}); load(); }
-    async function deleteRole(n) { if(confirm('Удалить?')) { await fetch(`/api/role_settings/${n}`, {method:'DELETE'}); openRoles(); load(); } }
+
+    async function updateRole(n, v) {
+        await authFetch('/api/role_settings', {
+            method:'PUT',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({role_name: n, subsidy_rub: parseFloat(v)})
+        });
+        load();
+    }
+
+    async function deleteRole(n) {
+        if (confirm('Удалить роль?')) {
+            await authFetch(`/api/role_settings/${n}`, {method:'DELETE'});
+            openRoles(); load();
+        }
+    }
 
     function openGlobal() { document.getElementById('globalModal').style.display = 'flex'; }
+
     async function saveGlobal() {
-        const p = {target_date: document.getElementById('gDate').value, action_type: document.getElementById('gAction').value, target_role: document.getElementById('gTarget').value};
-        await fetch('/api/schedule/global_action', {method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(p)});
+        const p = {
+            target_date: document.getElementById('gDate').value,
+            action_type: document.getElementById('gAction').value,
+            target_role: document.getElementById('gTarget').value
+        };
+        await authFetch('/api/schedule/global_action', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
         closeModals(); load();
     }
 
+    // --- КАССЫ (не требуют JWT) ---
     async function loadCashDesks() {
         const desks = await (await fetch('/api/cash_desks')).json();
-        document.getElementById('cashDesksTableBody').innerHTML = desks.map(d => `<tr><td>#${d.id}</td><td><b>${d.login}</b></td><td>${d.description || ''}</td><td style="text-align:right"><button class="action-btn" onclick="forceChangePwd(${d.id})">🔑</button><button class="action-btn btn-red" onclick="deleteCashDesk(${d.id})">×</button></td></tr>`).join('');
-        document.getElementById('cashDesksContainer').innerHTML = desks.map(d => `<label class="check-item"><input type="checkbox" value="${d.login}" class="stat-desk-cb" checked onchange="buildChart()"> ${d.login}</label>`).join('');
+        document.getElementById('cashDesksTableBody').innerHTML = desks.map(d =>
+            `<tr><td>#${d.id}</td><td><b>${d.login}</b></td><td>${d.description || ''}</td><td style="text-align:right">
+                <button class="action-btn btn-red" onclick="deleteCashDesk(${d.id})">×</button>
+            </td></tr>`
+        ).join('');
+        document.getElementById('cashDesksContainer').innerHTML = desks.map(d =>
+            `<label class="check-item"><input type="checkbox" value="${d.login}" class="stat-desk-cb" checked onchange="buildChart()"> ${d.login}</label>`
+        ).join('');
     }
+
     async function addCashDesk() {
-        const p = {login: document.getElementById('newDeskLogin').value, description: document.getElementById('newDeskDesc').value, password: document.getElementById('newDeskPass').value || '1234'};
+        const p = {
+            login: document.getElementById('newDeskLogin').value,
+            description: document.getElementById('newDeskDesc').value,
+            password: document.getElementById('newDeskPass').value || '1234'
+        };
         await fetch('/api/cash_desks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
         loadCashDesks();
     }
-    async function deleteCashDesk(id) { if(confirm('Удалить?')) { await fetch(`/api/cash_desks/${id}`, {method:'DELETE'}); loadCashDesks(); } }
-    async function forceChangePwd(id) { const np = prompt("Новый пароль:"); if(np) await fetch(`/api/cash_desks/${id}/password`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:np})}); }
 
-    async function openCal(id, n) { currentEmpId = id; document.getElementById('calTitle').innerText = n; document.getElementById('calModal').style.display='flex'; await refreshCal(); }
-    async function refreshCal() { workDays = await (await fetch(`/api/schedule/${currentEmpId}`)).json(); renderCal(); }
+    async function deleteCashDesk(id) {
+        if (confirm('Удалить кассу?')) {
+            await fetch(`/api/cash_desks/${id}`, {method:'DELETE'});
+            loadCashDesks();
+        }
+    }
+
+    // --- КАЛЕНДАРЬ ---
+    async function openCal(id, n) {
+        currentEmpId = id;
+        document.getElementById('calTitle').innerText = n;
+        document.getElementById('calModal').style.display = 'flex';
+        await refreshCal();
+    }
+
+    async function refreshCal() {
+        const res = await authFetch(`/api/schedule/${currentEmpId}`);
+        workDays = await res.json();
+        renderCal();
+    }
+
     function renderCal() {
         const g = document.getElementById('calGrid'), y = viewDate.getFullYear(), m = viewDate.getMonth();
         document.getElementById('calTitle').innerText = new Intl.DateTimeFormat('ru',{month:'long'}).format(viewDate) + ' ' + y;
-        g.innerHTML = ''; const f = (new Date(y, m, 1).getDay() + 6) % 7, l = new Date(y, m + 1, 0).getDate();
-        for(let i=0; i<f; i++) g.innerHTML += '<div></div>';
-        for(let i=1; i<=l; i++) {
+        g.innerHTML = '';
+        const f = (new Date(y, m, 1).getDay() + 6) % 7, l = new Date(y, m + 1, 0).getDate();
+        for (let i = 0; i < f; i++) g.innerHTML += '<div></div>';
+        for (let i = 1; i <= l; i++) {
             const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
             g.innerHTML += `<div class="cal-day ${workDays.includes(ds)?'workday':''}" onclick="toggleDay('${ds}')">${i}</div>`;
         }
     }
-    async function toggleDay(d) { await fetch(`/api/schedule/${currentEmpId}/toggle?target_date=${d}`, {method:'POST'}); await refreshCal(); }
-    async function applyPreset(w, r) { await fetch(`/api/schedule/${currentEmpId}/preset`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({work_days:w, rest_days:r})}); await refreshCal(); }
-    function promptCustomPreset() { const w = prompt("Дней работы:"), r = prompt("Дней отдыха:"); if(w && r) applyPreset(parseInt(w), parseInt(r)); }
-    async function resetCal() { if(confirm('Сбросить график?')) { await fetch(`/api/schedule/${currentEmpId}/reset`, {method:'POST'}); await refreshCal(); } }
+
+    async function toggleDay(d) {
+        await authFetch(`/api/schedule/${currentEmpId}/toggle?target_date=${d}`, {method:'POST'});
+        await refreshCal();
+    }
+
+    async function applyPreset(w, r) {
+        await authFetch(`/api/schedule/${currentEmpId}/preset`, {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({work_days: w, rest_days: r})
+        });
+        await refreshCal();
+    }
+
+    function promptCustomPreset() {
+        const w = prompt("Дней работы:"), r = prompt("Дней отдыха:");
+        if (w && r) applyPreset(parseInt(w), parseInt(r));
+    }
+
+    async function resetCal() {
+        if (confirm('Сбросить расписание сотрудника?')) {
+            await authFetch(`/api/schedule/${currentEmpId}/reset`, {method:'POST'});
+            await refreshCal();
+        }
+    }
+
     function changeMonth(s) { viewDate.setMonth(viewDate.getMonth() + s); renderCal(); }
 
+    // --- БИОМЕТРИЯ ---
     async function openBio(id, uid, name) {
         currentEmpId = id; currentUid = uid;
         document.getElementById('bioModal').style.display = 'flex';
         try { video.srcObject = await navigator.mediaDevices.getUserMedia({ video: true }); } catch (err) { alert("Камера недоступна"); }
     }
+
     function captureBio() {
         const c = document.createElement('canvas'); c.width = 640; c.height = 480;
         c.getContext('2d').drawImage(video, 0, 0);
         c.toBlob(b => sendBio(b), 'image/jpeg');
     }
+
     async function sendBio(blob) {
-        const fd = new FormData(); fd.append('card_uid', currentUid); fd.append('file', blob);
-        const res = await fetch('/api/enroll_face', {method:'POST', body:fd});
-        if(res.ok) { alert("Успешно!"); closeModals(); load(); }
-    }
-    function uploadBioFile(input) { if(input.files[0]) sendBio(input.files[0]); }
-
-async function buildChart() {
-    const period = document.getElementById('statPeriod').value;
-    let start, end = new Date().toISOString().split('T')[0];
-    if(period === 'custom') { 
-        start = document.getElementById('statStartDate').value; 
-        end = document.getElementById('statEndDate').value; 
-        if(!start || !end) return; 
-    } else { 
-        let d = new Date(); d.setDate(d.getDate() - parseInt(period)); 
-        start = d.toISOString().split('T')[0]; 
+        const fd = new FormData();
+        fd.append('card_uid', currentUid);
+        fd.append('file', blob);
+        const res = await authFetch('/api/enroll_face', {method:'POST', body:fd});
+        if (res.ok) { alert("Успешно!"); closeModals(); load(); }
     }
 
-    const params = new URLSearchParams({start_date: start, end_date: end});
-    document.querySelectorAll('.stat-desk-cb:checked').forEach(cb => params.append('cash_desks', cb.value));
-    document.querySelectorAll('.stat-pay-cb:checked').forEach(cb => params.append('payment_methods', cb.value));
+    function uploadBioFile(input) { if (input.files[0]) sendBio(input.files[0]); }
 
-    try {
-        const res = await fetch(`/api/statistics/chart?${params.toString()}`);
-        if(!res.ok) return;
-        const data = await res.json();
-        
-        let sum = 0; 
-        if(data.datasets) data.datasets.forEach(ds => sum += ds.data.reduce((a, b) => a + b, 0));
-        document.getElementById('totalRevenueDisplay').innerText = Math.round(sum).toLocaleString() + ' ₽';
-        document.getElementById('totalTxDisplay').innerText = data.total_count || 0;
+    // --- СТАТИСТИКА (не требует JWT) ---
+    async function buildChart() {
+        const period = document.getElementById('statPeriod').value;
+        let start, end = new Date().toISOString().split('T')[0];
+        if (period === 'custom') {
+            start = document.getElementById('statStartDate').value;
+            end = document.getElementById('statEndDate').value;
+            if (!start || !end) return;
+        } else {
+            let d = new Date(); d.setDate(d.getDate() - parseInt(period));
+            start = d.toISOString().split('T')[0];
+        }
 
-        const ctx = document.getElementById('revenueChart').getContext('2d');
-        if(revenueChartInstance) revenueChartInstance.destroy();
+        const params = new URLSearchParams({start_date: start, end_date: end});
+        document.querySelectorAll('.stat-desk-cb:checked').forEach(cb => params.append('cash_desks', cb.value));
+        document.querySelectorAll('.stat-pay-cb:checked').forEach(cb => params.append('payment_methods', cb.value));
 
-        revenueChartInstance = new Chart(ctx, { 
-            type:'line', 
-            data:{
-                labels: data.labels, // Здесь по-прежнему приходят даты с годом (ГГГГ-ММ-ДД)
-                datasets: (data.datasets || []).map((ds, i) => ({
-                    label: ds.label, 
-                    data: ds.data, 
-                    borderColor: ['#007AFF','#FF9500','#34C759','#AF52DE'][i%4], 
-                    tension: 0.3, 
-                    pointRadius: 3, 
-                    fill: false
-                }))
-            }, 
-            options: {
-                responsive: true, 
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false } // Легенда убрана
+        try {
+            const res = await fetch(`/api/statistics/chart?${params.toString()}`);
+            if (!res.ok) return;
+            const data = await res.json();
+
+            let sum = 0;
+            if (data.datasets) data.datasets.forEach(ds => sum += ds.data.reduce((a, b) => a + b, 0));
+            document.getElementById('totalRevenueDisplay').innerText = Math.round(sum).toLocaleString() + ' ₽';
+            document.getElementById('totalTxDisplay').innerText = data.total_count || 0;
+
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            if (revenueChartInstance) revenueChartInstance.destroy();
+
+            revenueChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: (data.datasets || []).map((ds, i) => ({
+                        label: ds.label,
+                        data: ds.data,
+                        borderColor: ['#4F46E5','#10B981','#3B82F6','#A855F7'][i%4],
+                        tension: 0.3,
+                        pointRadius: 3,
+                        fill: false
+                    }))
                 },
-                scales: {
-                    x: {
-                        ticks: {
-                            autoSkip: true,
-                            maxTicksLimit: 20,
-                            maxRotation: 45, // Наклон сохранен
-                            minRotation: 45,
-                            // ФУНКЦИЯ ОТОБРАЖЕНИЯ ТОЛЬКО ДЕНЬ.МЕСЯЦ
-                            callback: function(val, index) {
-                                const fullDate = this.getLabelForValue(val); // Берем "2026-03-31"
-                                const parts = fullDate.split('-'); 
-                                return parts[2] + '.' + parts[1]; // Возвращаем "31.03"
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            ticks: {
+                                autoSkip: true, maxTicksLimit: 20,
+                                maxRotation: 45, minRotation: 45,
+                                callback: function(val, index) {
+                                    const parts = this.getLabelForValue(val).split('-');
+                                    return parts[2] + '.' + parts[1];
+                                },
+                                font: { size: 10 }
                             },
-                            font: { size: 10 }
+                            grid: { display: false }
                         },
-                        grid: { display: false }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        ticks: { callback: (v) => v + ' ₽' }
+                        y: { beginAtZero: true, ticks: { callback: (v) => v + ' ₽' } }
                     }
                 }
-            } 
-        });
-    } catch(e) { console.error("Ошибка графика:", e); }
-}    
+            });
+        } catch(e) { console.error("Ошибка графика:", e); }
+    }
 
-    function toggleCustomDates() { document.getElementById('customDatesWrapper').style.display = document.getElementById('statPeriod').value === 'custom' ? 'flex' : 'none'; }
-    function downloadCSV() { window.location.href = `/api/statistics/export?start_date=${document.getElementById('exportStartDate').value}&end_date=${document.getElementById('exportEndDate').value}`; }
+    function toggleCustomDates() {
+        document.getElementById('customDatesWrapper').style.display =
+            document.getElementById('statPeriod').value === 'custom' ? 'flex' : 'none';
+    }
+
+    function downloadCSV() {
+        window.location.href = `/api/statistics/export?start_date=${document.getElementById('exportStartDate').value}&end_date=${document.getElementById('exportEndDate').value}`;
+    }
+
     function closeModals() {
-        document.querySelectorAll('.modal').forEach(m => m.style.display='none');
-        if(video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
+        document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+        if (video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
     }
 
     window.onload = () => { load(); loadCashDesks(); };

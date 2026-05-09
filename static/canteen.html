@@ -2,18 +2,22 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Терминал Кассира</title>
+    <title>Терминал Кассира | Cafeteria</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/terminal.css">
 </head>
 <body id="appBody">
 
+    <!-- Экран входа в смену -->
     <div id="loginOverlay" class="overlay" style="display: flex; z-index: 99999;">
         <div class="modal-box">
-            <h3 style="text-align:center;">Вход в терминал</h3>
-            <input type="text" id="deskLoginInput" placeholder="Логин кассы (например: 123)">
-            <button class="btn-black" onclick="login()">Открыть смену</button>
-            <div id="loginError" style="color: #dc3545; margin-top:15px; text-align:center; display:none; font-weight: bold;">
-                ❌ Касса не найдена
+            <div style="text-align:center; font-size:36px; margin-bottom:12px;">🍽</div>
+            <h3>Открыть смену</h3>
+            <input type="text" id="deskLoginInput" placeholder="Логин терминала...">
+            <button class="btn-black" onclick="login()">Начать работу</button>
+            <div id="loginError" style="color: #EF4444; margin-top:12px; text-align:center; display:none; font-size:14px; font-weight:600;">
+                Терминал не найден. Проверьте логин.
             </div>
         </div>
     </div>
@@ -21,14 +25,14 @@
     <div class="app-container">
         <div class="top-bar">
             <div class="top-bar-left">
-                <h3 style="margin:0;">Касса</h3>
+                <h3>🍽 Cafeteria</h3>
                 <div class="desk-badge" id="cashDeskLabel">...</div>
-                <div class="admin-badge edit-only">РЕЖИМ РЕДАКТОРА</div>
+                <div class="admin-badge edit-only">РЕЖИМ НАСТРОЙКИ</div>
             </div>
             <div class="top-bar-right">
                 <button class="btn-outline" id="settingsBtn" onclick="openAdminAuth()">⚙️ Настройки</button>
-                <button class="btn-outline edit-only" style="color:#dc3545; border-color:#dc3545;" onclick="exitAdmin()">Выйти из настроек</button>
-                <button class="btn-outline" onclick="logout()">🚪 Выход</button>
+                <button class="btn-outline edit-only" style="color:#EF4444; border-color:#EF4444;" onclick="exitAdmin()">Выйти из настроек</button>
+                <button class="btn-outline" onclick="logout()">🚪 Закрыть смену</button>
             </div>
         </div>
 
@@ -39,7 +43,7 @@
             </div>
 
             <div class="cart-area">
-                <h3 style="margin:0; padding-bottom:15px; border-bottom:1px solid #eee;">Чек</h3>
+                <h3 style="margin:0; padding-bottom:14px; border-bottom:1px solid #E5E7EB; margin-bottom:0;">Заказ</h3>
                 <div class="cart-items" id="cartItems"></div>
                 <div class="total-amount" id="totalDisplay">0 ₽</div>
                 <button class="btn-black" onclick="openModal('paymentMethodModal')" id="payBtn" disabled>ОПЛАТИТЬ</button>
@@ -47,53 +51,58 @@
         </div>
     </div>
 
+    <!-- Модал: Вход в настройки -->
     <div id="adminAuthModal" class="overlay">
         <div class="modal-box">
-            <h3>Доступ к настройкам</h3>
+            <h3>Вход в настройки</h3>
             <input type="password" id="adminPassInput" placeholder="Пароль кассы">
             <button class="btn-black" onclick="verifyAdmin()">Войти</button>
             <button class="btn-outline" style="width:100%; margin-top:10px;" onclick="closeModal('adminAuthModal')">Отмена</button>
         </div>
     </div>
 
+    <!-- Модал: Товар -->
     <div id="productModal" class="overlay">
         <div class="modal-box">
             <h3 id="productModalTitle">Товар</h3>
             <input type="hidden" id="editProductId">
-            <label>Название</label><input type="text" id="prodName">
-            <label>Цена (₽)</label><input type="number" id="prodPrice">
+            <label>Название</label><input type="text" id="prodName" placeholder="Название блюда">
+            <label>Цена, ₽</label><input type="number" id="prodPrice" placeholder="0">
             <button class="btn-black" onclick="saveProduct()">Сохранить</button>
             <button class="btn-outline" style="width:100%; margin-top:10px;" onclick="closeModal('productModal')">Отмена</button>
         </div>
     </div>
 
+    <!-- Модал: Категория -->
     <div id="catModal" class="overlay">
         <div class="modal-box">
             <h3 id="catModalTitle">Вкладка</h3>
             <input type="hidden" id="editCatId">
-            <input type="text" id="catNameInput" placeholder="Название вкладки">
+            <input type="text" id="catNameInput" placeholder="Название вкладки...">
             <button class="btn-black" onclick="saveCategory()">Сохранить</button>
             <button class="btn-outline" style="width:100%; margin-top:10px;" onclick="closeModal('catModal')">Отмена</button>
         </div>
     </div>
 
+    <!-- Модал: Способ оплаты -->
     <div id="paymentMethodModal" class="overlay">
         <div class="modal-box">
-            <h3 style="text-align:center;">Способ оплаты</h3>
-            <button class="btn-method" onclick="processExternal('bank_card')">💳 Карта</button>
-            <button class="btn-method" onclick="startInternal()">🥗 Лицо (Дотация)</button>
-            <button class="btn-method" onclick="startCash()">💵 Наличные</button>
-            <button class="btn-outline" style="width:100%;" onclick="closeModal('paymentMethodModal')">Отмена</button>
+            <h3>Способ оплаты</h3>
+            <button class="btn-method" onclick="processExternal('bank_card')">💳 &nbsp;Банковская карта</button>
+            <button class="btn-method" onclick="startInternal()">🍽 &nbsp;Дотация (распознавание лица)</button>
+            <button class="btn-method" onclick="startCash()">💵 &nbsp;Наличные</button>
+            <button class="btn-outline" style="width:100%; margin-top:4px;" onclick="closeModal('paymentMethodModal')">Отмена</button>
         </div>
     </div>
 
+    <!-- Модал: Наличные -->
     <div id="cashModal" class="overlay">
         <div class="modal-box">
-            <h3 style="text-align:center;">Наличные</h3>
-            <div style="text-align:center; margin-bottom:20px;">К оплате: <b id="cashTotalDisp" style="font-size:24px;">0</b> ₽</div>
-            <input type="number" id="cashReceived" placeholder="Получено ₽" oninput="calculateChange()">
-            <div id="changeDisp" style="text-align:center; font-size:18px; margin-bottom:20px;"></div>
-            <button class="btn-black" id="confirmCashBtn" onclick="processExternal('cash')" disabled>Пробить чек</button>
+            <h3>Оплата наличными</h3>
+            <div style="text-align:center; margin-bottom:16px; font-size:14px; color:#6B7280;">К оплате: <b id="cashTotalDisp" style="font-size:26px; color:#111827; display:block; margin-top:4px;">0 ₽</b></div>
+            <input type="number" id="cashReceived" placeholder="Сумма от покупателя, ₽" oninput="calculateChange()">
+            <div id="changeDisp" style="text-align:center; font-size:18px; margin-bottom:16px; font-weight:600;"></div>
+            <button class="btn-black" id="confirmCashBtn" onclick="processExternal('cash')" disabled>Принять оплату</button>
         </div>
     </div>
 
@@ -120,10 +129,10 @@ async function login() {
     const loginVal = document.getElementById('deskLoginInput').value.trim();
     if(!loginVal) return;
     try {
-        const res = await fetch('/api/verify_cash_desk', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ login: loginVal }) 
+        const res = await fetch('/api/verify_cash_desk', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ login: loginVal })
         });
         if (res.ok) {
             const data = await res.json();
@@ -151,7 +160,7 @@ async function loadData() {
         ]);
         categories = await cRes.json();
         products = await pRes.json();
-        renderCategories(); 
+        renderCategories();
         renderProducts();
     } catch(e) { console.error("Ошибка загрузки данных", e); }
 }
@@ -165,12 +174,12 @@ function renderCategories() {
             ${c.name}
             ${isAdmin ? `
                 <div style="position:absolute; top:-10px; right:-10px; display:flex; gap:2px;">
-                    <button class="delete-btn" style="background:#007bff; position:static;" onclick="event.stopPropagation(); openEditCat(${c.id}, '${c.name}')">✎</button>
+                    <button class="delete-btn" style="background:#3B82F6; position:static;" onclick="event.stopPropagation(); openEditCat(${c.id}, '${c.name}')">✎</button>
                     <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteCat(${c.id})">×</button>
                 </div>` : ''}
         </div>`;
     });
-    if (isAdmin) html += `<div class="cat-tab" style="border: 2px dashed #000;" onclick="openAddCat()">+ Вкладка</div>`;
+    if (isAdmin) html += `<div class="cat-tab" style="border: 2px dashed #E5E7EB; color:#9CA3AF;" onclick="openAddCat()">+ Раздел</div>`;
     bar.innerHTML = html;
 }
 
@@ -186,14 +195,14 @@ function renderProducts() {
             <button class="star-btn ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav(${p.id})">★</button>
             ${isAdmin ? `
                 <div style="position:absolute; top:-5px; right:-5px; display:flex; gap:2px;">
-                    <button class="delete-btn" style="background:#007bff; position:static;" onclick="event.stopPropagation(); openEditProduct(${p.id}, '${p.name}', ${p.price})">✎</button>
+                    <button class="delete-btn" style="background:#3B82F6; position:static;" onclick="event.stopPropagation(); openEditProduct(${p.id}, '${p.name}', ${p.price})">✎</button>
                     <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteProduct(${p.id})">×</button>
                 </div>` : ''}
             <div class="product-name">${p.name}</div>
             <div class="product-price">${p.price} ₽</div>
         </div>`;
     });
-    if (isAdmin && currentCatId !== 0) html += `<div class="product-card" style="border: 2px dashed #ccc;" onclick="openAddProduct()">+ Товар</div>`;
+    if (isAdmin && currentCatId !== 0) html += `<div class="product-card" style="border: 2px dashed #E5E7EB; color:#9CA3AF;" onclick="openAddProduct()">+ Блюдо</div>`;
     grid.innerHTML = html;
 }
 
@@ -202,9 +211,9 @@ function selectCat(id) { currentCatId = id; renderCategories(); renderProducts()
 // --- 3. АДМИН-ФУНКЦИИ ---
 async function verifyAdmin() {
     const pwd = document.getElementById('adminPassInput').value;
-    const res = await fetch('/api/verify_desk_password', { 
-        method: 'POST', headers: {'Content-Type': 'application/json'}, 
-        body: JSON.stringify({ login: cashDeskLogin, password: pwd }) 
+    const res = await fetch('/api/verify_desk_password', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ login: cashDeskLogin, password: pwd })
     });
     if (res.ok) {
         isAdmin = true;
@@ -213,19 +222,19 @@ async function verifyAdmin() {
     } else alert("Неверный пароль");
 }
 
-function exitAdmin() { 
-    isAdmin = false; 
-    document.body.classList.remove('edit-mode'); 
-    renderCategories(); renderProducts(); 
+function exitAdmin() {
+    isAdmin = false;
+    document.body.classList.remove('edit-mode');
+    renderCategories(); renderProducts();
 }
 
-function openAddCat() { document.getElementById('editCatId').value = ''; document.getElementById('catNameInput').value = ''; document.getElementById('catModalTitle').innerText='Новая вкладка'; openModal('catModal'); }
-function openEditCat(id, name) { document.getElementById('editCatId').value = id; document.getElementById('catNameInput').value = name; document.getElementById('catModalTitle').innerText='Изменить вкладку'; openModal('catModal'); }
+function openAddCat() { document.getElementById('editCatId').value = ''; document.getElementById('catNameInput').value = ''; document.getElementById('catModalTitle').innerText='Новый раздел'; openModal('catModal'); }
+function openEditCat(id, name) { document.getElementById('editCatId').value = id; document.getElementById('catNameInput').value = name; document.getElementById('catModalTitle').innerText='Изменить раздел'; openModal('catModal'); }
 
 async function saveCategory() {
     const id = document.getElementById('editCatId').value;
     const name = document.getElementById('catNameInput').value.trim();
-    
+
     // Берем ID кассы, который мы сохранили при входе в терминал
     const deskDbId = localStorage.getItem('cashDeskDbId');
 
@@ -238,16 +247,16 @@ async function saveCategory() {
     const url = id ? `/api/categories/${id}` : '/api/categories';
 
     // Формируем данные: имя + привязка к кассе
-    const payload = { 
+    const payload = {
         name: name,
-        cash_desk_id: parseInt(deskDbId) 
+        cash_desk_id: parseInt(deskDbId)
     };
 
     try {
-        const res = await fetch(url, { 
-            method: method, 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify(payload) 
+        const res = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
         });
 
         if (res.ok) {
@@ -266,10 +275,10 @@ async function saveCategory() {
     }
 }
 
-async function deleteCat(id) { if(confirm("Удалить вкладку?")) { await fetch(`/api/categories/${id}`, { method: 'DELETE' }); loadData(); } }
+async function deleteCat(id) { if(confirm("Удалить раздел и все блюда в нём?")) { await fetch(`/api/categories/${id}`, { method: 'DELETE' }); loadData(); } }
 
-function openAddProduct() { document.getElementById('editProductId').value = ''; document.getElementById('prodName').value = ''; document.getElementById('prodPrice').value = ''; document.getElementById('productModalTitle').innerText = 'Новый товар'; openModal('productModal'); }
-function openEditProduct(id, name, price) { document.getElementById('editProductId').value = id; document.getElementById('prodName').value = name; document.getElementById('prodPrice').value = price; document.getElementById('productModalTitle').innerText = 'Изменить товар'; openModal('productModal'); }
+function openAddProduct() { document.getElementById('editProductId').value = ''; document.getElementById('prodName').value = ''; document.getElementById('prodPrice').value = ''; document.getElementById('productModalTitle').innerText = 'Новое блюдо'; openModal('productModal'); }
+function openEditProduct(id, name, price) { document.getElementById('editProductId').value = id; document.getElementById('prodName').value = name; document.getElementById('prodPrice').value = price; document.getElementById('productModalTitle').innerText = 'Изменить блюдо'; openModal('productModal'); }
 
 async function saveProduct() {
     const id = document.getElementById('editProductId').value;
@@ -282,7 +291,7 @@ async function saveProduct() {
     await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
     closeModal('productModal'); loadData();
 }
-async function deleteProduct(id) { if(confirm("Удалить товар?")) { await fetch(`/api/products/${id}`, { method: 'DELETE' }); loadData(); } }
+async function deleteProduct(id) { if(confirm("Удалить блюдо?")) { await fetch(`/api/products/${id}`, { method: 'DELETE' }); loadData(); } }
 
 // --- 4. КОРЗИНА И ОПЛАТА ---
 function openModal(id) { document.getElementById(id).style.display = 'flex'; }
@@ -296,7 +305,7 @@ function addToCart(id, name, price) {
 
 function removeFromCart(id) {
     let itemIndex = cart.findIndex(i => i.id === id);
-    
+
     if (itemIndex !== -1) {
         if (cart[itemIndex].qty > 1) {
             // Если товара больше одного — просто уменьшаем количество на 1
@@ -315,8 +324,8 @@ function renderCart() {
         total += i.price * i.qty;
         cont.innerHTML += `<div class="cart-item">
     	    <span>${i.name} (x${i.qty})</span>
-    	    <span>${i.price * i.qty} ₽ 
-                <button onclick="removeFromCart(${i.id})" style="border:none;background:none;color:red;cursor:pointer;font-weight:bold;padding:0 5px;">✕</button>
+    	    <span>${i.price * i.qty} ₽
+                <button onclick="removeFromCart(${i.id})" style="border:none;background:none;color:#EF4444;cursor:pointer;font-weight:bold;padding:0 5px;">✕</button>
             </span>
         </div>`;
     });
@@ -331,11 +340,11 @@ function toggleFav(id) {
     renderProducts();
 }
 
-function startCash() { document.getElementById('cashTotalDisp').innerText = total; openModal('cashModal'); }
+function startCash() { document.getElementById('cashTotalDisp').innerText = total + ' ₽'; openModal('cashModal'); }
 function calculateChange() {
     const rec = parseFloat(document.getElementById('cashReceived').value) || 0;
     const diff = rec - total;
-    document.getElementById('changeDisp').innerHTML = diff >= 0 ? `Сдача: <b style="color:green">${diff} ₽</b>` : `Не хватает: <b style="color:red">${Math.abs(diff)} ₽</b>`;
+    document.getElementById('changeDisp').innerHTML = diff >= 0 ? `Сдача: <span style="color:#22C55E">${diff} ₽</span>` : `Не хватает: <span style="color:#EF4444">${Math.abs(diff)} ₽</span>`;
     document.getElementById('confirmCashBtn').disabled = rec < total;
 }
 
@@ -343,18 +352,18 @@ async function processExternal(method) {
     // Шлем на сервер только product_id и количество
     const items = cart.map(i => ({ product_id: i.id, quantity: i.qty }));
     try {
-        const res = await fetch('/api/pay_external', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ 
-                cash_desk_id: cashDeskLogin, 
-                items: items, 
-                payment_method: method 
-            }) 
+        const res = await fetch('/api/pay_external', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                cash_desk_id: cashDeskLogin,
+                items: items,
+                payment_method: method
+            })
         });
         if(res.ok) {
-            cart = []; renderCart(); 
-            closeModal('cashModal'); closeModal('paymentMethodModal'); 
+            cart = []; renderCart();
+            closeModal('cashModal'); closeModal('paymentMethodModal');
             alert("Оплата принята!");
         } else {
             alert("Ошибка при оплате");
@@ -364,12 +373,12 @@ async function processExternal(method) {
 
 function startInternal() {
     if (cart.length === 0) return alert("Корзина пуста!");
-    
+
     // Сохраняем товары (только ID и количество для "Стены")
     localStorage.setItem('pendingCart', JSON.stringify(cart.map(i => ({ product_id: i.id, quantity: i.qty }))));
     // Сохраняем общую сумму для красоты на экране оплаты
     localStorage.setItem('pendingAmount', total);
-    
+
     window.location.href = 'index.html';
 }
 
