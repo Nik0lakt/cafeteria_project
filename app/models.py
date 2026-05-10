@@ -14,6 +14,7 @@ class Employee(Base):
     face_embedding_json = Column(JSON, nullable=True)
     telegram_id = Column(String, nullable=True)
     notifications_enabled = Column(Boolean, default=True)
+    limit_reset_day = Column(Integer, default=28)
     web_login = Column(String, unique=True, nullable=True)
     hashed_password = Column(String, nullable=True)
     is_first_login = Column(Boolean, default=True)

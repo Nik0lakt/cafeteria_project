@@ -25,6 +25,7 @@ class EmployeeCreate(BaseModel):
     card_uid: str
     telegram_id: Optional[str] = None
     month_limit_rub: int
+    limit_reset_day: int = 28
 
 
 class EmployeeUpdate(BaseModel):
@@ -33,6 +34,7 @@ class EmployeeUpdate(BaseModel):
     month_limit_rub: int
     card_uid: str
     telegram_id: Optional[str] = None
+    limit_reset_day: int = 28
 
 
 class SchedulePreset(BaseModel):
@@ -81,17 +83,23 @@ def list_employees(db: Session = Depends(get_db)):
             "has_face": e.face_embedding_json is not None,
             "card_uid": card.uid if card else "N/A",
             "telegram_id": e.telegram_id,
+            "limit_reset_day": e.limit_reset_day if e.limit_reset_day is not None else 28,
         })
     return results
 
 
 @router.post("/employees", dependencies=[Depends(get_current_admin)])
 def create_employee(data: EmployeeCreate, db: Session = Depends(get_db)):
+    if not data.full_name.strip():
+        raise HTTPException(status_code=400, detail="Полное имя не может быть пустым")
+    if not data.card_uid.strip():
+        raise HTTPException(status_code=400, detail="UID карты не может быть пустым")
     emp = Employee(
         full_name=data.full_name,
         role=data.role,
         month_limit_kopecks=data.month_limit_rub * 100,
         telegram_id=data.telegram_id,
+        limit_reset_day=data.limit_reset_day,
     )
     db.add(emp)
     db.commit()
@@ -110,6 +118,7 @@ def update_employee(emp_id: int, data: EmployeeUpdate, db: Session = Depends(get
     emp.role = data.role
     emp.month_limit_kopecks = data.month_limit_rub * 100
     emp.telegram_id = data.telegram_id
+    emp.limit_reset_day = data.limit_reset_day
     card = db.query(Card).filter(Card.employee_id == emp_id).first()
     if card:
         card.uid = data.card_uid.strip()

@@ -69,6 +69,7 @@
                 <label>Telegram ID</label><input type="text" id="regTg" placeholder="Необязательно">
                 <label>Роль</label><select id="regRole"></select>
                 <label>Месячный лимит, ₽</label><input type="number" id="regLimit" value="5000">
+                <label>День обновления лимита (1–31)</label><input type="number" id="regLimitDay" value="28" min="1" max="31">
                 <button class="btn" onclick="createRecord()">Добавить сотрудника</button>
             </div>
 
@@ -130,29 +131,43 @@
             </div>
         </div>
         <div class="box">
-            <div class="stats-controls" style="grid-template-columns: 1fr 1fr 1fr;">
-                <div>
-                    <label>Период</label>
-                    <select id="statPeriod" onchange="toggleCustomDates(); buildChart()">
-                        <option value="7">7 дней</option>
-                        <option value="30" selected>30 дней</option>
-                        <option value="custom">Свой период</option>
-                    </select>
+            <!-- hidden select keeps JS buildChart() / toggleCustomDates() working unchanged -->
+            <select id="statPeriod" style="display:none">
+                <option value="7">7 дней</option>
+                <option value="30" selected>30 дней</option>
+                <option value="custom">Свой период</option>
+            </select>
+
+            <div class="filter-row">
+                <div class="filter-group">
+                    <div class="filter-group-label">Период</div>
+                    <div class="period-pills">
+                        <button class="period-pill" onclick="setPeriod('7', this)">7 дней</button>
+                        <button class="period-pill active" onclick="setPeriod('30', this)">30 дней</button>
+                        <button class="period-pill" onclick="setPeriod('custom', this)">Свой период</button>
+                    </div>
                 </div>
-                <div>
-                    <label>Фильтр по кассам</label>
-                    <div id="cashDesksContainer" class="check-list-box"></div>
+
+                <div class="filter-divider"></div>
+
+                <div class="filter-group">
+                    <div class="filter-group-label">Кассы</div>
+                    <div id="cashDesksContainer" class="filter-checks"></div>
                 </div>
-                <div>
-                    <label>Способ оплаты</label>
-                    <div class="check-list-box">
-                        <label class="check-item"><input type="checkbox" value="bank_card" class="stat-pay-cb" checked onchange="buildChart()"> Карта</label>
-                        <label class="check-item"><input type="checkbox" value="cash" class="stat-pay-cb" checked onchange="buildChart()"> Наличные</label>
-                        <label class="check-item"><input type="checkbox" value="internal" class="stat-pay-cb" checked onchange="buildChart()"> Дотация (лицо)</label>
+
+                <div class="filter-divider"></div>
+
+                <div class="filter-group">
+                    <div class="filter-group-label">Способ оплаты</div>
+                    <div class="filter-checks">
+                        <label class="filter-check"><input type="checkbox" value="bank_card" class="stat-pay-cb" checked onchange="buildChart()"><span>Карта</span></label>
+                        <label class="filter-check"><input type="checkbox" value="cash" class="stat-pay-cb" checked onchange="buildChart()"><span>Наличные</span></label>
+                        <label class="filter-check"><input type="checkbox" value="internal" class="stat-pay-cb" checked onchange="buildChart()"><span>Дотация</span></label>
                     </div>
                 </div>
             </div>
-            <div id="customDatesWrapper" style="display:none; gap:10px; margin-top:15px;">
+
+            <div id="customDatesWrapper" style="display:none; gap:10px; margin-top:18px;">
                 <div style="flex:1"><label>Начало периода</label><input type="date" id="statStartDate" onchange="buildChart()"></div>
                 <div style="flex:1"><label>Конец периода</label><input type="date" id="statEndDate" onchange="buildChart()"></div>
             </div>
@@ -260,6 +275,7 @@
                 <label>UID карты</label><input type="text" id="editCard">
                 <label>Telegram ID</label><input type="text" id="editTg" placeholder="Необязательно">
                 <label>Месячный лимит, ₽</label><input type="number" id="editLimit">
+                <label>День обновления лимита (1–31)</label><input type="number" id="editLimitDay" min="1" max="31">
             </div>
         </div>
 
@@ -270,6 +286,7 @@
     </div>
 </div>
 
+<div id="toastContainer"></div>
 <input type="file" id="photoFileInput" accept="image/*" style="display:none" onchange="uploadBioFile(this)">
 
 <!-- ── Модал: Календарь ── -->
@@ -460,12 +477,19 @@
             role: document.getElementById('regRole').value,
             card_uid: document.getElementById('regCard').value,
             telegram_id: document.getElementById('regTg').value,
-            month_limit_rub: parseInt(document.getElementById('regLimit').value)
+            month_limit_rub: parseInt(document.getElementById('regLimit').value),
+            limit_reset_day: parseInt(document.getElementById('regLimitDay').value) || 28
         };
-        await authFetch('/api/employees', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
+        const res = await authFetch('/api/employees', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            showToast(err.detail || 'Ошибка при создании сотрудника', 'error');
+            return;
+        }
         document.getElementById('regName').value = '';
         document.getElementById('regCard').value = '';
         document.getElementById('regTg').value = '';
+        showToast('Сотрудник добавлен', 'success');
         load();
     }
 
@@ -482,6 +506,7 @@
         document.getElementById('editCard').value = e.card_uid;
         document.getElementById('editTg').value = e.telegram_id || '';
         document.getElementById('editLimit').value = e.month_limit_rub;
+        document.getElementById('editLimitDay').value = e.limit_reset_day || 28;
         document.getElementById('editRole').value = e.role;
 
         currentEmpId = e.id;
@@ -516,7 +541,8 @@
             card_uid: document.getElementById('editCard').value,
             telegram_id: document.getElementById('editTg').value,
             month_limit_rub: parseInt(document.getElementById('editLimit').value),
-            role: document.getElementById('editRole').value
+            role: document.getElementById('editRole').value,
+            limit_reset_day: parseInt(document.getElementById('editLimitDay').value) || 28
         };
         await authFetch(`/api/employees/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
         closeModals(); load();
@@ -590,7 +616,7 @@
             </td></tr>`
         ).join('');
         document.getElementById('cashDesksContainer').innerHTML = desks.map(d =>
-            `<label class="check-item"><input type="checkbox" value="${d.login}" class="stat-desk-cb" checked onchange="buildChart()"> ${d.login}</label>`
+            `<label class="filter-check"><input type="checkbox" value="${d.login}" class="stat-desk-cb" checked onchange="buildChart()"><span>${d.login}</span></label>`
         ).join('');
     }
 
@@ -755,9 +781,29 @@
         } catch(e) { console.error("Ошибка графика:", e); }
     }
 
+    function setPeriod(value, el) {
+        document.getElementById('statPeriod').value = value;
+        document.querySelectorAll('.period-pill').forEach(p => p.classList.remove('active'));
+        el.classList.add('active');
+        toggleCustomDates();
+        buildChart();
+    }
+
     function toggleCustomDates() {
         document.getElementById('customDatesWrapper').style.display =
             document.getElementById('statPeriod').value === 'custom' ? 'flex' : 'none';
+    }
+
+    function showToast(message, type = 'error') {
+        const container = document.getElementById('toastContainer');
+        const icon = type === 'error'
+            ? '<i class="ph-bold ph-warning-circle"></i>'
+            : '<i class="ph-bold ph-check-circle"></i>';
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = icon + message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
     }
 
     function downloadCSV() {

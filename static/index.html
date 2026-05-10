@@ -7,192 +7,316 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
     <style>
-        *, *::before, *::after { box-sizing: border-box; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --violet:    #7C3AED;
+            --violet-dk: #6D28D9;
+            --violet-lt: #EDE9FE;
+            --violet-mid:#A78BFA;
+            --bg:        #F5F4F8;
+            --card:      #FFFFFF;
+            --t1:        #111827;
+            --t2:        #374151;
+            --t3:        #6B7280;
+            --t4:        #9CA3AF;
+            --border:    #E5E7EB;
+            --border-lt: #F9FAFB;
+            --green:     #10B981;
+            --red:       #EF4444;
+        }
 
         body {
-            margin: 0;
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: #F5F4F8;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            flex-direction: column;
             -webkit-font-smoothing: antialiased;
-            color: #111827;
+            color: var(--t1);
+            padding: 24px;
         }
 
-        .card {
-            background: #fff;
-            width: 440px;
-            padding: 32px;
-            border-radius: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.07);
-            border: 1px solid #E5E7EB;
-            text-align: center;
-            position: relative;
-        }
-
-        .amount {
-            font-size: 52px;
-            font-weight: 800;
+        /* ── Brand bar ── */
+        .brand-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             margin-bottom: 20px;
-            letter-spacing: -2px;
-            color: #111827;
+        }
+        .brand-logo {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--violet) 0%, var(--violet-mid) 100%);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 17px;
+            box-shadow: 0 4px 12px rgba(124,58,237,0.35);
+        }
+        .brand-name {
+            font-size: 16px; font-weight: 700;
+            color: var(--t1); letter-spacing: -0.2px;
         }
 
+        /* ── Main card ── */
+        .card {
+            background: var(--card);
+            width: 100%; max-width: 460px;
+            border-radius: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 12px 40px rgba(0,0,0,0.09);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        /* ── Scanner status bar ── */
+        .scanner-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: var(--border-lt);
+            border-bottom: 1px solid var(--border);
+            gap: 10px;
+        }
+        .scanner-indicator {
+            display: flex; align-items: center; gap: 8px;
+        }
+        .indicator-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--red); flex-shrink: 0;
+            transition: background 0.2s;
+        }
+        #connectionStatus {
+            font-size: 12.5px; font-weight: 600;
+            color: var(--t3);
+            transition: color 0.2s;
+        }
+        #connectionStatus.connected { color: var(--green); }
+        #connectionStatus.connected + .indicator-dot,
+        .scanner-indicator.connected .indicator-dot { background: var(--green); }
+
+        #connectBtn {
+            background: var(--card);
+            border: 1.5px solid var(--border);
+            color: var(--t3);
+            font-size: 12px; font-weight: 600;
+            padding: 6px 13px; border-radius: 8px;
+            cursor: pointer; font-family: inherit;
+            display: inline-flex; align-items: center; gap: 6px;
+            transition: all 0.14s;
+        }
+        #connectBtn:hover { border-color: var(--violet); color: var(--violet); background: var(--violet-lt); }
+
+        /* ── Card body ── */
+        .card-body { padding: 28px; }
+
+        /* ── Employee name ── */
+        #userName {
+            font-size: 14px; font-weight: 600; color: var(--t3);
+            margin-bottom: 6px; letter-spacing: -0.1px;
+            text-align: center;
+        }
+
+        /* ── Amount display ── */
+        .amount-wrap {
+            text-align: center;
+            margin-bottom: 22px;
+        }
+        .amount-label {
+            font-size: 11px; font-weight: 700; color: var(--t4);
+            letter-spacing: 0.7px; text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        #amountDisp {
+            font-size: 56px; font-weight: 800;
+            letter-spacing: -3px; color: var(--t1);
+            line-height: 1;
+        }
+
+        /* ── Camera ── */
         .video-box {
             width: 100%;
-            height: 240px;
+            aspect-ratio: 4/3;
+            max-height: 220px;
             background: #111827;
             border-radius: 12px;
             overflow: hidden;
             margin-bottom: 20px;
-            border: 1px solid #E5E7EB;
+            border: 1px solid var(--border);
+            position: relative;
         }
+        .video-box video { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .video-corner {
+            position: absolute; width: 18px; height: 18px;
+            border-color: rgba(124,58,237,0.7); border-style: solid;
+            border-width: 0;
+        }
+        .video-corner.tl { top: 10px; left: 10px; border-top-width: 2px; border-left-width: 2px; border-radius: 3px 0 0 0; }
+        .video-corner.tr { top: 10px; right: 10px; border-top-width: 2px; border-right-width: 2px; border-radius: 0 3px 0 0; }
+        .video-corner.bl { bottom: 10px; left: 10px; border-bottom-width: 2px; border-left-width: 2px; border-radius: 0 0 0 3px; }
+        .video-corner.br { bottom: 10px; right: 10px; border-bottom-width: 2px; border-right-width: 2px; border-radius: 0 0 3px 0; }
 
-        video { width: 100%; height: 100%; object-fit: cover; }
-
-        input {
+        /* ── Input ── */
+        input[type="text"] {
             width: 100%;
-            padding: 12px 14px;
-            border: 1.5px solid #E5E7EB;
-            border-radius: 10px;
+            padding: 13px 16px;
+            border: 1.5px solid var(--border);
+            border-radius: 11px;
             margin-bottom: 12px;
             text-align: center;
-            font-size: 15px;
-            outline: none;
-            font-family: inherit;
-            color: #111827;
-            transition: border-color 0.15s, box-shadow 0.15s;
-            background: #FAFAFA;
+            font-size: 15px; outline: none;
+            font-family: inherit; color: var(--t1);
+            transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+            background: var(--border-lt);
         }
-
-        input:focus {
-            border-color: #7C3AED;
+        input[type="text"]:focus {
+            border-color: var(--violet);
             background: #fff;
             box-shadow: 0 0 0 3px rgba(124,58,237,0.10);
         }
+        input[type="text"]::placeholder { color: var(--t4); font-size: 13.5px; }
 
-        .btn {
-            background: #7C3AED;
-            color: #fff;
-            border: none;
+        /* ── Buttons ── */
+        .btn-primary {
             width: 100%;
-            padding: 14px;
-            border-radius: 10px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: inherit;
-            transition: background 0.15s;
+            background: var(--violet); color: #fff;
+            border: none; padding: 14px 20px;
+            border-radius: 11px; font-size: 15px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: all 0.15s;
+        }
+        .btn-primary:hover { background: var(--violet-dk); box-shadow: 0 4px 16px rgba(124,58,237,0.32); }
+        .btn-primary:active { transform: scale(0.98); }
+
+        .btn-confirm {
+            width: 100%;
+            background: var(--green); color: #fff;
+            border: none; padding: 14px 20px;
+            border-radius: 11px; font-size: 15px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: all 0.15s;
+        }
+        .btn-confirm:hover { background: #059669; box-shadow: 0 4px 16px rgba(16,185,129,0.30); }
+
+        #manualBtn {
+            display: none;
+            background: none; border: none;
+            color: var(--violet); font-size: 13.5px; font-weight: 500;
+            cursor: pointer; width: 100%; margin-top: 12px;
+            font-family: inherit; opacity: 0.85;
+            transition: opacity 0.14s;
+            text-align: center;
+        }
+        #manualBtn:hover { opacity: 1; }
+
+        /* ── Status message ── */
+        #status {
+            text-align: center;
+            font-size: 13.5px; font-weight: 500;
+            color: var(--t3); margin-top: 18px;
+            white-space: pre-line; line-height: 1.5;
+            min-height: 20px;
         }
 
-        .btn:hover { background: #6D28D9; box-shadow: 0 4px 14px rgba(124,58,237,0.32); }
+        .error-text { color: var(--red); font-weight: 700; }
 
-        .btn-manual {
-            background: none;
-            border: none;
-            color: #7C3AED;
-            font-size: 14px;
-            cursor: pointer;
-            margin-top: 14px;
-            font-family: inherit;
-            font-weight: 500;
-            opacity: 0.8;
-        }
-
-        .btn-manual:hover { opacity: 1; }
-
+        /* ── Photo comparison ── */
         #comparison {
             display: none;
             margin-top: 20px;
-            border-top: 1px solid #E5E7EB;
             padding-top: 20px;
+            border-top: 1px solid var(--border);
         }
-
         .photo-pair {
-            display: flex;
-            gap: 12px;
+            display: flex; gap: 14px;
             justify-content: center;
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
-
+        .photo-item {
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+        }
+        .photo-label {
+            font-size: 10.5px; font-weight: 700; color: var(--t4);
+            letter-spacing: 0.5px; text-transform: uppercase;
+        }
         .photo-pair img, .photo-pair canvas {
             width: 140px; height: 140px;
             object-fit: cover;
-            border-radius: 10px;
-            border: 2px solid #E5E7EB;
-            background: #F9FAFB;
-        }
-
-        .status-msg {
-            font-size: 14px;
-            color: #6B7280;
-            margin-top: 16px;
-            white-space: pre-line;
-            font-weight: 500;
-        }
-
-        .error-text { color: #EF4444; font-weight: 700; }
-
-        .scanner-status {
-            font-size: 13px;
-            margin-bottom: 10px;
-            color: #EF4444;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            font-weight: 500;
-        }
-
-        .scanner-status.connected { color: #10B981; }
-
-        .connect-btn {
-            background: #6B7280;
-            font-size: 12px;
-            padding: 6px 14px;
-            width: auto;
-            margin-bottom: 16px;
-            border-radius: 7px;
-        }
-
-        .connect-btn:hover { background: #4B5563; }
-
-        #userName {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 10px;
-            color: #111827;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            background: var(--border-lt);
+            display: block;
         }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div id="scannerControl">
-            <div id="connectionStatus" class="scanner-status">Сканер не подключён</div>
-            <button id="connectBtn" class="btn connect-btn" onclick="connectSerial()"><i class="ph-bold ph-plug"></i> Подключить сканер</button>
-        </div>
-        <h1 id="userName" style="font-size: 18px; margin-bottom: 10px;">Оплата дотацией</h1>
-        <div class="amount" id="amountDisp">0 ₽</div>
-        <div class="video-box"><video id="video" autoplay playsinline muted></video></div>
-
-        <div id="mainUI">
-            <input type="text" id="uidInput" placeholder="Приложите карту или введите ID" autocomplete="off">
-            <button class="btn" onclick="startProcess()">Подтвердить карту</button>
-            <button id="manualBtn" class="btn-manual" style="display:none" onclick="openManual()">Подтвердить вручную</button>
-        </div>
-
-        <div id="comparison">
-            <div class="photo-pair">
-                <div><img id="dbPhoto" alt="Фото из базы"></div>
-                <div><canvas id="snapCanvas" width="140" height="140"></canvas></div>
-            </div>
-            <button class="btn" style="background:#22C55E" onclick="finalize(true)">ПОДТВЕРДИТЬ ЛИЧНОСТЬ</button>
-        </div>
-        <div id="status" class="status-msg">Ожидание карты...</div>
+    <div class="brand-bar">
+        <div class="brand-logo"><i class="ph-bold ph-fork-knife"></i></div>
+        <span class="brand-name">Cafeteria</span>
     </div>
+
+    <div class="card">
+        <!-- Scanner status bar -->
+        <div class="scanner-bar">
+            <div class="scanner-indicator" id="scannerIndicatorWrap">
+                <div class="indicator-dot" id="indicatorDot"></div>
+                <span id="connectionStatus">Сканер не подключён</span>
+            </div>
+            <button id="connectBtn" onclick="connectSerial()">
+                <i class="ph-bold ph-usb"></i> Подключить
+            </button>
+        </div>
+
+        <!-- Card body -->
+        <div class="card-body">
+            <div id="userName">Оплата дотацией</div>
+
+            <div class="amount-wrap">
+                <div class="amount-label">К оплате</div>
+                <div id="amountDisp">0 ₽</div>
+            </div>
+
+            <div class="video-box">
+                <video id="video" autoplay playsinline muted></video>
+                <div class="video-corner tl"></div>
+                <div class="video-corner tr"></div>
+                <div class="video-corner bl"></div>
+                <div class="video-corner br"></div>
+            </div>
+
+            <div id="mainUI">
+                <input type="text" id="uidInput" placeholder="Приложите карту или введите ID" autocomplete="off">
+                <button class="btn-primary" onclick="startProcess()">
+                    <i class="ph-bold ph-identification-card"></i> Подтвердить карту
+                </button>
+                <button id="manualBtn" onclick="openManual()">
+                    <i class="ph ph-pencil-simple"></i> Подтвердить вручную
+                </button>
+            </div>
+
+            <div id="comparison">
+                <div class="photo-pair">
+                    <div class="photo-item">
+                        <span class="photo-label">Фото из базы</span>
+                        <img id="dbPhoto" alt="Фото из базы">
+                    </div>
+                    <div class="photo-item">
+                        <span class="photo-label">С камеры</span>
+                        <canvas id="snapCanvas" width="140" height="140"></canvas>
+                    </div>
+                </div>
+                <button class="btn-confirm" onclick="finalize(true)">
+                    <i class="ph-bold ph-check-circle"></i> Подтвердить личность
+                </button>
+            </div>
+
+            <div id="status">Ожидание карты...</div>
+        </div>
+    </div>
+
 <script>
         // 1. ПОЛУЧАЕМ ДАННЫЕ ИЗ ПАМЯТИ (localStorage)
         const amount = localStorage.getItem('pendingAmount') || 0;
@@ -230,11 +354,12 @@
                 port = p; await port.open({ baudRate: 9600 });
                 document.getElementById('connectionStatus').innerText = "Сканер подключён";
                 document.getElementById('connectionStatus').classList.add('connected');
+                document.getElementById('indicatorDot').style.background = '#10B981';
                 document.getElementById('connectBtn').style.display = 'none';
                 keepReading = true; readSerialLoop();
             } catch (err) {
                 document.getElementById('connectionStatus').innerText = "Ошибка подключения";
-                document.getElementById('connectBtn').style.display = 'inline-block';
+                document.getElementById('connectBtn').style.display = 'inline-flex';
             }
         }
 
@@ -262,7 +387,8 @@
             } catch (error) {
                 document.getElementById('connectionStatus').innerText = "Разрыв соединения";
                 document.getElementById('connectionStatus').classList.remove('connected');
-                document.getElementById('connectBtn').style.display = 'inline-block';
+                document.getElementById('indicatorDot').style.background = '#EF4444';
+                document.getElementById('connectBtn').style.display = 'inline-flex';
             } finally { reader.releaseLock(); }
         }
 
@@ -270,7 +396,7 @@
             const input = document.getElementById('uidInput');
             input.value = uid;
             input.style.backgroundColor = "#EEF2FF";
-            setTimeout(() => input.style.backgroundColor = "#FAFAFA", 300);
+            setTimeout(() => input.style.backgroundColor = "", 300);
             startProcess();
         }
 
@@ -290,7 +416,7 @@
                 const sRes = await fetch(`/api/start_liveness?card_uid=${currentUid}`, {method:'POST'});
                 const sData = await sRes.json();
                 currentSid = sData.session_id;
-                document.getElementById('manualBtn').style.display = 'inline-block';
+                document.getElementById('manualBtn').style.display = 'block';
                 status.innerText = "Смотрите в камеру...";
                 runLiveness();
             } catch (e) { status.innerText = "Ошибка сети"; }
@@ -319,6 +445,7 @@
             const ctx = document.getElementById('snapCanvas').getContext('2d');
             ctx.drawImage(video, 0, 0, 640, 480, 0, 0, 140, 140);
         }
+
 	async function finalize(isManual) {
 	    status.innerText = "Проверка баланса и оплата...";
 

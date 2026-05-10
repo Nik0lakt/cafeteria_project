@@ -74,6 +74,7 @@ body {
   min-height: 64px;
   display: flex; align-items: center; gap: 12px;
   white-space: nowrap;
+  overflow: hidden;
   border-bottom: 1px solid var(--sb-border);
   flex-shrink: 0;
 }
@@ -87,7 +88,7 @@ body {
   box-shadow: 0 4px 12px rgba(124,58,237,0.40);
 }
 
-.nav-brand { display: flex; flex-direction: column; }
+.nav-brand { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 .nav-brand-name { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: -0.1px; }
 .nav-brand-sub  { font-size: 10.5px; color: var(--sb-text); margin-top: 1px; }
 
@@ -278,6 +279,62 @@ tbody tr:hover td { background: var(--violet-lt); }
 
 .check-item { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; color: var(--t2); }
 .check-item input { width: auto; margin: 0; padding: 0; }
+
+/* ── Stats filter redesign ───────────────────── */
+.filter-row {
+  display: flex; gap: 28px; align-items: flex-start;
+  flex-wrap: wrap; margin-bottom: 6px;
+}
+
+.filter-group { display: flex; flex-direction: column; gap: 10px; }
+.filter-group-label {
+  font-size: 10.5px; font-weight: 700; color: var(--t4);
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+
+.period-pills { display: flex; gap: 6px; }
+.period-pill {
+  background: var(--border-lt); border: 1.5px solid var(--border);
+  color: var(--t3); padding: 7px 16px; border-radius: 20px;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  font-family: inherit; transition: all 0.14s; white-space: nowrap;
+}
+.period-pill:hover { border-color: var(--violet); color: var(--violet); background: var(--violet-lt); }
+.period-pill.active { background: var(--violet); border-color: var(--violet); color: #fff; box-shadow: 0 2px 8px rgba(124,58,237,0.25); }
+
+.filter-divider { width: 1px; background: var(--border); align-self: stretch; flex-shrink: 0; }
+
+.filter-checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.filter-check {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--border-lt); border: 1.5px solid var(--border);
+  padding: 6px 13px; border-radius: 20px; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: var(--t2);
+  transition: all 0.14s; user-select: none;
+}
+.filter-check:has(input:checked) { background: var(--violet-lt); border-color: var(--violet); color: var(--violet); }
+.filter-check input { width: auto; margin: 0; padding: 0; accent-color: var(--violet); }
+
+/* ── Toast notifications ─────────────────────── */
+#toastContainer {
+  position: fixed; bottom: 24px; right: 24px;
+  z-index: 99999; display: flex; flex-direction: column; gap: 10px;
+}
+
+.toast {
+  padding: 13px 18px; border-radius: var(--r-sm);
+  font-size: 13.5px; font-weight: 500; max-width: 360px;
+  box-shadow: var(--sh-lg); display: flex; align-items: center; gap: 10px;
+  animation: toastIn 0.2s ease;
+  border: 1.5px solid transparent;
+}
+.toast-error { background: var(--red-lt); color: var(--red); border-color: #FECACA; }
+.toast-success { background: var(--green-lt); color: var(--green); border-color: #A7F3D0; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* ── Pagination ──────────────────────────────── */
 .pagination { display: flex; justify-content: center; gap: 4px; margin-top: 20px; }
