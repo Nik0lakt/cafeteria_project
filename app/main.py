@@ -62,11 +62,18 @@ def update_db_schema():
             ))
             conn.commit()
 
-        # assigned_cashier_login — привязанный кассир
-        if not _col_exists(conn, "cash_desks", "assigned_cashier_login"):
+        # assigned_cashier_logins — список кассиров (JSON-массив логинов)
+        if not _col_exists(conn, "cash_desks", "assigned_cashier_logins"):
             conn.execute(text(
-                "ALTER TABLE cash_desks ADD COLUMN assigned_cashier_login VARCHAR"
+                "ALTER TABLE cash_desks ADD COLUMN assigned_cashier_logins JSON"
             ))
+            # Мигрируем старое одиночное поле в новый список, если оно есть
+            if _col_exists(conn, "cash_desks", "assigned_cashier_login"):
+                conn.execute(text(
+                    "UPDATE cash_desks "
+                    "SET assigned_cashier_logins = json_build_array(assigned_cashier_login) "
+                    "WHERE assigned_cashier_login IS NOT NULL AND assigned_cashier_login != ''"
+                ))
             conn.commit()
 
 

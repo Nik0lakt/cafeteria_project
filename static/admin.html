@@ -99,37 +99,53 @@
     <!-- ── Терминалы ── -->
     <div id="tab-cash" style="display: none;">
         <div class="header"><h1>Кассовые терминалы</h1></div>
-        <div class="main-layout">
-            <div class="box" style="width: 300px; flex-shrink:0;">
-                <h3>Добавить кассу</h3>
-                <label>Логин</label><input type="text" id="newDeskLogin" placeholder="Например: касса-1">
-                <label>Описание</label><input type="text" id="newDeskDesc" placeholder="Например: Зал на 1-м этаже">
-                <label>Пароль</label><input type="text" id="newDeskPass" value="1234">
-                <button class="btn" onclick="addCashDesk()">Добавить кассу</button>
-            </div>
-            <div class="box" style="flex: 1;">
-                <h3>Подключённые кассы</h3>
-                <table>
-                    <thead><tr><th>ID</th><th>Логин</th><th>Описание</th><th>Кассир</th><th style="text-align:right">Действия</th></tr></thead>
-                    <tbody id="cashDesksTableBody"></tbody>
-                </table>
+
+        <!-- Sub-tabs -->
+        <div class="sub-tab-bar">
+            <button class="sub-tab active" onclick="switchCashTab('desks', this)"><i class="ph-bold ph-monitor"></i> Список касс</button>
+            <button class="sub-tab" onclick="switchCashTab('cashiers', this)"><i class="ph-bold ph-users-three"></i> Управление кассирами</button>
+        </div>
+
+        <!-- Sub-tab: Кассы -->
+        <div id="cash-sub-desks">
+            <div class="main-layout">
+                <div class="box" style="width: 300px; flex-shrink:0;">
+                    <h3>Добавить кассу</h3>
+                    <label>Логин</label><input type="text" id="newDeskLogin" placeholder="Например: касса-1">
+                    <label>Описание</label><input type="text" id="newDeskDesc" placeholder="Например: Зал на 1-м этаже">
+                    <label>Пароль</label><input type="text" id="newDeskPass" value="1234">
+                    <button class="btn" onclick="addCashDesk()">Добавить кассу</button>
+                </div>
+                <div class="box" style="flex: 1; min-width: 0;">
+                    <h3>Подключённые кассы</h3>
+                    <div class="table-scroll">
+                        <table>
+                            <thead><tr><th></th><th>Логин</th><th>Описание</th><th>Кассиры</th><th style="text-align:right">Действия</th></tr></thead>
+                            <tbody id="cashDesksTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- ── Управление кассирами ── -->
-        <div class="main-layout">
-            <div class="box" style="width: 300px; flex-shrink:0;">
-                <h3><i class="ph-bold ph-user-circle-gear"></i> Новый кассир</h3>
-                <label>Имя</label><input type="text" id="newCashierName" placeholder="Иванов Иван">
-                <label>Логин</label><input type="text" id="newCashierLogin" placeholder="ivanov">
-                <button class="btn" onclick="addCashier()">Зарегистрировать кассира</button>
-            </div>
-            <div class="box" style="flex: 1;">
-                <h3><i class="ph-bold ph-users-three"></i> Персонал кассиров</h3>
-                <table>
-                    <thead><tr><th>ID</th><th>Имя</th><th>Логин</th><th style="text-align:right">Действия</th></tr></thead>
-                    <tbody id="cashiersTableBody"></tbody>
-                </table>
+        <!-- Sub-tab: Кассиры -->
+        <div id="cash-sub-cashiers" style="display:none;">
+            <div class="main-layout">
+                <div class="box" style="width: 300px; flex-shrink:0;">
+                    <h3>Новый кассир</h3>
+                    <label>Имя</label><input type="text" id="newCashierName" placeholder="Иванов Иван">
+                    <label>Логин</label><input type="text" id="newCashierLogin" placeholder="ivanov">
+                    <button class="btn" onclick="addCashier()">Зарегистрировать</button>
+                </div>
+                <div class="box" style="flex: 1; min-width: 0;">
+                    <h3>Персонал кассиров</h3>
+                    <div class="table-scroll">
+                        <table>
+                            <thead><tr><th>Фото</th><th>Имя</th><th>Логин</th><th style="text-align:right">Действия</th></tr></thead>
+                            <tbody id="cashiersTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -231,16 +247,27 @@
 <!-- ── Модал: Редактирование кассы ── -->
 <div id="editDeskModal" class="modal">
     <div class="modal-content">
-        <h3>Настройка кассового терминала</h3>
+        <h3 id="editDeskTitle">Настройка терминала</h3>
         <input type="hidden" id="editDeskId">
         <label>Описание</label>
         <input type="text" id="editDeskDesc" placeholder="Зал на 1-м этаже">
-        <label>Назначить кассира</label>
-        <select id="editDeskCashier">
-            <option value="">— Без кассира (свободный вход) —</option>
-        </select>
-        <button class="btn" style="margin-top:6px;" onclick="saveDeskEdit()">Сохранить</button>
+        <label>Назначенные кассиры <span style="font-weight:400; text-transform:none; font-size:11px; color:var(--t4);">(можно выбрать несколько)</span></label>
+        <div id="cashierMultiSelect" class="cashier-multiselect"></div>
+        <label>Сменить пароль <span style="font-weight:400; text-transform:none; font-size:11px; color:var(--t4);">(оставьте пустым, чтобы не менять)</span></label>
+        <input type="password" id="editDeskNewPass" placeholder="Новый пароль...">
+        <button class="btn" onclick="saveDeskEdit()">Сохранить</button>
         <button class="btn btn-ghost" style="margin-top:10px;" onclick="closeModals()">Отмена</button>
+    </div>
+</div>
+
+<!-- ── Модал: Фото кассира ── -->
+<div id="cashierPhotoModal" class="modal">
+    <div class="modal-content">
+        <h3>Фото кассира</h3>
+        <video id="cashierVideo" autoplay muted playsinline style="width:100%; border-radius:8px; background:#111827; height:220px; object-fit:cover; margin-bottom:12px;"></video>
+        <button class="btn" onclick="captureCashierPhoto()"><i class="ph-bold ph-camera"></i> Сделать снимок</button>
+        <input type="file" id="cashierFileInput" accept="image/*" style="margin-top:10px; font-size:13px; color:#6B7280;" onchange="uploadCashierPhotoFile(this)">
+        <button class="btn btn-ghost" style="margin-top:10px;" onclick="closeCashierPhotoModal()">Закрыть</button>
     </div>
 </div>
 
@@ -641,23 +668,47 @@
         closeModals(); load();
     }
 
+    // --- SUB-TABS (Терминалы) ---
+    function switchCashTab(name, el) {
+        document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('cash-sub-desks').style.display    = name === 'desks'    ? 'block' : 'none';
+        document.getElementById('cash-sub-cashiers').style.display = name === 'cashiers' ? 'block' : 'none';
+    }
+
     // --- КАССЫ ---
+    let cashiersCache = [];
+
     async function loadCashDesks() {
-        const desks = await (await fetch('/api/cash_desks')).json();
-        document.getElementById('cashDesksTableBody').innerHTML = desks.map(d =>
-            `<tr>
-                <td>#${d.id}</td>
+        const [desks, cashiers] = await Promise.all([
+            fetch('/api/cash_desks').then(r => r.json()),
+            authFetch('/api/cashiers').then(r => r.json())
+        ]);
+        cashiersCache = cashiers;
+        const nameMap = Object.fromEntries(cashiers.map(c => [c.login, c.name]));
+
+        document.getElementById('cashDesksTableBody').innerHTML = desks.map(d => {
+            const logins = d.assigned_cashier_logins || [];
+            let cashierCell;
+            if (logins.length === 0) {
+                cashierCell = '<span style="color:var(--t4); font-size:12px;">не назначен</span>';
+            } else if (logins.length <= 2) {
+                cashierCell = logins.map(l => `<span class="card-tag">${nameMap[l] || l}</span>`).join(' ');
+            } else {
+                cashierCell = `<span class="card-tag">Выбрано: ${logins.length}</span>`;
+            }
+            const dataAttr = encodeURIComponent(JSON.stringify(d));
+            return `<tr class="desk-row" onclick="openDeskEdit('${dataAttr}')">
+                <td style="padding:10px 16px;"><span class="status-dot" style="background:var(--green)"></span></td>
                 <td><b>${d.login}</b></td>
-                <td>${d.description || ''}</td>
-                <td>${d.assigned_cashier_login
-                    ? `<span class="card-tag">${d.assigned_cashier_login}</span>`
-                    : '<span style="color:var(--t4); font-size:12px;">не назначен</span>'}</td>
-                <td style="text-align:right; white-space:nowrap;">
-                    <button class="action-btn" onclick="openDeskEdit(${d.id}, '${d.description || ''}', '${d.assigned_cashier_login || ''}')"><i class="ph ph-pencil-simple"></i></button>
+                <td style="color:var(--t3);">${d.description || ''}</td>
+                <td>${cashierCell}</td>
+                <td style="text-align:right; white-space:nowrap;" onclick="event.stopPropagation()">
                     <button class="action-btn btn-red" onclick="deleteCashDesk(${d.id})">×</button>
                 </td>
-            </tr>`
-        ).join('');
+            </tr>`;
+        }).join('');
+
         document.getElementById('cashDesksContainer').innerHTML = desks.map(d =>
             `<label class="filter-check"><input type="checkbox" value="${d.login}" class="stat-desk-cb" checked onchange="buildChart()"><span>${d.login}</span></label>`
         ).join('');
@@ -680,25 +731,41 @@
         }
     }
 
-    async function openDeskEdit(id, desc, assignedLogin) {
-        document.getElementById('editDeskId').value = id;
-        document.getElementById('editDeskDesc').value = desc;
-        // Загружаем кассиров в <select>
-        const cashiers = await (await authFetch('/api/cashiers')).json();
-        const sel = document.getElementById('editDeskCashier');
-        sel.innerHTML = '<option value="">— Без кассира (свободный вход) —</option>' +
-            cashiers.map(c => `<option value="${c.login}" ${c.login === assignedLogin ? 'selected' : ''}>${c.name} (${c.login})</option>`).join('');
+    async function openDeskEdit(dataEncoded) {
+        const d = JSON.parse(decodeURIComponent(dataEncoded));
+        document.getElementById('editDeskId').value   = d.id;
+        document.getElementById('editDeskDesc').value = d.description || '';
+        document.getElementById('editDeskTitle').innerText = `Терминал: ${d.login}`;
+        document.getElementById('editDeskNewPass').value = '';
+
+        const cashiers = cashiersCache.length ? cashiersCache : await authFetch('/api/cashiers').then(r => r.json());
+        const assigned = d.assigned_cashier_logins || [];
+        const ms = document.getElementById('cashierMultiSelect');
+        if (!cashiers.length) {
+            ms.innerHTML = '<div class="cashier-empty">Кассиров нет — сначала зарегистрируйте</div>';
+        } else {
+            ms.innerHTML = cashiers.map(c => {
+                const checked = assigned.includes(c.login) ? 'checked' : '';
+                return `<label class="filter-check">
+                    <input type="checkbox" value="${c.login}" class="desk-cashier-cb" ${checked}>
+                    <span>${c.name} <span class="card-tag" style="margin-left:4px;">${c.login}</span></span>
+                </label>`;
+            }).join('');
+        }
         document.getElementById('editDeskModal').style.display = 'flex';
     }
 
     async function saveDeskEdit() {
         const id = document.getElementById('editDeskId').value;
+        const selected = [...document.querySelectorAll('.desk-cashier-cb:checked')].map(cb => cb.value);
+        const newPass  = document.getElementById('editDeskNewPass').value;
         await fetch(`/api/cash_desks/${id}`, {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 description: document.getElementById('editDeskDesc').value,
-                assigned_cashier_login: document.getElementById('editDeskCashier').value || null
+                assigned_cashier_logins: selected,
+                new_password: newPass || null
             })
         });
         closeModals();
@@ -706,20 +773,28 @@
     }
 
     // --- КАССИРЫ ---
+    let currentCashierId = null;
+    const cashierVideo = document.getElementById('cashierVideo');
+
     async function loadCashiers() {
         const res = await authFetch('/api/cashiers');
         const cashiers = await res.json();
+        cashiersCache = cashiers;
         document.getElementById('cashiersTableBody').innerHTML = cashiers.length
-            ? cashiers.map(c =>
-                `<tr>
-                    <td>#${c.id}</td>
+            ? cashiers.map(c => {
+                const photo = c.photo_path
+                    ? `<img class="cashier-thumb" src="/static/photos/${c.photo_path}?t=${Date.now()}" alt="">`
+                    : `<div class="cashier-thumb-ph"><i class="ph ph-user"></i></div>`;
+                return `<tr>
+                    <td>${photo}</td>
                     <td style="font-weight:600; color:var(--t1);">${c.name}</td>
                     <td><span class="card-tag">${c.login}</span></td>
-                    <td style="text-align:right">
+                    <td style="text-align:right; white-space:nowrap;">
+                        <button class="action-btn" onclick="openCashierPhotoModal(${c.id})"><i class="ph-bold ph-camera"></i></button>
                         <button class="action-btn btn-red" onclick="deleteCashier(${c.id})">×</button>
                     </td>
-                </tr>`
-            ).join('')
+                </tr>`;
+            }).join('')
             : '<tr><td colspan="4" style="color:var(--t4); text-align:center; padding:20px;">Кассиров пока нет</td></tr>';
     }
 
@@ -747,6 +822,43 @@
         if (confirm('Удалить кассира?')) {
             await authFetch(`/api/cashiers/${id}`, {method:'DELETE'});
             loadCashiers();
+        }
+    }
+
+    // --- ФОТО КАССИРА ---
+    async function openCashierPhotoModal(id) {
+        currentCashierId = id;
+        document.getElementById('cashierPhotoModal').style.display = 'flex';
+        try {
+            cashierVideo.srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
+        } catch (err) { alert("Камера недоступна"); }
+    }
+
+    function closeCashierPhotoModal() {
+        document.getElementById('cashierPhotoModal').style.display = 'none';
+        if (cashierVideo.srcObject) { cashierVideo.srcObject.getTracks().forEach(t => t.stop()); cashierVideo.srcObject = null; }
+    }
+
+    function captureCashierPhoto() {
+        const c = document.createElement('canvas'); c.width = 640; c.height = 480;
+        c.getContext('2d').drawImage(cashierVideo, 0, 0);
+        c.toBlob(b => sendCashierPhoto(b), 'image/jpeg');
+    }
+
+    function uploadCashierPhotoFile(input) {
+        if (input.files[0]) sendCashierPhoto(input.files[0]);
+    }
+
+    async function sendCashierPhoto(blob) {
+        const fd = new FormData();
+        fd.append('file', blob, 'photo.jpg');
+        const res = await authFetch(`/api/cashiers/${currentCashierId}/photo`, {method:'POST', body:fd});
+        if (res.ok) {
+            showToast('Фото сохранено', 'success');
+            closeCashierPhotoModal();
+            loadCashiers();
+        } else {
+            showToast('Ошибка сохранения фото', 'error');
         }
     }
 

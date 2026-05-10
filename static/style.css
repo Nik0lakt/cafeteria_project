@@ -566,3 +566,48 @@ tbody tr:hover td { background: var(--violet-lt); }
 tbody tr.emp-row { cursor: pointer; }
 tbody tr.emp-row:hover td { background: var(--violet-lt); }
 td.kebab-cell { position: relative; text-align: right; padding-right: 8px; }
+
+/* ── Sub-tabs (used in Cash Desks tab) ──────── */
+.sub-tab-bar {
+  display: flex; gap: 4px; margin-bottom: 22px;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0;
+}
+.sub-tab {
+  background: none; border: none; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; padding: 10px 20px;
+  font-size: 13.5px; font-weight: 600; color: var(--t3);
+  cursor: pointer; font-family: inherit; transition: all 0.15s;
+}
+.sub-tab:hover { color: var(--violet); }
+.sub-tab.active { color: var(--violet); border-bottom-color: var(--violet); }
+
+/* ── Scrollable table wrapper ───────────────── */
+.table-scroll { max-height: 56vh; overflow-y: auto; border-radius: var(--r-sm); }
+
+/* ── Clickable desk rows ────────────────────── */
+tbody tr.desk-row { cursor: pointer; }
+tbody tr.desk-row:hover td { background: var(--violet-lt); }
+
+/* ── Cashier multi-select in modal ──────────── */
+.cashier-multiselect {
+  max-height: 180px; overflow-y: auto;
+  border: 1.5px solid var(--border); border-radius: var(--r-sm);
+  padding: 10px; display: flex; flex-direction: column; gap: 6px;
+  background: var(--border-lt); margin-bottom: 14px;
+}
+.cashier-multiselect .filter-check { border-radius: var(--r-sm); }
+.cashier-empty { color: var(--t4); font-size: 13px; text-align: center; padding: 12px; }
+
+/* ── Cashier photo thumb ────────────────────── */
+.cashier-thumb {
+  width: 32px; height: 32px; border-radius: 50%;
+  object-fit: cover; border: 1.5px solid var(--border);
+  vertical-align: middle; background: var(--violet-lt);
+}
+.cashier-thumb-ph {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--violet-lt); border: 1.5px solid var(--border);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--violet); font-size: 14px; vertical-align: middle;
+}
