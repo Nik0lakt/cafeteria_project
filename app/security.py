@@ -10,7 +10,7 @@ if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET environment variable is not set")
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_HOURS = 8
+ACCESS_TOKEN_EXPIRE_HOURS = 24
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
 

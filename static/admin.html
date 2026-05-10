@@ -8,14 +8,14 @@
     <link rel="stylesheet" href="/static/style.css">
     <script>
         (function() {
-            const today = new Date().toLocaleDateString();
-            const sessionDate = localStorage.getItem('admin_login_date');
+            const loginTime = parseInt(localStorage.getItem('admin_login_time') || '0');
             const savedPass = localStorage.getItem('admin_pass');
             const savedToken = localStorage.getItem('admin_token');
-            if (!sessionDate || sessionDate !== today || !savedPass || !savedToken) {
+            const expired = !loginTime || (Date.now() - loginTime > 24 * 60 * 60 * 1000);
+            if (expired || !savedPass || !savedToken) {
                 localStorage.removeItem('admin_pass');
                 localStorage.removeItem('admin_token');
-                localStorage.removeItem('admin_login_date');
+                localStorage.removeItem('admin_login_time');
                 window.location.href = "/login.html";
             }
         })();
@@ -375,7 +375,7 @@
 <input type="file" id="photoFileInput" accept="image/*" style="display:none" onchange="uploadBioFile(this)">
 
 <!-- ── Модал: Камера сотрудника ── -->
-<div id="empCamModal" class="modal" style="z-index:200;">
+<div id="empCamModal" class="modal" style="z-index:20001;">
     <div class="modal-content" style="max-width:460px;">
         <div class="modal-hdr">
             <div>
@@ -448,7 +448,7 @@
             if (res.status === 401) {
                 localStorage.removeItem('admin_pass');
                 localStorage.removeItem('admin_token');
-                localStorage.removeItem('admin_login_date');
+                localStorage.removeItem('admin_login_time');
                 window.location.href = '/login.html';
             }
             return res;
@@ -559,8 +559,10 @@
                 <td class="kebab-cell" onclick="event.stopPropagation()">
                     <button class="kebab-btn" onclick="toggleKebab(event, ${e.id})">⋯</button>
                     <div class="kebab-menu" id="kebab-${e.id}">
+                        <div class="kebab-item" onclick="openEditFromKebab(${e.id})"><i class="ph ph-user-circle"></i> Редактировать</div>
+                        <div class="kebab-item" onclick="openCamFromKebab('${e.card_uid}', ${e.id})"><i class="ph ph-camera"></i> Сделать фото</div>
                         <div class="kebab-item" onclick="openCalFromKebab(${e.id})"><i class="ph ph-calendar"></i> Расписание</div>
-                        <div class="kebab-item" onclick="triggerPhotoUpload('${e.card_uid}')"><i class="ph ph-camera"></i> Загрузить фото</div>
+                        <div class="kebab-item" onclick="triggerPhotoUpload('${e.card_uid}')"><i class="ph ph-upload-simple"></i> Загрузить фото</div>
                         <div class="kebab-item danger" onclick="delEmp(${e.id})"><i class="ph ph-trash"></i> Удалить</div>
                     </div>
                 </td>
@@ -746,8 +748,13 @@
                 <td><b>${d.login}</b></td>
                 <td style="color:var(--t3);">${d.description || ''}</td>
                 <td>${cashierCell}</td>
-                <td style="text-align:right; white-space:nowrap;" onclick="event.stopPropagation()">
-                    <button class="action-btn btn-red" onclick="deleteCashDesk(${d.id})">×</button>
+                <td class="kebab-cell" onclick="event.stopPropagation()">
+                    <button class="kebab-btn" onclick="toggleDeskKebab(event, ${d.id})">⋯</button>
+                    <div class="kebab-menu" id="desk-kebab-${d.id}">
+                        <div class="kebab-item" onclick="closeAllKebabs(); openDeskEdit('${dataAttr}')"><i class="ph ph-gear"></i> Настроить</div>
+                        <div class="kebab-item" onclick="closeAllKebabs(); openDeskEdit('${dataAttr}', true)"><i class="ph ph-lock-key"></i> Изменить пароль</div>
+                        <div class="kebab-item danger" onclick="deleteCashDesk(${d.id})"><i class="ph ph-trash"></i> Удалить</div>
+                    </div>
                 </td>
             </tr>`;
         }).join('');
@@ -759,22 +766,25 @@
 
     async function addCashDesk() {
         const p = {
-            login: document.getElementById('newDeskLogin').value,
-            description: document.getElementById('newDeskDesc').value,
+            login: document.getElementById('newDeskLogin').value.trim(),
+            description: document.getElementById('newDeskDesc').value.trim(),
             password: document.getElementById('newDeskPass').value || '1234'
         };
-        await fetch('/api/cash_desks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
-        loadCashDesks();
+        if (!p.login) { showToast('Введите логин кассы', 'error'); return; }
+        const res = await authFetch('/api/cash_desks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
+        if (res.ok) { showToast('Касса добавлена', 'success'); loadCashDesks(); }
+        else { showToast('Ошибка добавления', 'error'); }
     }
 
     async function deleteCashDesk(id) {
+        closeAllKebabs();
         if (confirm('Удалить кассу?')) {
-            await fetch(`/api/cash_desks/${id}`, {method:'DELETE'});
+            await authFetch(`/api/cash_desks/${id}`, {method:'DELETE'});
             loadCashDesks();
         }
     }
 
-    async function openDeskEdit(dataEncoded) {
+    async function openDeskEdit(dataEncoded, focusPass = false) {
         const d = JSON.parse(decodeURIComponent(dataEncoded));
         document.getElementById('editDeskId').value   = d.id;
         document.getElementById('editDeskDesc').value = d.description || '';
@@ -798,6 +808,7 @@
             }).join('');
         }
         document.getElementById('editDeskModal').style.display = 'flex';
+        if (focusPass) setTimeout(() => document.getElementById('editDeskOldPass')?.focus(), 150);
     }
 
     async function saveDeskEdit() {
@@ -832,6 +843,13 @@
         const isPass = inp.type === 'password';
         inp.type = isPass ? 'text' : 'password';
         btn.querySelector('i').className = isPass ? 'ph ph-eye-slash' : 'ph ph-eye';
+    }
+
+    function toggleDeskKebab(event, id) {
+        event.stopPropagation();
+        const isOpen = document.getElementById('desk-kebab-' + id)?.classList.contains('open');
+        closeAllKebabs();
+        if (!isOpen) document.getElementById('desk-kebab-' + id)?.classList.add('open');
     }
 
     // --- КАССИРЫ ---
@@ -1159,6 +1177,19 @@
         stopEmpWebcam();
         currentUid = uid;
         document.getElementById('photoFileInput').click();
+    }
+
+    function openEditFromKebab(id) {
+        closeAllKebabs();
+        const e = allEmployees.find(emp => emp.id === id);
+        if (e) openEdit(e);
+    }
+
+    function openCamFromKebab(uid, empId) {
+        closeAllKebabs();
+        currentUid = uid;
+        currentEmpId = empId;
+        openEmpWebcam();
     }
 
     function openCalFromKebab(id) {

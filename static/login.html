@@ -193,9 +193,8 @@
             if (res.ok) {
                 const data = await res.json();
                 if (data.success) {
-                    const today = new Date().toLocaleDateString();
                     localStorage.setItem("admin_pass", pass);
-                    localStorage.setItem("admin_login_date", today);
+                    localStorage.setItem("admin_login_time", Date.now().toString());
                     localStorage.setItem("admin_token", data.token || "");
 
                     window.location.href = "/admin.html";
