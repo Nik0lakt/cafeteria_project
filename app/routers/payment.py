@@ -311,6 +311,8 @@ def update_cash_desk(desk_id: int, data: dict, db: Session = Depends(get_db)):
     if "assigned_cashier_logins" in data:
         desk.assigned_cashier_logins = data["assigned_cashier_logins"] or []
     if data.get("new_password"):
+        if desk.hashed_password and not verify_password(data.get("old_password", ""), desk.hashed_password):
+            raise HTTPException(status_code=400, detail="Неверный текущий пароль")
         desk.hashed_password = hash_password(data["new_password"])
     db.commit()
     return {"status": "success"}

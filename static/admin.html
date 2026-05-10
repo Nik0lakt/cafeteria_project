@@ -120,7 +120,7 @@
                     <h3>Подключённые кассы</h3>
                     <div class="table-scroll">
                         <table>
-                            <thead><tr><th></th><th>Логин</th><th>Описание</th><th>Кассиры</th><th style="text-align:right">Действия</th></tr></thead>
+                            <thead><tr><th>Логин</th><th>Описание</th><th>Кассиры</th><th style="text-align:right">Действия</th></tr></thead>
                             <tbody id="cashDesksTableBody"></tbody>
                         </table>
                     </div>
@@ -247,16 +247,40 @@
 <!-- ── Модал: Редактирование кассы ── -->
 <div id="editDeskModal" class="modal">
     <div class="modal-content">
-        <h3 id="editDeskTitle">Настройка терминала</h3>
+        <div class="modal-hdr">
+            <div>
+                <div class="modal-subtitle">Терминал оплаты</div>
+                <div id="editDeskTitle" class="modal-ttl">Настройка</div>
+            </div>
+            <button class="close-btn" onclick="closeModals()"><i class="ph-bold ph-x"></i></button>
+        </div>
         <input type="hidden" id="editDeskId">
+
         <label>Описание</label>
-        <input type="text" id="editDeskDesc" placeholder="Зал на 1-м этаже">
-        <label>Назначенные кассиры <span style="font-weight:400; text-transform:none; font-size:11px; color:var(--t4);">(можно выбрать несколько)</span></label>
-        <div id="cashierMultiSelect" class="cashier-multiselect"></div>
-        <label>Сменить пароль <span style="font-weight:400; text-transform:none; font-size:11px; color:var(--t4);">(оставьте пустым, чтобы не менять)</span></label>
-        <input type="password" id="editDeskNewPass" placeholder="Новый пароль...">
-        <button class="btn" onclick="saveDeskEdit()">Сохранить</button>
-        <button class="btn btn-ghost" style="margin-top:10px;" onclick="closeModals()">Отмена</button>
+        <input type="text" id="editDeskDesc" placeholder="Например: Зал на 1-м этаже" style="margin-bottom:16px;">
+
+        <div class="modal-section">
+            <div class="modal-section-label"><i class="ph ph-users-three"></i> Назначенные кассиры</div>
+            <input type="text" id="cashierSearch" class="cashier-search" placeholder="Поиск по имени или логину..." oninput="filterCashiers(this.value)">
+            <div id="cashierMultiSelect" class="cashier-multiselect"></div>
+        </div>
+
+        <div class="modal-section">
+            <div class="modal-section-label"><i class="ph ph-lock"></i> Смена пароля <span style="font-size:10px; font-weight:500; text-transform:none; color:var(--t4);">&nbsp;— оставьте пустым, чтобы не менять</span></div>
+            <div class="pass-field">
+                <input type="password" id="editDeskOldPass" placeholder="Текущий пароль">
+                <button class="eye-btn" type="button" onclick="togglePass('editDeskOldPass', this)"><i class="ph ph-eye"></i></button>
+            </div>
+            <div class="pass-field">
+                <input type="password" id="editDeskNewPass" placeholder="Новый пароль">
+                <button class="eye-btn" type="button" onclick="togglePass('editDeskNewPass', this)"><i class="ph ph-eye"></i></button>
+            </div>
+        </div>
+
+        <div class="modal-footer-row">
+            <button class="btn btn-ghost" onclick="closeModals()">Отмена</button>
+            <button class="btn" onclick="saveDeskEdit()"><i class="ph-bold ph-floppy-disk"></i> Сохранить</button>
+        </div>
     </div>
 </div>
 
@@ -326,7 +350,8 @@
                     <div class="emp-badge emp-badge-face-no" id="editEmpBadgeFace"></div>
                 </div>
                 <button class="emp-col-action" onclick="openCal(currentEmpId, document.getElementById('editName').value)"><i class="ph-bold ph-calendar"></i> Расписание</button>
-                <button class="emp-col-action" onclick="triggerPhotoUpload(currentUid)"><i class="ph-bold ph-camera"></i> Загрузить фото</button>
+                <button class="emp-col-action" onclick="triggerPhotoUpload(currentUid)"><i class="ph-bold ph-upload-simple"></i> Загрузить фото</button>
+                <button class="emp-col-action" onclick="openEmpWebcam()"><i class="ph-bold ph-camera"></i> Сделать снимок</button>
             </div>
 
             <div class="emp-edit-col">
@@ -336,6 +361,14 @@
                 <label>Telegram ID</label><input type="text" id="editTg" placeholder="Необязательно">
                 <label>Месячный лимит, ₽</label><input type="number" id="editLimit">
                 <label>День обновления лимита (1–31)</label><input type="number" id="editLimitDay" min="1" max="31">
+            </div>
+        </div>
+
+        <div id="empWebcamArea" style="display:none;">
+            <video id="empCamVideo" autoplay muted playsinline></video>
+            <div class="webcam-btns">
+                <button class="btn" type="button" onclick="captureEmpPhoto()"><i class="ph-bold ph-camera"></i> Сделать снимок</button>
+                <button class="btn btn-ghost" type="button" onclick="stopEmpWebcam()">Отмена</button>
             </div>
         </div>
 
@@ -699,7 +732,6 @@
             }
             const dataAttr = encodeURIComponent(JSON.stringify(d));
             return `<tr class="desk-row" onclick="openDeskEdit('${dataAttr}')">
-                <td style="padding:10px 16px;"><span class="status-dot" style="background:var(--green)"></span></td>
                 <td><b>${d.login}</b></td>
                 <td style="color:var(--t3);">${d.description || ''}</td>
                 <td>${cashierCell}</td>
@@ -736,7 +768,9 @@
         document.getElementById('editDeskId').value   = d.id;
         document.getElementById('editDeskDesc').value = d.description || '';
         document.getElementById('editDeskTitle').innerText = `Терминал: ${d.login}`;
+        document.getElementById('editDeskOldPass').value = '';
         document.getElementById('editDeskNewPass').value = '';
+        document.getElementById('cashierSearch').value = '';
 
         const cashiers = cashiersCache.length ? cashiersCache : await authFetch('/api/cashiers').then(r => r.json());
         const assigned = d.assigned_cashier_logins || [];
@@ -756,20 +790,37 @@
     }
 
     async function saveDeskEdit() {
-        const id = document.getElementById('editDeskId').value;
+        const id      = document.getElementById('editDeskId').value;
         const selected = [...document.querySelectorAll('.desk-cashier-cb:checked')].map(cb => cb.value);
         const newPass  = document.getElementById('editDeskNewPass').value;
-        await fetch(`/api/cash_desks/${id}`, {
+        const oldPass  = document.getElementById('editDeskOldPass').value;
+        if (newPass && !oldPass) { showToast('Введите текущий пароль', 'error'); return; }
+        const payload = {
+            description: document.getElementById('editDeskDesc').value,
+            assigned_cashier_logins: selected,
+        };
+        if (newPass) { payload.new_password = newPass; payload.old_password = oldPass; }
+        const res = await authFetch(`/api/cash_desks/${id}`, {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                description: document.getElementById('editDeskDesc').value,
-                assigned_cashier_logins: selected,
-                new_password: newPass || null
-            })
+            body: JSON.stringify(payload)
         });
-        closeModals();
-        loadCashDesks();
+        if (res.ok) { closeModals(); loadCashDesks(); showToast('Терминал обновлён', 'success'); }
+        else { const e = await res.json(); showToast(e.detail || 'Ошибка сохранения', 'error'); }
+    }
+
+    function filterCashiers(q) {
+        const qq = q.toLowerCase();
+        document.querySelectorAll('#cashierMultiSelect .filter-check').forEach(el => {
+            el.style.display = el.textContent.toLowerCase().includes(qq) ? '' : 'none';
+        });
+    }
+
+    function togglePass(inputId, btn) {
+        const inp = document.getElementById(inputId);
+        const isPass = inp.type === 'password';
+        inp.type = isPass ? 'text' : 'password';
+        btn.querySelector('i').className = isPass ? 'ph ph-eye-slash' : 'ph ph-eye';
     }
 
     // --- КАССИРЫ ---
@@ -917,6 +968,35 @@
     function changeMonth(s) { viewDate.setMonth(viewDate.getMonth() + s); renderCal(); }
 
     // --- БИОМЕТРИЯ ---
+    // --- EMPLOYEE WEBCAM CAPTURE ---
+    let empStream = null;
+
+    async function openEmpWebcam() {
+        const area = document.getElementById('empWebcamArea');
+        area.style.display = 'block';
+        try {
+            empStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            document.getElementById('empCamVideo').srcObject = empStream;
+        } catch(e) {
+            showToast('Камера недоступна', 'error');
+            area.style.display = 'none';
+        }
+    }
+
+    function stopEmpWebcam() {
+        if (empStream) { empStream.getTracks().forEach(t => t.stop()); empStream = null; }
+        const area = document.getElementById('empWebcamArea');
+        if (area) area.style.display = 'none';
+    }
+
+    function captureEmpPhoto() {
+        const vid = document.getElementById('empCamVideo');
+        const c = document.createElement('canvas'); c.width = 640; c.height = 480;
+        c.getContext('2d').drawImage(vid, 0, 0);
+        c.toBlob(b => sendBio(b), 'image/jpeg');
+    }
+
+    // --- BIO MODAL (face liveness registration) ---
     async function openBio(id, uid, name) {
         currentEmpId = id; currentUid = uid;
         document.getElementById('bioModal').style.display = 'flex';
@@ -934,7 +1014,25 @@
         fd.append('card_uid', currentUid);
         fd.append('file', blob);
         const res = await authFetch('/api/enroll_face', {method:'POST', body:fd});
-        if (res.ok) { alert("Успешно!"); closeModals(); load(); }
+        if (res.ok) {
+            showToast('Фото сохранено', 'success');
+            const img = document.getElementById('editEmpPhoto');
+            if (img) { img.src = `/static/photos/${currentUid}.jpg?t=${Date.now()}`; img.style.display = ''; }
+            const ph = document.getElementById('editEmpPhotoPlaceholder');
+            if (ph) ph.style.display = 'none';
+            const fb = document.getElementById('editEmpBadgeFace');
+            if (fb) { fb.innerHTML = '<i class="ph-bold ph-check-circle"></i> Биометрия активна'; fb.className = 'emp-badge emp-badge-face-ok'; }
+            stopEmpWebcam();
+            // close bio modal if open, keep edit modal
+            const bioModal = document.getElementById('bioModal');
+            if (bioModal && bioModal.style.display === 'flex') {
+                bioModal.style.display = 'none';
+                if (video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
+                load();
+            }
+        } else {
+            showToast('Ошибка сохранения фото', 'error');
+        }
     }
 
     function uploadBioFile(input) { if (input.files[0]) sendBio(input.files[0]); }
@@ -1048,6 +1146,7 @@
 
     function triggerPhotoUpload(uid) {
         closeAllKebabs();
+        stopEmpWebcam();
         currentUid = uid;
         document.getElementById('photoFileInput').click();
     }
@@ -1063,6 +1162,7 @@
     function closeModals() {
         document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
         if (video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
+        stopEmpWebcam();
     }
 
     window.onload = () => { load(); loadCashDesks(); loadCashiers(); };

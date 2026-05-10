@@ -611,3 +611,71 @@ tbody tr.desk-row:hover td { background: var(--violet-lt); }
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--violet); font-size: 14px; vertical-align: middle;
 }
+
+/* ── Password field with eye toggle ─────────── */
+.pass-field {
+  position: relative; display: flex; align-items: center;
+  margin-bottom: 14px;
+}
+.pass-field input {
+  flex: 1; padding-right: 42px !important; margin-bottom: 0 !important;
+}
+.eye-btn {
+  position: absolute; right: 10px;
+  background: none; border: none; cursor: pointer;
+  color: var(--t4); font-size: 17px; padding: 4px;
+  display: flex; align-items: center;
+  transition: color 0.15s;
+}
+.eye-btn:hover { color: var(--violet); }
+
+/* ── Cashier search input ───────────────────── */
+.cashier-search {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 12px; border: 1.5px solid var(--border);
+  border-radius: var(--r-sm); font-size: 13px; font-family: inherit;
+  color: var(--t1); background: var(--card);
+  margin-bottom: 6px;
+  transition: border-color 0.15s;
+}
+.cashier-search:focus { outline: none; border-color: var(--violet); }
+
+/* ── Redesigned desk edit modal ─────────────── */
+.modal-hdr {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 22px;
+}
+.modal-subtitle {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--t4); margin-bottom: 2px;
+}
+.modal-ttl {
+  font-size: 17px; font-weight: 700; color: var(--t1); letter-spacing: -0.2px;
+}
+.modal-section {
+  background: var(--border-lt); border: 1.5px solid var(--border);
+  border-radius: var(--r-sm); padding: 14px 16px; margin-bottom: 14px;
+}
+.modal-section-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--t4); margin-bottom: 10px;
+}
+.modal-section .pass-field { margin-bottom: 10px; }
+.modal-section .pass-field:last-child { margin-bottom: 0; }
+.modal-footer-row {
+  display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px;
+}
+
+/* ── Employee webcam capture area ───────────── */
+#empWebcamArea {
+  padding: 14px 0 4px 0;
+  border-top: 1.5px solid var(--border);
+  margin-top: 4px;
+}
+#empWebcamArea video {
+  width: 100%; border-radius: var(--r-sm);
+  background: #111827; height: 200px; object-fit: cover; margin-bottom: 10px;
+}
+#empWebcamArea .webcam-btns {
+  display: flex; gap: 10px;
+}
