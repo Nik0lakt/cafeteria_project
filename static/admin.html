@@ -227,19 +227,49 @@
 </div>
 
 <!-- ── Модал: Редактирование сотрудника ── -->
-<div id="editModal" class="modal">
+<div id="editModal" class="modal modal-wide">
     <div class="modal-content">
-        <h3>Редактирование сотрудника</h3>
         <input type="hidden" id="editId">
-        <label>Полное имя</label><input type="text" id="editName">
-        <label>UID карты</label><input type="text" id="editCard">
-        <label>Telegram ID</label><input type="text" id="editTg" placeholder="Необязательно">
-        <label>Роль</label><select id="editRole"></select>
-        <label>Месячный лимит, ₽</label><input type="number" id="editLimit">
-        <button class="btn" onclick="saveEdit()">Сохранить изменения</button>
-        <button class="btn" style="background:#F3F4F6; color:#374151; margin-top:10px;" onclick="closeModals()">Отмена</button>
+
+        <div class="emp-modal-header">
+            <div>
+                <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--t4); margin-bottom:3px;">Профиль сотрудника</div>
+                <div id="editEmpDisplayName" style="font-size:18px; font-weight:700; color:var(--t1); letter-spacing:-0.2px;"></div>
+            </div>
+            <button class="close-btn" onclick="closeModals()">✕</button>
+        </div>
+
+        <div class="emp-modal-body">
+            <div class="emp-photo-col">
+                <div class="emp-photo-wrap">
+                    <img id="editEmpPhoto" src="" alt="" style="display:none;">
+                    <div id="editEmpPhotoPlaceholder" class="emp-photo-placeholder" style="display:flex; align-items:center; justify-content:center; width:100%; height:100%;">👤</div>
+                </div>
+                <div class="emp-badges">
+                    <div class="emp-badge emp-badge-role" id="editEmpBadgeRole"></div>
+                    <div class="emp-badge emp-badge-face-no" id="editEmpBadgeFace"></div>
+                </div>
+                <button class="emp-col-action" onclick="openCal(currentEmpId, document.getElementById('editName').value)">📅 Расписание</button>
+                <button class="emp-col-action" onclick="triggerPhotoUpload(currentUid)">📷 Загрузить фото</button>
+            </div>
+
+            <div class="emp-edit-col">
+                <label>Полное имя</label><input type="text" id="editName">
+                <label>Роль</label><select id="editRole"></select>
+                <label>UID карты</label><input type="text" id="editCard">
+                <label>Telegram ID</label><input type="text" id="editTg" placeholder="Необязательно">
+                <label>Месячный лимит, ₽</label><input type="number" id="editLimit">
+            </div>
+        </div>
+
+        <div class="emp-modal-footer">
+            <button class="btn btn-ghost" onclick="closeModals()">Отмена</button>
+            <button class="btn" onclick="saveEdit()">Сохранить изменения</button>
+        </div>
     </div>
 </div>
+
+<input type="file" id="photoFileInput" accept="image/*" style="display:none" onchange="uploadBioFile(this)">
 
 <!-- ── Модал: Календарь ── -->
 <div id="calModal" class="modal">
@@ -388,17 +418,28 @@
         const items = filteredEmployees.slice(start, start + itemsPerPage);
         document.getElementById('pTable').innerHTML = items.map(e => {
             const rInfo = rolesData.find(r => r.role_name === e.role);
-            return `<tr>
-                <td><b>${e.full_name}</b><br><small style="color:#aaa">${e.role}</small></td>
-                <td><span class="card-tag">${e.card_uid}</span></td>
-                <td><span class="status-dot" style="background:${e.has_face?'#28a745':'#ccc'}"></span> ${e.has_face?'Есть':'Нет'}</td>
-                <td>${rInfo ? e.daily_used + '/' + rInfo.subsidy_rub : '—'}</td>
-                <td>${e.month_limit_rub} ₽</td>
+            const eJson = JSON.stringify(e).replace(/'/g, "&apos;");
+            const subsidyText = rInfo ? `${e.daily_used} / ${rInfo.subsidy_rub} ₽` : '—';
+            const dotColor = e.has_face ? 'var(--green)' : 'var(--border)';
+            return `<tr class="emp-row" onclick='openEdit(${eJson})'>
                 <td>
-                    <button class="action-btn" onclick='openEdit(${JSON.stringify(e).replace(/'/g, "&apos;")})'>✏️</button>
-                    <button class="action-btn" onclick="openCal(${e.id},'${e.full_name}')">📅</button>
-                    <button class="action-btn" onclick="openBio(${e.id},'${e.card_uid}','${e.full_name}')">📷</button>
-                    <button class="action-btn btn-red" onclick="delEmp(${e.id})">×</button>
+                    <div style="font-weight:600; color:var(--t1);">${e.full_name}</div>
+                    <div style="font-size:12px; color:var(--t4); margin-top:2px;">${e.role}</div>
+                </td>
+                <td><span class="card-tag">${e.card_uid}</span></td>
+                <td>
+                    <span class="status-dot" style="background:${dotColor}"></span>
+                    ${e.has_face ? 'Есть' : 'Нет'}
+                </td>
+                <td>${subsidyText}</td>
+                <td style="font-weight:600;">${Number(e.month_limit_rub).toLocaleString('ru-RU')} ₽</td>
+                <td class="kebab-cell" onclick="event.stopPropagation()">
+                    <button class="kebab-btn" onclick="toggleKebab(event, ${e.id})">⋯</button>
+                    <div class="kebab-menu" id="kebab-${e.id}">
+                        <div class="kebab-item" onclick="openCalFromKebab(${e.id})">📅&nbsp; Расписание</div>
+                        <div class="kebab-item" onclick="triggerPhotoUpload('${e.card_uid}')">📷&nbsp; Загрузить фото</div>
+                        <div class="kebab-item danger" onclick="delEmp(${e.id})">✕&nbsp; Удалить</div>
+                    </div>
                 </td>
             </tr>`;
         }).join('');
@@ -441,6 +482,27 @@
         document.getElementById('editTg').value = e.telegram_id || '';
         document.getElementById('editLimit').value = e.month_limit_rub;
         document.getElementById('editRole').value = e.role;
+
+        currentEmpId = e.id;
+        currentUid = e.card_uid;
+        closeAllKebabs();
+
+        document.getElementById('editEmpDisplayName').innerText = e.full_name;
+        const img = document.getElementById('editEmpPhoto');
+        const ph  = document.getElementById('editEmpPhotoPlaceholder');
+        if (e.has_face) {
+            img.src = `/static/photos/${e.card_uid}.jpg?t=${Date.now()}`;
+            img.style.display = 'block';
+            ph.style.display = 'none';
+        } else {
+            img.style.display = 'none';
+            ph.style.display = 'flex';
+        }
+        document.getElementById('editEmpBadgeRole').innerText = e.role;
+        const fb = document.getElementById('editEmpBadgeFace');
+        fb.innerText = e.has_face ? '✓ Биометрия активна' : '✗ Нет фото';
+        fb.className = 'emp-badge ' + (e.has_face ? 'emp-badge-face-ok' : 'emp-badge-face-no');
+
         document.getElementById('editModal').style.display = 'flex';
     }
 
@@ -698,6 +760,31 @@
     function downloadCSV() {
         window.location.href = `/api/statistics/export?start_date=${document.getElementById('exportStartDate').value}&end_date=${document.getElementById('exportEndDate').value}`;
     }
+
+    function toggleKebab(event, id) {
+        event.stopPropagation();
+        const isOpen = document.getElementById('kebab-' + id)?.classList.contains('open');
+        closeAllKebabs();
+        if (!isOpen) document.getElementById('kebab-' + id)?.classList.add('open');
+    }
+
+    function closeAllKebabs() {
+        document.querySelectorAll('.kebab-menu.open').forEach(m => m.classList.remove('open'));
+    }
+
+    function triggerPhotoUpload(uid) {
+        closeAllKebabs();
+        currentUid = uid;
+        document.getElementById('photoFileInput').click();
+    }
+
+    function openCalFromKebab(id) {
+        closeAllKebabs();
+        const e = allEmployees.find(emp => emp.id === id);
+        if (e) openCal(e.id, e.full_name);
+    }
+
+    document.addEventListener('click', closeAllKebabs);
 
     function closeModals() {
         document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');

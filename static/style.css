@@ -357,3 +357,126 @@ tbody tr:hover td { background: var(--indigo-lt); }
   border-radius: var(--r-xs); font-weight: bold; margin-top: 5px;
 }
 .action-btn i { pointer-events: none; }
+
+/* ── Employee detail modal (wide 2-col) ─────── */
+.modal-wide .modal-content {
+  width: 720px;
+  max-width: 96vw;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+.emp-modal-header {
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  flex-shrink: 0;
+}
+
+.emp-modal-header .close-btn {
+  background: none; border: none;
+  font-size: 18px; color: var(--t4);
+  cursor: pointer; padding: 4px 8px;
+  border-radius: var(--r-xs); line-height: 1;
+  transition: background 0.12s, color 0.12s;
+}
+.emp-modal-header .close-btn:hover { background: var(--red-lt); color: var(--red); }
+
+.emp-modal-body { display: flex; flex: 1; overflow: hidden; }
+
+.emp-photo-col {
+  width: 200px; flex-shrink: 0;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  padding: 24px 18px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; overflow-y: auto;
+}
+
+.emp-photo-wrap {
+  width: 130px; height: 130px;
+  border-radius: var(--r-md); overflow: hidden;
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--indigo-lt);
+  flex-shrink: 0;
+}
+.emp-photo-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.emp-photo-placeholder { font-size: 56px; opacity: 0.3; }
+
+.emp-badges { display: flex; flex-direction: column; gap: 7px; width: 100%; }
+
+.emp-badge {
+  padding: 5px 10px; border-radius: 20px;
+  font-size: 11.5px; font-weight: 600; text-align: center;
+}
+.emp-badge-role { background: var(--indigo-lt); color: var(--indigo); }
+.emp-badge-face-ok { background: var(--green-lt); color: var(--green); }
+.emp-badge-face-no { background: var(--bg); color: var(--t4); border: 1px solid var(--border); }
+
+.emp-col-action {
+  width: 100%; padding: 7px 10px;
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: var(--r-sm); font-size: 12.5px; font-weight: 500;
+  color: var(--t3); cursor: pointer; text-align: center;
+  font-family: inherit; transition: all 0.13s;
+}
+.emp-col-action:hover { background: var(--indigo-lt); border-color: var(--indigo); color: var(--indigo); }
+
+.emp-edit-col { flex: 1; padding: 24px 28px; overflow-y: auto; }
+
+.emp-modal-footer {
+  padding: 16px 28px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 10px; justify-content: flex-end;
+  flex-shrink: 0;
+}
+.emp-modal-footer .btn { width: auto; padding: 10px 22px; }
+.btn-ghost {
+  background: var(--bg) !important;
+  color: var(--t2) !important;
+  border: 1.5px solid var(--border) !important;
+  box-shadow: none !important;
+}
+.btn-ghost:hover { background: var(--border-lt) !important; box-shadow: none !important; }
+
+/* ── Kebab menu ─────────────────────────────── */
+.kebab-btn {
+  background: none; border: none;
+  color: var(--t4); font-size: 20px; line-height: 1;
+  cursor: pointer; padding: 4px 8px;
+  border-radius: var(--r-xs);
+  transition: background 0.12s, color 0.12s;
+  font-family: inherit;
+}
+.kebab-btn:hover { background: var(--indigo-lt); color: var(--indigo); }
+
+.kebab-menu {
+  position: absolute; right: 6px; top: calc(100% + 2px);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--sh-lg);
+  min-width: 168px;
+  z-index: 500;
+  display: none; overflow: hidden;
+}
+.kebab-menu.open { display: block; }
+
+.kebab-item {
+  padding: 10px 14px; font-size: 13px; font-weight: 500;
+  color: var(--t2); cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  transition: background 0.1s; white-space: nowrap;
+}
+.kebab-item:hover { background: var(--indigo-lt); color: var(--indigo); }
+.kebab-item.danger { color: var(--red); }
+.kebab-item.danger:hover { background: var(--red-lt); }
+
+/* ── Clickable table rows ───────────────────── */
+tbody tr.emp-row { cursor: pointer; }
+tbody tr.emp-row:hover td { background: var(--indigo-lt); }
+td.kebab-cell { position: relative; text-align: right; padding-right: 8px; }
