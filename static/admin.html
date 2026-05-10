@@ -376,7 +376,7 @@
 
 <!-- ── Модал: Камера сотрудника ── -->
 <div id="empCamModal" class="modal" style="z-index:20001;">
-    <div class="modal-content" style="max-width:460px;">
+    <div class="modal-content">
         <div class="modal-hdr">
             <div>
                 <div class="modal-subtitle">Фото сотрудника</div>
@@ -384,11 +384,10 @@
             </div>
             <button class="close-btn" onclick="stopEmpWebcam()"><i class="ph-bold ph-x"></i></button>
         </div>
-        <video id="empCamVideo" autoplay muted playsinline
-               style="width:100%; border-radius:10px; background:#111827; height:260px; object-fit:cover; margin-bottom:14px; display:block;"></video>
-        <div style="display:flex; gap:10px;">
-            <button class="btn btn-ghost" onclick="stopEmpWebcam()" style="flex:0 0 auto;">Отмена</button>
-            <button class="btn" onclick="captureEmpPhoto()" style="flex:1;"><i class="ph-bold ph-camera"></i> Сфотографировать</button>
+        <video id="empCamVideo" autoplay muted playsinline></video>
+        <div class="cam-btns">
+            <button class="btn btn-ghost" onclick="stopEmpWebcam()">Отмена</button>
+            <button class="btn" onclick="captureEmpPhoto()"><i class="ph-bold ph-camera"></i> Сфотографировать</button>
         </div>
     </div>
 </div>
@@ -749,11 +748,13 @@
                 <td style="color:var(--t3);">${d.description || ''}</td>
                 <td>${cashierCell}</td>
                 <td class="kebab-cell" onclick="event.stopPropagation()">
-                    <button class="kebab-btn" onclick="toggleDeskKebab(event, ${d.id})">⋯</button>
-                    <div class="kebab-menu" id="desk-kebab-${d.id}">
-                        <div class="kebab-item" onclick="closeAllKebabs(); openDeskEdit('${dataAttr}')"><i class="ph ph-gear"></i> Настроить</div>
-                        <div class="kebab-item" onclick="closeAllKebabs(); openDeskEdit('${dataAttr}', true)"><i class="ph ph-lock-key"></i> Изменить пароль</div>
-                        <div class="kebab-item danger" onclick="deleteCashDesk(${d.id})"><i class="ph ph-trash"></i> Удалить</div>
+                    <div class="kebab-wrap">
+                        <button class="kebab-btn" onclick="toggleDeskKebab(event, ${d.id})">⋯</button>
+                        <div class="kebab-menu" id="desk-kebab-${d.id}">
+                            <div class="kebab-item" onclick="closeAllKebabs(); openDeskEdit('${dataAttr}')"><i class="ph ph-gear"></i> Настроить</div>
+                            <div class="kebab-item" onclick="closeAllKebabs(); openDeskEdit('${dataAttr}', true)"><i class="ph ph-lock-key"></i> Изменить пароль</div>
+                            <div class="kebab-item danger" onclick="deleteCashDesk(${d.id})"><i class="ph ph-trash"></i> Удалить</div>
+                        </div>
                     </div>
                 </td>
             </tr>`;
@@ -1018,9 +1019,10 @@
 
     function captureEmpPhoto() {
         const vid = document.getElementById('empCamVideo');
-        const c = document.createElement('canvas'); c.width = 640; c.height = 480;
-        c.getContext('2d').drawImage(vid, 0, 0);
-        c.toBlob(b => sendBio(b), 'image/jpeg');
+        const c = document.createElement('canvas');
+        c.width = vid.videoWidth || 640; c.height = vid.videoHeight || 480;
+        c.getContext('2d').drawImage(vid, 0, 0, c.width, c.height);
+        c.toBlob(b => sendBio(b, 'photo.jpg'), 'image/jpeg', 0.92);
     }
 
     // --- BIO MODAL (face liveness registration) ---
@@ -1031,26 +1033,31 @@
     }
 
     function captureBio() {
-        const c = document.createElement('canvas'); c.width = 640; c.height = 480;
-        c.getContext('2d').drawImage(video, 0, 0);
-        c.toBlob(b => sendBio(b), 'image/jpeg');
+        const c = document.createElement('canvas');
+        c.width = video.videoWidth || 640; c.height = video.videoHeight || 480;
+        c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+        c.toBlob(b => sendBio(b, 'photo.jpg'), 'image/jpeg', 0.92);
     }
 
-    async function sendBio(blob) {
+    async function sendBio(blob, filename) {
         const fd = new FormData();
         fd.append('card_uid', currentUid);
-        fd.append('file', blob);
+        fd.append('file', blob, filename || 'photo.jpg');
         const res = await authFetch('/api/enroll_face', {method:'POST', body:fd});
-        if (res.ok) {
-            showToast('Фото сохранено', 'success');
-            // Обновляем превью в editModal
+
+        // Обновляем превью в любом случае (фото сохраняется на диск до проверки лица)
+        const updatePreview = () => {
             const img = document.getElementById('editEmpPhoto');
             if (img) { img.src = `/static/photos/${currentUid}.jpg?t=${Date.now()}`; img.style.display = ''; }
             const ph = document.getElementById('editEmpPhotoPlaceholder');
             if (ph) ph.style.display = 'none';
+        };
+
+        if (res.ok) {
+            showToast('Фото и биометрия сохранены', 'success');
+            updatePreview();
             const fb = document.getElementById('editEmpBadgeFace');
             if (fb) { fb.innerHTML = '<i class="ph-bold ph-check-circle"></i> Биометрия активна'; fb.className = 'emp-badge emp-badge-face-ok'; }
-            // Закрываем только камерные модалы, editModal остаётся
             stopEmpWebcam();
             const bioModal = document.getElementById('bioModal');
             if (bioModal && bioModal.style.display === 'flex') {
@@ -1059,7 +1066,16 @@
             }
             load();
         } else {
-            showToast('Ошибка сохранения фото', 'error');
+            const errData = await res.json().catch(() => ({}));
+            const detail = errData.detail || '';
+            if (res.status === 400 && detail === 'No face detected') {
+                // Фото сохранено на диск, но лицо не обнаружено
+                showToast('Фото сохранено, но лицо не распознано — попробуйте при хорошем освещении', 'error');
+                updatePreview();
+                stopEmpWebcam();
+            } else {
+                showToast(detail || 'Ошибка сохранения фото', 'error');
+            }
         }
     }
 
