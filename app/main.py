@@ -8,7 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.database import engine, Base
-from app.routers import auth, payment, liveness, bot
+from app.routers import auth, payment, liveness, bot, cashiers
+from app import cashiers_db
 
 
 def _col_exists(conn, table: str, column: str) -> bool:
@@ -61,9 +62,17 @@ def update_db_schema():
             ))
             conn.commit()
 
+        # assigned_cashier_login — привязанный кассир
+        if not _col_exists(conn, "cash_desks", "assigned_cashier_login"):
+            conn.execute(text(
+                "ALTER TABLE cash_desks ADD COLUMN assigned_cashier_login VARCHAR"
+            ))
+            conn.commit()
+
 
 update_db_schema()
 Base.metadata.create_all(bind=engine)
+cashiers_db.init_db()
 
 app = FastAPI(title="Cafeteria")
 
@@ -76,6 +85,7 @@ async def startup_event():
 app.include_router(auth.router, prefix="/api")
 app.include_router(liveness.router, prefix="/api")
 app.include_router(payment.router, prefix="/api")
+app.include_router(cashiers.router, prefix="/api")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/", StaticFiles(directory="static", html=True), name="root")

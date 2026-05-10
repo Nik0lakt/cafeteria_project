@@ -252,15 +252,43 @@ def pay(data: PaymentRequest, db: Session = Depends(get_db)):
 
 @router.post("/verify_cash_desk")
 def verify_cash_desk(data: dict, db: Session = Depends(get_db)):
-    desk = db.query(CashDesk).filter(CashDesk.login == data.get("login")).first()
+    from app import cashiers_db as cdb
+    desk_login     = data.get("login", "").strip()
+    cashier_login  = data.get("cashier_login", "").strip()
+
+    desk = db.query(CashDesk).filter(CashDesk.login == desk_login).first()
     if not desk:
         raise HTTPException(status_code=401, detail="Касса не найдена")
-    return {"status": "ok", "login": desk.login, "id": desk.id}
+
+    # Если у кассы назначен кассир — проверяем совпадение
+    if desk.assigned_cashier_login:
+        if not cashier_login:
+            raise HTTPException(status_code=401, detail="Требуется логин кассира")
+        cashier = cdb.get_cashier_by_login(cashier_login)
+        if not cashier:
+            raise HTTPException(status_code=401, detail="Кассир не найден")
+        if desk.assigned_cashier_login != cashier_login:
+            raise HTTPException(status_code=403, detail="Этот кассир не закреплён за данной кассой")
+        return {"status": "ok", "login": desk.login, "id": desk.id,
+                "cashier_name": cashier["name"], "cashier_login": cashier_login}
+
+    # Касса без назначенного кассира — вход свободный
+    return {"status": "ok", "login": desk.login, "id": desk.id,
+            "cashier_name": None, "cashier_login": None}
 
 
 @router.get("/cash_desks")
 def get_cash_desks(db: Session = Depends(get_db)):
-    return db.query(CashDesk).all()
+    desks = db.query(CashDesk).all()
+    return [
+        {
+            "id": d.id,
+            "login": d.login,
+            "description": d.description,
+            "assigned_cashier_login": d.assigned_cashier_login,
+        }
+        for d in desks
+    ]
 
 
 @router.post("/cash_desks")
@@ -272,6 +300,19 @@ def add_cash_desk(data: dict, db: Session = Depends(get_db)):
         hashed_password=hash_password(raw_password) if raw_password else None,
     )
     db.add(new_desk)
+    db.commit()
+    return {"status": "success"}
+
+
+@router.put("/cash_desks/{desk_id}")
+def update_cash_desk(desk_id: int, data: dict, db: Session = Depends(get_db)):
+    desk = db.query(CashDesk).filter(CashDesk.id == desk_id).first()
+    if not desk:
+        raise HTTPException(status_code=404, detail="Касса не найдена")
+    if "assigned_cashier_login" in data:
+        desk.assigned_cashier_login = data["assigned_cashier_login"] or None
+    if "description" in data:
+        desk.description = data["description"]
     db.commit()
     return {"status": "success"}
 

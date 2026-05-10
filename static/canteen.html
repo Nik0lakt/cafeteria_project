@@ -15,10 +15,11 @@
         <div class="modal-box">
             <div style="text-align:center; margin-bottom:16px;"><i class="ph-bold ph-fork-knife" style="font-size:36px; color:var(--primary);"></i></div>
             <h3>Открыть смену</h3>
+            <input type="text" id="cashierLoginInput" placeholder="Ваш логин кассира...">
             <input type="text" id="deskLoginInput" placeholder="Логин терминала...">
             <button class="btn-black" onclick="login()">Начать работу</button>
             <div id="loginError" style="color: #EF4444; margin-top:12px; text-align:center; display:none; font-size:14px; font-weight:600;">
-                Терминал не найден. Проверьте логин.
+                Ошибка входа. Проверьте логины.
             </div>
         </div>
     </div>
@@ -28,6 +29,7 @@
             <div class="top-bar-left">
                 <h3><i class="ph-bold ph-fork-knife"></i> Cafeteria</h3>
                 <div class="desk-badge" id="cashDeskLabel">...</div>
+                <div class="desk-badge" id="cashierLabel" style="background:rgba(167,139,250,0.18); color:#7C3AED; display:none;"></div>
                 <div class="admin-badge edit-only">РЕЖИМ НАСТРОЙКИ</div>
             </div>
             <div class="top-bar-right">
@@ -111,6 +113,7 @@
 // --- 1. АВТОРИЗАЦИЯ И ИНИЦИАЛИЗАЦИЯ ---
 let cashDeskLogin = localStorage.getItem('cashDeskId');
 let cashDeskDbId = localStorage.getItem('cashDeskDbId');
+let cashierName   = localStorage.getItem('cashierName');
 let isAdmin = false, categories = [], products = [], currentCatId = 0, cart = [], total = 0;
 
 function checkAuth() {
@@ -127,21 +130,27 @@ function checkAuth() {
 checkAuth();
 
 async function login() {
-    const loginVal = document.getElementById('deskLoginInput').value.trim();
-    if(!loginVal) return;
+    const deskVal     = document.getElementById('deskLoginInput').value.trim();
+    const cashierVal  = document.getElementById('cashierLoginInput').value.trim();
+    if (!deskVal) return;
+    document.getElementById('loginError').style.display = 'none';
     try {
         const res = await fetch('/api/verify_cash_desk', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ login: loginVal })
+            body: JSON.stringify({ login: deskVal, cashier_login: cashierVal })
         });
         if (res.ok) {
             const data = await res.json();
-            localStorage.setItem('cashDeskId', data.login);
+            localStorage.setItem('cashDeskId',   data.login);
             localStorage.setItem('cashDeskDbId', data.id);
+            localStorage.setItem('cashierName',  data.cashier_name || '');
             location.reload();
         } else {
-            document.getElementById('loginError').style.display = "block";
+            const err = await res.json().catch(() => ({}));
+            const errEl = document.getElementById('loginError');
+            errEl.innerText = err.detail || 'Ошибка входа. Проверьте логины.';
+            errEl.style.display = 'block';
         }
     } catch(e) { alert("Ошибка связи с сервером"); }
 }
@@ -150,6 +159,11 @@ function logout() { if(confirm("Закрыть смену?")) { localStorage.cle
 
 async function initApp() {
     document.getElementById('cashDeskLabel').innerText = cashDeskLogin;
+    const cashierBadge = document.getElementById('cashierLabel');
+    if (cashierName) {
+        cashierBadge.innerText = cashierName;
+        cashierBadge.style.display = 'inline-flex';
+    }
     await loadData();
 }
 
