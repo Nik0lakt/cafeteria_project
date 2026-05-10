@@ -666,16 +666,3 @@ tbody tr.desk-row:hover td { background: var(--violet-lt); }
   display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px;
 }
 
-/* ── Employee webcam capture area ───────────── */
-#empWebcamArea {
-  padding: 14px 0 4px 0;
-  border-top: 1.5px solid var(--border);
-  margin-top: 4px;
-}
-#empWebcamArea video {
-  width: 100%; border-radius: var(--r-sm);
-  background: #111827; height: 200px; object-fit: cover; margin-bottom: 10px;
-}
-#empWebcamArea .webcam-btns {
-  display: flex; gap: 10px;
-}

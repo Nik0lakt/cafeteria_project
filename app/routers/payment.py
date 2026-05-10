@@ -579,6 +579,7 @@ def get_user_full_data(emp_id: int, db: Session = Depends(get_db)):
             "max": daily_limit,
             "used": round(used_subsidy_kopecks / 100, 2),
             "is_work": bool(is_work),
+            "role_subsidy": float(role.subsidy_rub) if role else 0,
         },
         "schedule": [
             d[0].isoformat()

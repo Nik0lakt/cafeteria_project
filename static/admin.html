@@ -364,14 +364,6 @@
             </div>
         </div>
 
-        <div id="empWebcamArea" style="display:none;">
-            <video id="empCamVideo" autoplay muted playsinline></video>
-            <div class="webcam-btns">
-                <button class="btn" type="button" onclick="captureEmpPhoto()"><i class="ph-bold ph-camera"></i> Сделать снимок</button>
-                <button class="btn btn-ghost" type="button" onclick="stopEmpWebcam()">Отмена</button>
-            </div>
-        </div>
-
         <div class="emp-modal-footer">
             <button class="btn btn-ghost" onclick="closeModals()">Отмена</button>
             <button class="btn" onclick="saveEdit()">Сохранить изменения</button>
@@ -381,6 +373,25 @@
 
 <div id="toastContainer"></div>
 <input type="file" id="photoFileInput" accept="image/*" style="display:none" onchange="uploadBioFile(this)">
+
+<!-- ── Модал: Камера сотрудника ── -->
+<div id="empCamModal" class="modal" style="z-index:200;">
+    <div class="modal-content" style="max-width:460px;">
+        <div class="modal-hdr">
+            <div>
+                <div class="modal-subtitle">Фото сотрудника</div>
+                <div class="modal-ttl">Сделать снимок</div>
+            </div>
+            <button class="close-btn" onclick="stopEmpWebcam()"><i class="ph-bold ph-x"></i></button>
+        </div>
+        <video id="empCamVideo" autoplay muted playsinline
+               style="width:100%; border-radius:10px; background:#111827; height:260px; object-fit:cover; margin-bottom:14px; display:block;"></video>
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-ghost" onclick="stopEmpWebcam()" style="flex:0 0 auto;">Отмена</button>
+            <button class="btn" onclick="captureEmpPhoto()" style="flex:1;"><i class="ph-bold ph-camera"></i> Сфотографировать</button>
+        </div>
+    </div>
+</div>
 
 <!-- ── Модал: Календарь ── -->
 <div id="calModal" class="modal">
@@ -972,21 +983,19 @@
     let empStream = null;
 
     async function openEmpWebcam() {
-        const area = document.getElementById('empWebcamArea');
-        area.style.display = 'block';
+        document.getElementById('empCamModal').style.display = 'flex';
         try {
             empStream = await navigator.mediaDevices.getUserMedia({ video: true });
             document.getElementById('empCamVideo').srcObject = empStream;
         } catch(e) {
             showToast('Камера недоступна', 'error');
-            area.style.display = 'none';
+            document.getElementById('empCamModal').style.display = 'none';
         }
     }
 
     function stopEmpWebcam() {
         if (empStream) { empStream.getTracks().forEach(t => t.stop()); empStream = null; }
-        const area = document.getElementById('empWebcamArea');
-        if (area) area.style.display = 'none';
+        document.getElementById('empCamModal').style.display = 'none';
     }
 
     function captureEmpPhoto() {
@@ -1016,20 +1025,21 @@
         const res = await authFetch('/api/enroll_face', {method:'POST', body:fd});
         if (res.ok) {
             showToast('Фото сохранено', 'success');
+            // Обновляем превью в editModal
             const img = document.getElementById('editEmpPhoto');
             if (img) { img.src = `/static/photos/${currentUid}.jpg?t=${Date.now()}`; img.style.display = ''; }
             const ph = document.getElementById('editEmpPhotoPlaceholder');
             if (ph) ph.style.display = 'none';
             const fb = document.getElementById('editEmpBadgeFace');
             if (fb) { fb.innerHTML = '<i class="ph-bold ph-check-circle"></i> Биометрия активна'; fb.className = 'emp-badge emp-badge-face-ok'; }
+            // Закрываем только камерные модалы, editModal остаётся
             stopEmpWebcam();
-            // close bio modal if open, keep edit modal
             const bioModal = document.getElementById('bioModal');
             if (bioModal && bioModal.style.display === 'flex') {
                 bioModal.style.display = 'none';
                 if (video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
-                load();
             }
+            load();
         } else {
             showToast('Ошибка сохранения фото', 'error');
         }

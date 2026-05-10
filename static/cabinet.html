@@ -198,9 +198,12 @@
     <div class="container" style="text-align: center;">
         <div style="margin-bottom: 16px;"><i class="ph-bold ph-fork-knife" style="font-size:44px; color:var(--primary);"></i></div>
         <h1 style="font-size: 26px; font-weight: 800; letter-spacing: -0.5px; margin: 0 0 8px;">Личный кабинет</h1>
-        <p style="color: #6B7280; font-size: 14px; margin: 0 0 28px;">Введите ID вашей карты для входа</p>
+        <p style="color: #6B7280; font-size: 14px; margin: 0 0 28px;">Введите номер карты для входа</p>
         <div class="card">
-            <input type="text" id="cardUid" placeholder="Приложите карту или введите ID" autofocus>
+            <label style="display:block; text-align:left; font-size:12px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Номер карты (UID)</label>
+            <input type="text" id="cardUid" placeholder="Например: A3F2C1B0" autofocus
+                   onkeydown="if(event.key==='Enter') login()">
+            <div id="loginError" style="display:none; color:#EF4444; font-size:13px; font-weight:600; margin:-10px 0 14px; text-align:left;"></div>
             <button class="btn-black" onclick="login()">Войти</button>
         </div>
     </div>
@@ -221,7 +224,7 @@
         <div class="balance-label">Доступный лимит</div>
         <div class="balance-val" id="uLimit">0 ₽</div>
 
-        <div class="subsidy-row">
+        <div class="subsidy-row" id="subsidyBlock">
             <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85);">
                 <span id="subsTitle">Дотация сегодня</span>
                 <span id="subsLabel">0 / 0 ₽</span>
@@ -262,9 +265,12 @@
 <script>
     async function login() {
         const uid = document.getElementById('cardUid').value.trim().toUpperCase();
+        const errEl = document.getElementById('loginError');
+        errEl.style.display = 'none';
+        if (!uid) { errEl.innerText = 'Введите номер карты'; errEl.style.display = 'block'; return; }
         const res = await fetch('/api/user/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({card_uid:uid})});
-        if(res.ok) { localStorage.setItem('cab_emp_id', (await res.json()).emp_id); init(); }
-        else alert("Карта не найдена");
+        if (res.ok) { localStorage.setItem('cab_emp_id', (await res.json()).emp_id); init(); }
+        else { errEl.innerText = 'Карта не найдена. Проверьте номер и попробуйте снова.'; errEl.style.display = 'block'; }
     }
 
     function logout() { localStorage.clear(); location.reload(); }
@@ -309,10 +315,24 @@
         }
 
         // Дотация
-        document.getElementById('subsLabel').innerText = `${d.subsidy.used} / ${d.subsidy.max} ₽`;
-        const percent = d.subsidy.max > 0 ? (d.subsidy.used / d.subsidy.max * 100) : 0;
-        setTimeout(() => { document.getElementById('subsBar').style.width = Math.min(percent, 100) + "%"; }, 200);
-        if(!d.subsidy.is_work) document.getElementById('subsTitle').innerText = "Сегодня выходной";
+        const sub = d.subsidy;
+        const subsidyBlock = document.getElementById('subsidyBlock');
+        if (sub.role_subsidy === 0) {
+            // Роль без дотации — скрываем блок полностью
+            subsidyBlock.style.display = 'none';
+        } else {
+            const remaining = sub.max - sub.used;
+            if (!sub.is_work || remaining <= 0) {
+                // Дотация есть по роли, но сегодня исчерпана или выходной
+                subsidyBlock.innerHTML = `<div style="font-size:13px; font-weight:600; color:rgba(255,255,255,0.75); text-align:center; padding:2px 0;">Сегодня дотации нет</div>`;
+            } else {
+                // Нормальное отображение прогресса
+                document.getElementById('subsTitle').innerText = 'Дотация сегодня';
+                document.getElementById('subsLabel').innerText = `${sub.used} / ${sub.max} ₽`;
+                const percent = sub.used / sub.max * 100;
+                setTimeout(() => { document.getElementById('subsBar').style.width = Math.min(percent, 100) + '%'; }, 200);
+            }
+        }
 
         renderCal(d.schedule);
         renderHistory(d.history);
