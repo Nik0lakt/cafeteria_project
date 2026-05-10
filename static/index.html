@@ -5,13 +5,14 @@
     <title>Оплата дотацией | Cafeteria</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
 
         body {
             margin: 0;
             font-family: 'Inter', -apple-system, sans-serif;
-            background: #F1F5F9;
+            background: #F5F4F8;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -68,13 +69,13 @@
         }
 
         input:focus {
-            border-color: #4F46E5;
+            border-color: #7C3AED;
             background: #fff;
-            box-shadow: 0 0 0 3px rgba(79,70,229,0.10);
+            box-shadow: 0 0 0 3px rgba(124,58,237,0.10);
         }
 
         .btn {
-            background: #4F46E5;
+            background: #7C3AED;
             color: #fff;
             border: none;
             width: 100%;
@@ -87,12 +88,12 @@
             transition: background 0.15s;
         }
 
-        .btn:hover { background: #4338CA; box-shadow: 0 4px 14px rgba(79,70,229,0.28); }
+        .btn:hover { background: #6D28D9; box-shadow: 0 4px 14px rgba(124,58,237,0.32); }
 
         .btn-manual {
             background: none;
             border: none;
-            color: #4F46E5;
+            color: #7C3AED;
             font-size: 14px;
             cursor: pointer;
             margin-top: 14px;
@@ -170,8 +171,8 @@
 <body>
     <div class="card">
         <div id="scannerControl">
-            <div id="connectionStatus" class="scanner-status">🔴 Сканер не подключён</div>
-            <button id="connectBtn" class="btn connect-btn" onclick="connectSerial()">🔌 Подключить сканер</button>
+            <div id="connectionStatus" class="scanner-status">Сканер не подключён</div>
+            <button id="connectBtn" class="btn connect-btn" onclick="connectSerial()"><i class="ph-bold ph-plug"></i> Подключить сканер</button>
         </div>
         <h1 id="userName" style="font-size: 18px; margin-bottom: 10px;">Оплата дотацией</h1>
         <div class="amount" id="amountDisp">0 ₽</div>
@@ -227,12 +228,12 @@
         async function connectToPort(p) {
             try {
                 port = p; await port.open({ baudRate: 9600 });
-                document.getElementById('connectionStatus').innerText = "🟢 Сканер подключён";
+                document.getElementById('connectionStatus').innerText = "Сканер подключён";
                 document.getElementById('connectionStatus').classList.add('connected');
                 document.getElementById('connectBtn').style.display = 'none';
                 keepReading = true; readSerialLoop();
             } catch (err) {
-                document.getElementById('connectionStatus').innerText = "🔴 Ошибка подключения";
+                document.getElementById('connectionStatus').innerText = "Ошибка подключения";
                 document.getElementById('connectBtn').style.display = 'inline-block';
             }
         }
@@ -259,7 +260,7 @@
                     }
                 }
             } catch (error) {
-                document.getElementById('connectionStatus').innerText = "🔴 Разрыв соединения";
+                document.getElementById('connectionStatus').innerText = "Разрыв соединения";
                 document.getElementById('connectionStatus').classList.remove('connected');
                 document.getElementById('connectBtn').style.display = 'inline-block';
             } finally { reader.releaseLock(); }

@@ -21,12 +21,13 @@
         })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
 </head>
 <body>
 
 <div class="app-sidebar">
     <div class="nav-header">
-        <div class="nav-logo">🍽</div>
+        <div class="nav-logo"><i class="ph-bold ph-fork-knife"></i></div>
         <div class="nav-brand">
             <span class="nav-brand-name">Cafeteria</span>
             <span class="nav-brand-sub">Управление</span>
@@ -34,16 +35,16 @@
     </div>
     <div class="nav-body">
         <div class="nav-item active" onclick="switchTab('emp', this)">
-            <span class="nav-icon">👥</span><span class="nav-text">Сотрудники</span>
+            <span class="nav-icon"><i class="ph-bold ph-users"></i></span><span class="nav-text">Сотрудники</span>
         </div>
         <div class="nav-item" onclick="switchTab('cash', this)">
-            <span class="nav-icon">🖥</span><span class="nav-text">Терминалы</span>
+            <span class="nav-icon"><i class="ph-bold ph-monitor"></i></span><span class="nav-text">Терминалы</span>
         </div>
         <div class="nav-item" onclick="switchTab('stat', this)">
-            <span class="nav-icon">📈</span><span class="nav-text">Статистика</span>
+            <span class="nav-icon"><i class="ph-bold ph-chart-line"></i></span><span class="nav-text">Статистика</span>
         </div>
         <div class="nav-item" onclick="switchTab('settings', this)">
-            <span class="nav-icon">⚙️</span><span class="nav-text">Настройки</span>
+            <span class="nav-icon"><i class="ph-bold ph-gear"></i></span><span class="nav-text">Настройки</span>
         </div>
     </div>
 </div>
@@ -55,8 +56,8 @@
         <div class="header">
             <h1>Управление сотрудниками</h1>
             <div style="display:flex; gap:10px;">
-                <button class="action-btn" onclick="openRoles()">📋 Роли и дотации</button>
-                <button class="action-btn" onclick="openGlobal()">📅 Общий график</button>
+                <button class="action-btn" onclick="openRoles()"><i class="ph-bold ph-list-bullets"></i> Роли и дотации</button>
+                <button class="action-btn" onclick="openGlobal()"><i class="ph-bold ph-calendar-dots"></i> Общий график</button>
             </div>
         </div>
 
@@ -157,7 +158,7 @@
             </div>
             <div style="height:400px; margin-top:30px;"><canvas id="revenueChart"></canvas></div>
             <div style="text-align:center; margin-top:20px;">
-                <button class="btn" style="background:#22C55E; width:auto; padding:11px 28px;" onclick="document.getElementById('exportModal').style.display='flex'">📥 Выгрузить в CSV</button>
+                <button class="btn" style="background:#10B981; width:auto; padding:11px 28px;" onclick="document.getElementById('exportModal').style.display='flex'"><i class="ph-bold ph-download-simple"></i> Выгрузить в CSV</button>
             </div>
         </div>
     </div>
@@ -167,7 +168,7 @@
         <div class="header"><h1>Настройки</h1></div>
         <div class="main-layout">
             <div class="box" style="width: 400px;">
-                <h3>🔌 RFID-считыватель</h3>
+                <h3><i class="ph-bold ph-plugs"></i> RFID-считыватель</h3>
                 <div style="margin: 16px 0; padding: 16px; background: #FAFAFA; border-radius: 8px; border: 1px solid #E5E7EB;">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
                         <span id="serialStatusIcon" style="width: 10px; height: 10px; background: #EF4444; border-radius: 50%; flex-shrink:0;"></span>
@@ -176,7 +177,7 @@
                     <button id="connectBtn" class="btn" onclick="initSerial()">Подключить сканер</button>
                 </div>
 
-                <h3>🔍 Тест сканера</h3>
+                <h3><i class="ph-bold ph-magnifying-glass"></i> Тест сканера</h3>
                 <label>Поле для тестирования</label>
                 <input type="text" id="testCardInput" placeholder="Приложите карту — UID появится здесь" readonly
                     style="background:#fff; border: 1.5px dashed #E5E7EB; font-family: monospace; font-size: 16px; text-align: center; color:#374151;">
@@ -236,21 +237,21 @@
                 <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--t4); margin-bottom:3px;">Профиль сотрудника</div>
                 <div id="editEmpDisplayName" style="font-size:18px; font-weight:700; color:var(--t1); letter-spacing:-0.2px;"></div>
             </div>
-            <button class="close-btn" onclick="closeModals()">✕</button>
+            <button class="close-btn" onclick="closeModals()"><i class="ph-bold ph-x"></i></button>
         </div>
 
         <div class="emp-modal-body">
             <div class="emp-photo-col">
                 <div class="emp-photo-wrap">
                     <img id="editEmpPhoto" src="" alt="" style="display:none;">
-                    <div id="editEmpPhotoPlaceholder" class="emp-photo-placeholder" style="display:flex; align-items:center; justify-content:center; width:100%; height:100%;">👤</div>
+                    <div id="editEmpPhotoPlaceholder" class="emp-photo-placeholder"><i class="ph ph-user"></i></div>
                 </div>
                 <div class="emp-badges">
                     <div class="emp-badge emp-badge-role" id="editEmpBadgeRole"></div>
                     <div class="emp-badge emp-badge-face-no" id="editEmpBadgeFace"></div>
                 </div>
-                <button class="emp-col-action" onclick="openCal(currentEmpId, document.getElementById('editName').value)">📅 Расписание</button>
-                <button class="emp-col-action" onclick="triggerPhotoUpload(currentUid)">📷 Загрузить фото</button>
+                <button class="emp-col-action" onclick="openCal(currentEmpId, document.getElementById('editName').value)"><i class="ph-bold ph-calendar"></i> Расписание</button>
+                <button class="emp-col-action" onclick="triggerPhotoUpload(currentUid)"><i class="ph-bold ph-camera"></i> Загрузить фото</button>
             </div>
 
             <div class="emp-edit-col">
@@ -275,9 +276,9 @@
 <div id="calModal" class="modal">
     <div class="modal-content">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <button class="action-btn" onclick="changeMonth(-1)">←</button>
+            <button class="action-btn" onclick="changeMonth(-1)"><i class="ph-bold ph-arrow-left"></i></button>
             <h3 id="calTitle" style="margin:0"></h3>
-            <button class="action-btn" onclick="changeMonth(1)">→</button>
+            <button class="action-btn" onclick="changeMonth(1)"><i class="ph-bold ph-arrow-right"></i></button>
         </div>
         <div id="calGrid" class="cal-grid" style="margin-top:15px;"></div>
         <div class="preset-btns" style="display:flex; gap:10px; margin-top:20px;">
@@ -295,7 +296,7 @@
     <div class="modal-content">
         <h3>Регистрация лица</h3>
         <video id="bioVideo" autoplay muted playsinline style="width:100%; border-radius:8px; background:#111827; height:240px; object-fit:cover; margin-bottom:12px;"></video>
-        <button class="btn" onclick="captureBio()">📷 Сделать снимок</button>
+        <button class="btn" onclick="captureBio()"><i class="ph-bold ph-camera"></i> Сделать снимок</button>
         <input type="file" id="bioFile" onchange="uploadBioFile(this)" style="margin-top:10px; font-size:13px; color:#6B7280;">
         <button class="btn" style="background:#F3F4F6; color:#374151; margin-top:10px;" onclick="closeModals()">Закрыть</button>
     </div>
@@ -342,8 +343,8 @@
         try {
             port = await navigator.serial.requestPort();
             await port.open({ baudRate: 9600 });
-            document.getElementById('serialStatusIcon').style.background = "#28a745";
-            document.getElementById('serialStatusText').innerText = "Сканер подключен (🟢)";
+            document.getElementById('serialStatusIcon').style.background = "#10B981";
+            document.getElementById('serialStatusText').innerText = "Сканер подключён";
             document.getElementById('connectBtn').style.display = "none";
             keepReading = true;
             readSerialLoop();
@@ -436,9 +437,9 @@
                 <td class="kebab-cell" onclick="event.stopPropagation()">
                     <button class="kebab-btn" onclick="toggleKebab(event, ${e.id})">⋯</button>
                     <div class="kebab-menu" id="kebab-${e.id}">
-                        <div class="kebab-item" onclick="openCalFromKebab(${e.id})">📅&nbsp; Расписание</div>
-                        <div class="kebab-item" onclick="triggerPhotoUpload('${e.card_uid}')">📷&nbsp; Загрузить фото</div>
-                        <div class="kebab-item danger" onclick="delEmp(${e.id})">✕&nbsp; Удалить</div>
+                        <div class="kebab-item" onclick="openCalFromKebab(${e.id})"><i class="ph ph-calendar"></i> Расписание</div>
+                        <div class="kebab-item" onclick="triggerPhotoUpload('${e.card_uid}')"><i class="ph ph-camera"></i> Загрузить фото</div>
+                        <div class="kebab-item danger" onclick="delEmp(${e.id})"><i class="ph ph-trash"></i> Удалить</div>
                     </div>
                 </td>
             </tr>`;
@@ -500,7 +501,9 @@
         }
         document.getElementById('editEmpBadgeRole').innerText = e.role;
         const fb = document.getElementById('editEmpBadgeFace');
-        fb.innerText = e.has_face ? '✓ Биометрия активна' : '✗ Нет фото';
+        fb.innerHTML = e.has_face
+            ? '<i class="ph-bold ph-check-circle"></i> Биометрия активна'
+            : '<i class="ph-bold ph-warning"></i> Нет фото';
         fb.className = 'emp-badge ' + (e.has_face ? 'emp-badge-face-ok' : 'emp-badge-face-no');
 
         document.getElementById('editModal').style.display = 'flex';

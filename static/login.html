@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вход | Cafeteria</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
 
         body {
             margin: 0;
             font-family: 'Inter', -apple-system, sans-serif;
-            background: #F1F5F9;
+            background: #F5F4F8;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -37,11 +38,12 @@
             align-items: center;
             justify-content: center;
             width: 56px; height: 56px;
-            background: #4F46E5;
+            background: linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%);
             border-radius: 16px;
-            font-size: 28px;
+            font-size: 26px;
             margin-bottom: 16px;
-            box-shadow: 0 8px 24px rgba(79,70,229,0.30);
+            box-shadow: 0 8px 24px rgba(124,58,237,0.35);
+            color: #fff;
         }
 
         .brand-name {
@@ -103,15 +105,15 @@
         }
 
         input:focus {
-            border-color: #4F46E5;
+            border-color: #7C3AED;
             background: #fff;
-            box-shadow: 0 0 0 3px rgba(79,70,229,0.10);
+            box-shadow: 0 0 0 3px rgba(124,58,237,0.10);
         }
 
         button {
             width: 100%;
             padding: 12px;
-            background: #4F46E5;
+            background: #7C3AED;
             border: none;
             color: #fff;
             font-size: 15px;
@@ -122,7 +124,7 @@
             transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
         }
 
-        button:hover   { background: #4338CA; box-shadow: 0 4px 14px rgba(79,70,229,0.28); }
+        button:hover   { background: #6D28D9; box-shadow: 0 4px 14px rgba(124,58,237,0.32); }
         button:active  { transform: scale(0.98); }
         button:disabled { background: #D1D5DB; cursor: not-allowed; }
 
@@ -147,7 +149,7 @@
 
 <div class="page">
     <div class="brand">
-        <div class="brand-logo">🍽</div>
+        <div class="brand-logo"><i class="ph-bold ph-fork-knife"></i></div>
         <p class="brand-name">Cafeteria</p>
         <p class="brand-sub">Система управления корпоративной столовой</p>
     </div>

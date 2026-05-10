@@ -6,13 +6,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/terminal.css">
+    <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
 </head>
 <body id="appBody">
 
     <!-- Экран входа в смену -->
     <div id="loginOverlay" class="overlay" style="display: flex; z-index: 99999;">
         <div class="modal-box">
-            <div style="text-align:center; font-size:36px; margin-bottom:12px;">🍽</div>
+            <div style="text-align:center; margin-bottom:16px;"><i class="ph-bold ph-fork-knife" style="font-size:36px; color:var(--primary);"></i></div>
             <h3>Открыть смену</h3>
             <input type="text" id="deskLoginInput" placeholder="Логин терминала...">
             <button class="btn-black" onclick="login()">Начать работу</button>
@@ -25,14 +26,14 @@
     <div class="app-container">
         <div class="top-bar">
             <div class="top-bar-left">
-                <h3>🍽 Cafeteria</h3>
+                <h3><i class="ph-bold ph-fork-knife"></i> Cafeteria</h3>
                 <div class="desk-badge" id="cashDeskLabel">...</div>
                 <div class="admin-badge edit-only">РЕЖИМ НАСТРОЙКИ</div>
             </div>
             <div class="top-bar-right">
-                <button class="btn-outline" id="settingsBtn" onclick="openAdminAuth()">⚙️ Настройки</button>
+                <button class="btn-outline" id="settingsBtn" onclick="openAdminAuth()"><i class="ph-bold ph-gear"></i> Настройки</button>
                 <button class="btn-outline edit-only" style="color:#EF4444; border-color:#EF4444;" onclick="exitAdmin()">Выйти из настроек</button>
-                <button class="btn-outline" onclick="logout()">🚪 Закрыть смену</button>
+                <button class="btn-outline" onclick="logout()"><i class="ph-bold ph-sign-out"></i> Закрыть смену</button>
             </div>
         </div>
 
@@ -43,7 +44,7 @@
             </div>
 
             <div class="cart-area">
-                <h3 style="margin:0; padding-bottom:14px; border-bottom:1px solid #E5E7EB; margin-bottom:0;">Заказ</h3>
+                <h3 style="margin:0; padding-bottom:14px; border-bottom:1px solid var(--border); margin-bottom:0;">Заказ</h3>
                 <div class="cart-items" id="cartItems"></div>
                 <div class="total-amount" id="totalDisplay">0 ₽</div>
                 <button class="btn-black" onclick="openModal('paymentMethodModal')" id="payBtn" disabled>ОПЛАТИТЬ</button>
@@ -88,9 +89,9 @@
     <div id="paymentMethodModal" class="overlay">
         <div class="modal-box">
             <h3>Способ оплаты</h3>
-            <button class="btn-method" onclick="processExternal('bank_card')">💳 &nbsp;Банковская карта</button>
-            <button class="btn-method" onclick="startInternal()">🍽 &nbsp;Дотация (распознавание лица)</button>
-            <button class="btn-method" onclick="startCash()">💵 &nbsp;Наличные</button>
+            <button class="btn-method" onclick="processExternal('bank_card')"><i class="ph-bold ph-credit-card" style="font-size:20px;"></i> Банковская карта</button>
+            <button class="btn-method" onclick="startInternal()"><i class="ph-bold ph-scan-smiley" style="font-size:20px;"></i> Дотация (распознавание лица)</button>
+            <button class="btn-method" onclick="startCash()"><i class="ph-bold ph-money" style="font-size:20px;"></i> Наличные</button>
             <button class="btn-outline" style="width:100%; margin-top:4px;" onclick="closeModal('paymentMethodModal')">Отмена</button>
         </div>
     </div>
@@ -168,18 +169,18 @@ async function loadData() {
 // --- 2. ОТРИСОВКА (RENDER) ---
 function renderCategories() {
     const bar = document.getElementById('categoriesBar');
-    let html = `<div class="cat-tab ${currentCatId === 0 ? 'active' : ''}" onclick="selectCat(0)">⭐ Избранное</div>`;
+    let html = `<div class="cat-tab ${currentCatId === 0 ? 'active' : ''}" onclick="selectCat(0)"><i class="ph-bold ph-star"></i> Избранное</div>`;
     categories.forEach(c => {
         html += `<div class="cat-tab ${currentCatId === c.id ? 'active' : ''}" onclick="selectCat(${c.id})">
             ${c.name}
             ${isAdmin ? `
                 <div style="position:absolute; top:-10px; right:-10px; display:flex; gap:2px;">
-                    <button class="delete-btn" style="background:#3B82F6; position:static;" onclick="event.stopPropagation(); openEditCat(${c.id}, '${c.name}')">✎</button>
-                    <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteCat(${c.id})">×</button>
+                    <button class="delete-btn" style="background:#3B82F6; position:static;" onclick="event.stopPropagation(); openEditCat(${c.id}, '${c.name}')"><i class="ph-bold ph-pencil-simple"></i></button>
+                    <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteCat(${c.id})"><i class="ph-bold ph-x"></i></button>
                 </div>` : ''}
         </div>`;
     });
-    if (isAdmin) html += `<div class="cat-tab" style="border: 2px dashed #E5E7EB; color:#9CA3AF;" onclick="openAddCat()">+ Раздел</div>`;
+    if (isAdmin) html += `<div class="cat-tab" style="border: 2px dashed var(--border); color:var(--text-muted);" onclick="openAddCat()">+ Раздел</div>`;
     bar.innerHTML = html;
 }
 
@@ -192,17 +193,17 @@ function renderProducts() {
     displayProducts.forEach(p => {
         const isFav = favs.includes(p.id);
         html += `<div class="product-card" onclick="if(!isAdmin) addToCart(${p.id}, '${p.name}', ${p.price})">
-            <button class="star-btn ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav(${p.id})">★</button>
+            <button class="star-btn ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav(${p.id})"><i class="${isFav ? 'ph-fill' : 'ph'} ph-star"></i></button>
             ${isAdmin ? `
                 <div style="position:absolute; top:-5px; right:-5px; display:flex; gap:2px;">
-                    <button class="delete-btn" style="background:#3B82F6; position:static;" onclick="event.stopPropagation(); openEditProduct(${p.id}, '${p.name}', ${p.price})">✎</button>
-                    <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteProduct(${p.id})">×</button>
+                    <button class="delete-btn" style="background:#3B82F6; position:static;" onclick="event.stopPropagation(); openEditProduct(${p.id}, '${p.name}', ${p.price})"><i class="ph-bold ph-pencil-simple"></i></button>
+                    <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteProduct(${p.id})"><i class="ph-bold ph-x"></i></button>
                 </div>` : ''}
             <div class="product-name">${p.name}</div>
             <div class="product-price">${p.price} ₽</div>
         </div>`;
     });
-    if (isAdmin && currentCatId !== 0) html += `<div class="product-card" style="border: 2px dashed #E5E7EB; color:#9CA3AF;" onclick="openAddProduct()">+ Блюдо</div>`;
+    if (isAdmin && currentCatId !== 0) html += `<div class="product-card" style="border: 2px dashed var(--border); color:var(--text-muted);" onclick="openAddProduct()">+ Блюдо</div>`;
     grid.innerHTML = html;
 }
 
@@ -325,7 +326,7 @@ function renderCart() {
         cont.innerHTML += `<div class="cart-item">
     	    <span>${i.name} (x${i.qty})</span>
     	    <span>${i.price * i.qty} ₽
-                <button onclick="removeFromCart(${i.id})" style="border:none;background:none;color:#EF4444;cursor:pointer;font-weight:bold;padding:0 5px;">✕</button>
+                <button onclick="removeFromCart(${i.id})" style="border:none;background:none;color:#EF4444;cursor:pointer;padding:0 5px;display:inline-flex;align-items:center;"><i class="ph-bold ph-x"></i></button>
             </span>
         </div>`;
     });
