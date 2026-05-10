@@ -1,5 +1,7 @@
 # Cafeteria — Corporate Dining Management System
 
+> [Читать на русском](README_RU.md)
+
 A full-stack B2B platform for automating corporate cafeteria operations. Combines NFC card identification, real-time face liveness verification, and a role-based subsidy engine — all managed through a single-page admin panel and a Telegram bot.
 
 ---
