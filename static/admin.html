@@ -81,7 +81,8 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Сотрудник</th>
+                            <th id="empTh-id" class="th-sortable" onclick="cycleEmpSort('id')" style="width:48px;">ID<span class="sort-arrow"></span></th>
+                            <th id="empTh-name" class="th-sortable" onclick="cycleEmpSort('name')">Сотрудник<span class="sort-arrow"></span></th>
                             <th>Карта</th>
                             <th>Биометрия</th>
                             <th>Дотация сегодня</th>
@@ -153,6 +154,7 @@
                         <table>
                             <thead><tr>
                                 <th class="th-status"></th>
+                                <th id="deskTh-id" class="th-sortable" onclick="cycleDeskSort('id')" style="width:48px;">ID<span class="sort-arrow"></span></th>
                                 <th id="deskTh-login" class="th-sortable" onclick="cycleDeskSort('login')">Логин<span class="sort-arrow"></span></th>
                                 <th id="deskTh-description" class="th-sortable" onclick="cycleDeskSort('description')">Описание<span class="sort-arrow"></span></th>
                                 <th id="deskTh-cashiers" class="th-sortable" onclick="cycleDeskSort('cashiers')">Кассиры<span class="sort-arrow"></span></th>
@@ -308,11 +310,11 @@
             <div class="modal-section-label"><i class="ph ph-lock"></i> Смена пароля <span style="font-size:10px; font-weight:500; text-transform:none; color:var(--t4);">&nbsp;— оставьте пустым, чтобы не менять</span></div>
             <div class="pass-field">
                 <input type="password" id="editDeskOldPass" placeholder="Текущий пароль">
-                <button class="eye-btn" type="button" onclick="togglePass('editDeskOldPass', this)"><i class="ph ph-eye"></i></button>
+                <button class="eye-btn" type="button" onclick="togglePass('editDeskOldPass', this)"><i class="ph ph-eye-slash"></i></button>
             </div>
             <div class="pass-field">
                 <input type="password" id="editDeskNewPass" placeholder="Новый пароль">
-                <button class="eye-btn" type="button" onclick="togglePass('editDeskNewPass', this)"><i class="ph ph-eye"></i></button>
+                <button class="eye-btn" type="button" onclick="togglePass('editDeskNewPass', this)"><i class="ph ph-eye-slash"></i></button>
             </div>
         </div>
 
@@ -475,6 +477,7 @@
 <script>
     let allEmployees = [], filteredEmployees = [], rolesData = [], currentEmpId = null, currentUid = null;
     let viewDate = new Date(), workDays = [], currentPage = 1, itemsPerPage = 10, revenueChartInstance = null;
+    let empSortCol = null, empSortDir = 0; // 'id' | 'name' | null
     const video = document.getElementById('bioVideo');
 
     // Обёртка над fetch: добавляет JWT-токен и перенаправляет на логин при 401
@@ -574,15 +577,39 @@
         currentPage = 1; renderTable();
     }
 
+    function getSortedEmployees() {
+        if (!empSortCol || empSortDir === 0) return filteredEmployees;
+        return [...filteredEmployees].sort((a, b) => {
+            if (empSortCol === 'id')   return empSortDir * (a.id - b.id);
+            if (empSortCol === 'name') {
+                const va = (a.full_name || '').toLowerCase();
+                const vb = (b.full_name || '').toLowerCase();
+                if (va < vb) return -empSortDir;
+                if (va > vb) return  empSortDir;
+            }
+            return 0;
+        });
+    }
+
+    function cycleEmpSort(col) {
+        if (empSortCol !== col) { empSortCol = col; empSortDir = 1; }
+        else if (empSortDir === 1) { empSortDir = -1; }
+        else { empSortCol = null; empSortDir = 0; }
+        currentPage = 1;
+        renderTable();
+    }
+
     function renderTable() {
+        const sorted = getSortedEmployees();
         const start = (currentPage - 1) * itemsPerPage;
-        const items = filteredEmployees.slice(start, start + itemsPerPage);
+        const items = sorted.slice(start, start + itemsPerPage);
         document.getElementById('pTable').innerHTML = items.map(e => {
             const rInfo = rolesData.find(r => r.role_name === e.role);
             const eJson = JSON.stringify(e).replace(/'/g, "&apos;");
             const subsidyText = rInfo ? `${e.daily_used} / ${rInfo.subsidy_rub} ₽` : '—';
             const dotColor = e.has_face ? 'var(--green)' : 'var(--border)';
             return `<tr class="emp-row" onclick='openEdit(${eJson})'>
+                <td style="color:var(--t4); font-size:12px; font-weight:600;">${e.id}</td>
                 <td>
                     <div style="font-weight:600; color:var(--t1);">${e.full_name}</div>
                     <div style="font-size:12px; color:var(--t4); margin-top:2px;">${e.role}</div>
@@ -606,6 +633,19 @@
                 </td>
             </tr>`;
         }).join('');
+        // Обновляем стрелки в заголовках сотрудников
+        ['id', 'name'].forEach(col => {
+            const el = document.getElementById('empTh-' + col);
+            if (!el) return;
+            const arrow = el.querySelector('.sort-arrow');
+            if (empSortCol === col) {
+                arrow.textContent = empSortDir === 1 ? ' ↑' : ' ↓';
+                el.classList.add('sort-active');
+            } else {
+                arrow.textContent = '';
+                el.classList.remove('sort-active');
+            }
+        });
         renderPagination();
     }
 
@@ -788,8 +828,12 @@
         if (!deskSortCol || deskSortDir === 0) return [...allDesks];
         const nameMap = Object.fromEntries(cashiersCache.map(c => [c.login, c.name]));
         return [...allDesks].sort((a, b) => {
+            if (deskSortCol === 'id') return deskSortDir * (a.id - b.id);
             let va, vb;
             if (deskSortCol === 'login') {
+                // numeric-aware: "1","2","10" sorts as numbers if both parse
+                const na = parseFloat(a.login), nb = parseFloat(b.login);
+                if (!isNaN(na) && !isNaN(nb)) return deskSortDir * (na - nb);
                 va = (a.login || '').toLowerCase();
                 vb = (b.login || '').toLowerCase();
             } else if (deskSortCol === 'description') {
@@ -835,6 +879,7 @@
             const dotClass = d.is_online ? 'online' : 'offline';
             return `<tr class="desk-row" onclick="openDeskEdit('${dataAttr}')">
                 <td class="desk-status-cell"><span class="desk-online-dot ${dotClass}" id="dot-${d.id}" title="${d.is_online ? 'Онлайн' : 'Оффлайн'}"></span></td>
+                <td style="color:var(--t4); font-size:12px; font-weight:600;">${d.id}</td>
                 <td><b>${d.login}</b></td>
                 <td style="color:var(--t3);">${d.description || ''}</td>
                 <td>${cashierCell}</td>
@@ -852,7 +897,7 @@
         }).join('');
 
         // Обновляем стрелки в заголовках
-        ['login', 'description', 'cashiers'].forEach(col => {
+        ['id', 'login', 'description', 'cashiers'].forEach(col => {
             const el = document.getElementById('deskTh-' + col);
             if (!el) return;
             const arrow = el.querySelector('.sort-arrow');
@@ -995,7 +1040,8 @@
         const inp = document.getElementById(inputId);
         const isPass = inp.type === 'password';
         inp.type = isPass ? 'text' : 'password';
-        btn.querySelector('i').className = isPass ? 'ph ph-eye-slash' : 'ph ph-eye';
+        // slash = hidden (password), open eye = visible (text)
+        btn.querySelector('i').className = isPass ? 'ph ph-eye' : 'ph ph-eye-slash';
     }
 
     function toggleDeskKebab(event, id, total, idx) {
