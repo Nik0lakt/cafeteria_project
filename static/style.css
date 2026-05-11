@@ -617,29 +617,49 @@ tbody tr.desk-row { cursor: pointer; }
 tbody tr.desk-row:hover td { background: var(--violet-lt); }
 
 /* ── Terminals tab layout ───────────────────── */
+/* Flex chain: #tab-cash → #cash-sub-desks → .desk-layout → .desk-right-col */
+#tab-cash {
+  display: flex; flex-direction: column;
+  height: calc(100vh - 64px); /* minus main-content padding: 32px top + 32px bottom */
+  overflow: hidden;
+}
+#cash-sub-desks {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+}
 .desk-layout {
   display: flex; gap: 22px;
-  align-items: flex-start;
+  flex: 1; min-height: 0;
+  align-items: stretch;
 }
 .desk-left-col { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; }
 .desk-right-col {
-  flex: 1; min-width: 0;
+  flex: 1; min-width: 0; min-height: 0;
   display: flex; flex-direction: column;
   background: var(--card);
   padding: 24px;
   border-radius: var(--r-md);
   box-shadow: var(--sh-sm);
   border: 1px solid var(--border);
-  /* Точная высота: viewport - (padding-top + header + subtabs + padding-bottom) */
-  height: calc(100vh - 208px);
   overflow: hidden;
 }
-/* Таблица занимает оставшееся место, скролл убран (пагинация) */
-.desk-table-scroll { flex: 1; overflow: hidden; border-radius: var(--r-sm); }
+/* Таблица занимает оставшееся место, пагинация прижата к низу */
+.desk-table-scroll { flex: 1; min-height: 0; overflow: hidden; border-radius: var(--r-sm); }
 .desk-right-col table { width: 100%; border-collapse: collapse; }
 .desk-right-col th { width: auto; }
 .desk-right-col th.th-action { width: 48px; }
 .desk-right-col td.kebab-cell { width: 48px; }
+
+/* ── Online status dot ──────────────────────── */
+.desk-online-dot {
+  display: inline-block; width: 9px; height: 9px;
+  border-radius: 50%; flex-shrink: 0;
+  transition: background 0.4s;
+}
+.desk-online-dot.online  { background: #22C55E; box-shadow: 0 0 0 2px rgba(34,197,94,.22); }
+.desk-online-dot.offline { background: #EF4444; box-shadow: 0 0 0 2px rgba(239,68,68,.18); }
+th.th-status { width: 32px; }
+td.desk-status-cell { width: 32px; text-align: center; vertical-align: middle; }
 
 /* ── Terminals stats block ──────────────────── */
 .desk-stats-box { margin-top: 0; }

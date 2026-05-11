@@ -72,6 +72,7 @@ class CashDesk(Base):
     description = Column(String, nullable=True)
     hashed_password = Column(String, nullable=True)
     assigned_cashier_logins = Column(JSON, nullable=True)
+    last_seen = Column(DateTime, nullable=True)
     products_association = relationship("CashDeskProduct", back_populates="cash_desk")
 
 

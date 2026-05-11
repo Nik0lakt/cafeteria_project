@@ -276,6 +276,13 @@ def verify_cash_desk(data: dict, db: Session = Depends(get_db)):
             "cashier_name": None, "cashier_login": None}
 
 
+ONLINE_THRESHOLD = timedelta(seconds=90)
+
+
+def _is_online(desk: CashDesk) -> bool:
+    return desk.last_seen is not None and (datetime.utcnow() - desk.last_seen) < ONLINE_THRESHOLD
+
+
 @router.get("/cash_desks")
 def get_cash_desks(db: Session = Depends(get_db)):
     return [
@@ -284,6 +291,34 @@ def get_cash_desks(db: Session = Depends(get_db)):
             "login": d.login,
             "description": d.description,
             "assigned_cashier_logins": d.assigned_cashier_logins or [],
+            "is_online": _is_online(d),
+        }
+        for d in db.query(CashDesk).all()
+    ]
+
+
+@router.post("/terminals/ping")
+def terminal_ping(data: dict, db: Session = Depends(get_db)):
+    """Called by the cash terminal every ~60 seconds to signal it is alive."""
+    desk_login = data.get("login")
+    if not desk_login:
+        raise HTTPException(status_code=400, detail="login required")
+    desk = db.query(CashDesk).filter(CashDesk.login == desk_login).first()
+    if not desk:
+        raise HTTPException(status_code=404, detail="Касса не найдена")
+    desk.last_seen = datetime.utcnow()
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.get("/terminals/status")
+def get_terminals_status(db: Session = Depends(get_db)):
+    """Lightweight endpoint for polling online/offline status without full desk data."""
+    now = datetime.utcnow()
+    return [
+        {
+            "id": d.id,
+            "is_online": d.last_seen is not None and (now - d.last_seen) < ONLINE_THRESHOLD,
         }
         for d in db.query(CashDesk).all()
     ]

@@ -62,6 +62,13 @@ def update_db_schema():
             ))
             conn.commit()
 
+        # last_seen — время последнего пинга с кассы (для online/offline статуса)
+        if not _col_exists(conn, "cash_desks", "last_seen"):
+            conn.execute(text(
+                "ALTER TABLE cash_desks ADD COLUMN last_seen TIMESTAMP"
+            ))
+            conn.commit()
+
         # assigned_cashier_logins — список кассиров (JSON-массив логинов)
         if not _col_exists(conn, "cash_desks", "assigned_cashier_logins"):
             conn.execute(text(
