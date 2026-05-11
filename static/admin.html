@@ -108,23 +108,57 @@
 
         <!-- Sub-tab: Кассы -->
         <div id="cash-sub-desks">
-            <div class="main-layout">
-                <div class="box" style="width: 300px; flex-shrink:0;">
-                    <h3>Добавить кассу</h3>
-                    <label>Логин</label><input type="text" id="newDeskLogin" placeholder="Например: касса-1">
-                    <label>Описание</label><input type="text" id="newDeskDesc" placeholder="Например: Зал на 1-м этаже">
-                    <label>Пароль</label><input type="text" id="newDeskPass" value="1234">
-                    <button class="btn" onclick="addCashDesk()">Добавить кассу</button>
+            <div class="desk-layout">
+
+                <!-- Левая колонка -->
+                <div class="desk-left-col">
+                    <div class="box" style="margin-bottom:16px;">
+                        <h3>Добавить кассу</h3>
+                        <label>Логин</label><input type="text" id="newDeskLogin" placeholder="Например: касса-1">
+                        <label>Описание</label><input type="text" id="newDeskDesc" placeholder="Например: Зал на 1-м этаже">
+                        <label>Пароль</label><input type="text" id="newDeskPass" value="1234">
+                        <button class="btn" onclick="addCashDesk()">Добавить кассу</button>
+                    </div>
+
+                    <div class="box desk-stats-box">
+                        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--t4); margin-bottom:14px;"><i class="ph ph-chart-bar"></i> Статистика терминалов</div>
+                        <div class="desk-stat-grid">
+                            <div class="desk-stat-item">
+                                <span class="desk-stat-lbl">Всего терминалов</span>
+                                <span class="desk-stat-num" id="statTotal">—</span>
+                            </div>
+                            <div class="desk-stat-item">
+                                <span class="desk-stat-lbl">Активных кассиров</span>
+                                <span class="desk-stat-num" id="statCashiers">—</span>
+                            </div>
+                            <div class="desk-stat-item">
+                                <span class="desk-stat-lbl">Свободных касс</span>
+                                <span class="desk-stat-num" id="statFree">—</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="box" style="flex: 1; min-width: 0;">
-                    <h3>Подключённые кассы</h3>
-                    <div class="table-scroll">
+
+                <!-- Правая колонка -->
+                <div class="desk-right-col">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-shrink:0;">
+                        <h3 style="margin:0; font-size:14px; font-weight:700;">Подключённые кассы</h3>
+                        <span id="deskCountBadge" style="font-size:12px; color:var(--t4); font-weight:500;"></span>
+                    </div>
+                    <div class="desk-table-scroll">
                         <table>
-                            <thead><tr><th>Логин</th><th>Описание</th><th>Кассиры</th><th style="text-align:right">Действия</th></tr></thead>
+                            <thead><tr>
+                                <th>Логин</th>
+                                <th>Описание</th>
+                                <th>Кассиры</th>
+                                <th class="th-action"></th>
+                            </tr></thead>
                             <tbody id="cashDesksTableBody"></tbody>
                         </table>
                     </div>
+                    <div id="deskPagination" class="pagination" style="margin-top:14px; flex-shrink:0;"></div>
                 </div>
+
             </div>
         </div>
 
@@ -723,6 +757,9 @@
 
     // --- КАССЫ ---
     let cashiersCache = [];
+    let allDesks = [];
+    let deskPage = 1;
+    const DESKS_PER_PAGE = 10;
 
     async function loadCashDesks() {
         const [desks, cashiers] = await Promise.all([
@@ -730,9 +767,22 @@
             authFetch('/api/cashiers').then(r => r.json())
         ]);
         cashiersCache = cashiers;
-        const nameMap = Object.fromEntries(cashiers.map(c => [c.login, c.name]));
+        allDesks = desks;
+        deskPage = 1;
+        renderDeskTable();
 
-        document.getElementById('cashDesksTableBody').innerHTML = desks.map(d => {
+        // Обновляем фильтр вкладки Статистика
+        document.getElementById('cashDesksContainer').innerHTML = desks.map(d =>
+            `<label class="filter-check"><input type="checkbox" value="${d.login}" class="stat-desk-cb" checked onchange="buildChart()"><span>${d.login}</span></label>`
+        ).join('');
+    }
+
+    function renderDeskTable() {
+        const nameMap = Object.fromEntries(cashiersCache.map(c => [c.login, c.name]));
+        const start = (deskPage - 1) * DESKS_PER_PAGE;
+        const pageDesks = allDesks.slice(start, start + DESKS_PER_PAGE);
+
+        document.getElementById('cashDesksTableBody').innerHTML = pageDesks.map(d => {
             const logins = d.assigned_cashier_logins || [];
             let cashierCell;
             if (logins.length === 0) {
@@ -760,9 +810,33 @@
             </tr>`;
         }).join('');
 
-        document.getElementById('cashDesksContainer').innerHTML = desks.map(d =>
-            `<label class="filter-check"><input type="checkbox" value="${d.login}" class="stat-desk-cb" checked onchange="buildChart()"><span>${d.login}</span></label>`
-        ).join('');
+        // Пагинация
+        const pages = Math.ceil(allDesks.length / DESKS_PER_PAGE);
+        const pag = document.getElementById('deskPagination');
+        if (pag) {
+            pag.innerHTML = '';
+            if (pages > 1) {
+                for (let i = 1; i <= pages; i++) {
+                    pag.innerHTML += `<button class="page-btn ${i===deskPage?'active':''}" onclick="deskPage=${i};renderDeskTable()">${i}</button>`;
+                }
+            }
+        }
+
+        // Счётчик в заголовке
+        const badge = document.getElementById('deskCountBadge');
+        if (badge) badge.innerText = allDesks.length ? `${allDesks.length} касс` : '';
+
+        updateDeskStats();
+    }
+
+    function updateDeskStats() {
+        const total = allDesks.length;
+        const free  = allDesks.filter(d => !(d.assigned_cashier_logins && d.assigned_cashier_logins.length)).length;
+        const active = cashiersCache.length;
+        const s = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+        s('statTotal', total);
+        s('statCashiers', active);
+        s('statFree', free);
     }
 
     async function addCashDesk() {
@@ -848,9 +922,18 @@
 
     function toggleDeskKebab(event, id) {
         event.stopPropagation();
-        const isOpen = document.getElementById('desk-kebab-' + id)?.classList.contains('open');
+        const menu = document.getElementById('desk-kebab-' + id);
+        if (!menu) return;
+        const isOpen = menu.classList.contains('open');
         closeAllKebabs();
-        if (!isOpen) document.getElementById('desk-kebab-' + id)?.classList.add('open');
+        if (!isOpen) {
+            // Умное позиционирование: открываем вверх если внизу мало места
+            const btn = event.currentTarget;
+            const btnRect = btn.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - btnRect.bottom;
+            menu.classList.toggle('drop-up', spaceBelow < 160);
+            menu.classList.add('open');
+        }
     }
 
     // --- КАССИРЫ ---

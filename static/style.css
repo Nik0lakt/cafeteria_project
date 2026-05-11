@@ -616,6 +616,39 @@ td.kebab-cell .kebab-wrap {
 tbody tr.desk-row { cursor: pointer; }
 tbody tr.desk-row:hover td { background: var(--violet-lt); }
 
+/* ── Terminals tab layout ───────────────────── */
+.desk-layout {
+  display: flex; gap: 22px;
+  align-items: flex-start;
+  min-height: calc(100vh - 220px);
+}
+.desk-left-col { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; }
+.desk-right-col {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+  background: var(--card);
+  padding: 24px;
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-sm);
+  border: 1px solid var(--border);
+  min-height: 0;
+}
+.desk-table-scroll { flex: 1; overflow-y: auto; border-radius: var(--r-sm); min-height: 0; }
+.desk-right-col table { width: 100%; border-collapse: collapse; }
+.desk-right-col th { width: auto; }
+.desk-right-col th.th-action { width: 48px; }
+.desk-right-col td.kebab-cell { width: 48px; }
+
+/* ── Terminals stats block ──────────────────── */
+.desk-stats-box { margin-top: 0; }
+.desk-stat-grid { display: flex; flex-direction: column; gap: 14px; }
+.desk-stat-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--border-lt); border-radius: var(--r-sm); border: 1px solid var(--border); }
+.desk-stat-num { font-size: 20px; font-weight: 800; color: var(--violet); letter-spacing: -0.5px; }
+.desk-stat-lbl { font-size: 12px; color: var(--t3); font-weight: 500; }
+
+/* ── Kebab drop-up ──────────────────────────── */
+.kebab-menu.drop-up { bottom: calc(100% + 4px); top: auto; }
+
 /* ── Cashier multi-select in modal ──────────── */
 .cashier-multiselect {
   max-height: 180px; overflow-y: auto;
