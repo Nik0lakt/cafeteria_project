@@ -661,6 +661,16 @@ tbody tr.desk-row:hover td { background: var(--violet-lt); }
 th.th-status { width: 32px; }
 td.desk-status-cell { width: 32px; text-align: center; vertical-align: middle; }
 
+/* ── Sortable column headers ────────────────── */
+th.th-sortable {
+  cursor: pointer; user-select: none;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+th.th-sortable:hover { color: var(--violet); }
+th.th-sortable.sort-active { color: var(--violet); }
+.sort-arrow { font-size: 11px; color: var(--violet); font-weight: 700; }
+
 /* ── Terminals stats block ──────────────────── */
 .desk-stats-box { margin-top: 0; }
 .desk-stat-grid { display: flex; flex-direction: column; gap: 14px; }

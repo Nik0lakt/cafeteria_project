@@ -165,6 +165,17 @@ async function initApp() {
         cashierBadge.style.display = 'inline-flex';
     }
     await loadData();
+    startHeartbeat();
+}
+
+function startHeartbeat() {
+    const ping = () => fetch('/api/terminals/ping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login: cashDeskLogin })
+    }).catch(() => {});
+    ping(); // immediate first ping
+    setInterval(ping, 60000);
 }
 
 async function loadData() {

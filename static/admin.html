@@ -153,9 +153,9 @@
                         <table>
                             <thead><tr>
                                 <th class="th-status"></th>
-                                <th>Логин</th>
-                                <th>Описание</th>
-                                <th>Кассиры</th>
+                                <th id="deskTh-login" class="th-sortable" onclick="cycleDeskSort('login')">Логин<span class="sort-arrow"></span></th>
+                                <th id="deskTh-description" class="th-sortable" onclick="cycleDeskSort('description')">Описание<span class="sort-arrow"></span></th>
+                                <th id="deskTh-cashiers" class="th-sortable" onclick="cycleDeskSort('cashiers')">Кассиры<span class="sort-arrow"></span></th>
                                 <th class="th-action"></th>
                             </tr></thead>
                             <tbody id="cashDesksTableBody"></tbody>
@@ -764,7 +764,9 @@
     let cashiersCache = [];
     let allDesks = [];
     let deskPage = 1;
-    const DESKS_PER_PAGE = 10;
+    let deskSortCol = null;   // 'login' | 'description' | 'cashiers' | null
+    let deskSortDir = 0;      // 0=none  1=asc  -1=desc
+    const DESKS_PER_PAGE = 11;
 
     async function loadCashDesks() {
         const [desks, cashiers] = await Promise.all([
@@ -782,10 +784,42 @@
         ).join('');
     }
 
+    function getSortedDesks() {
+        if (!deskSortCol || deskSortDir === 0) return [...allDesks];
+        const nameMap = Object.fromEntries(cashiersCache.map(c => [c.login, c.name]));
+        return [...allDesks].sort((a, b) => {
+            let va, vb;
+            if (deskSortCol === 'login') {
+                va = (a.login || '').toLowerCase();
+                vb = (b.login || '').toLowerCase();
+            } else if (deskSortCol === 'description') {
+                va = (a.description || '').toLowerCase();
+                vb = (b.description || '').toLowerCase();
+            } else if (deskSortCol === 'cashiers') {
+                const namesA = (a.assigned_cashier_logins || []).map(l => nameMap[l] || l).join(',');
+                const namesB = (b.assigned_cashier_logins || []).map(l => nameMap[l] || l).join(',');
+                va = namesA.toLowerCase();
+                vb = namesB.toLowerCase();
+            }
+            if (va < vb) return -deskSortDir;
+            if (va > vb) return  deskSortDir;
+            return 0;
+        });
+    }
+
+    function cycleDeskSort(col) {
+        if (deskSortCol !== col) { deskSortCol = col; deskSortDir = 1; }
+        else if (deskSortDir === 1) { deskSortDir = -1; }
+        else { deskSortCol = null; deskSortDir = 0; }
+        deskPage = 1;
+        renderDeskTable();
+    }
+
     function renderDeskTable() {
         const nameMap = Object.fromEntries(cashiersCache.map(c => [c.login, c.name]));
+        const sorted = getSortedDesks();
         const start = (deskPage - 1) * DESKS_PER_PAGE;
-        const pageDesks = allDesks.slice(start, start + DESKS_PER_PAGE);
+        const pageDesks = sorted.slice(start, start + DESKS_PER_PAGE);
 
         document.getElementById('cashDesksTableBody').innerHTML = pageDesks.map((d, idx) => {
             const logins = d.assigned_cashier_logins || [];
@@ -816,6 +850,20 @@
                 </td>
             </tr>`;
         }).join('');
+
+        // Обновляем стрелки в заголовках
+        ['login', 'description', 'cashiers'].forEach(col => {
+            const el = document.getElementById('deskTh-' + col);
+            if (!el) return;
+            const arrow = el.querySelector('.sort-arrow');
+            if (deskSortCol === col) {
+                arrow.textContent = deskSortDir === 1 ? ' ↑' : ' ↓';
+                el.classList.add('sort-active');
+            } else {
+                arrow.textContent = '';
+                el.classList.remove('sort-active');
+            }
+        });
 
         // Пагинация
         const pages = Math.ceil(allDesks.length / DESKS_PER_PAGE);
