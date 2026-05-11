@@ -128,11 +128,11 @@
                                 <span class="desk-stat-num" id="statTotal">—</span>
                             </div>
                             <div class="desk-stat-item">
-                                <span class="desk-stat-lbl">Активных кассиров</span>
+                                <span class="desk-stat-lbl">Всего кассиров</span>
                                 <span class="desk-stat-num" id="statCashiers">—</span>
                             </div>
                             <div class="desk-stat-item">
-                                <span class="desk-stat-lbl">Свободных касс</span>
+                                <span class="desk-stat-lbl">Касс без кассиров</span>
                                 <span class="desk-stat-num" id="statFree">—</span>
                             </div>
                         </div>
@@ -782,7 +782,7 @@
         const start = (deskPage - 1) * DESKS_PER_PAGE;
         const pageDesks = allDesks.slice(start, start + DESKS_PER_PAGE);
 
-        document.getElementById('cashDesksTableBody').innerHTML = pageDesks.map(d => {
+        document.getElementById('cashDesksTableBody').innerHTML = pageDesks.map((d, idx) => {
             const logins = d.assigned_cashier_logins || [];
             let cashierCell;
             if (logins.length === 0) {
@@ -799,7 +799,7 @@
                 <td>${cashierCell}</td>
                 <td class="kebab-cell" onclick="event.stopPropagation()">
                     <div class="kebab-wrap">
-                        <button class="kebab-btn" onclick="toggleDeskKebab(event, ${d.id})">⋯</button>
+                        <button class="kebab-btn" onclick="toggleDeskKebab(event, ${d.id}, ${pageDesks.length}, ${idx})">⋯</button>
                         <div class="kebab-menu" id="desk-kebab-${d.id}">
                             <div class="kebab-item" onclick="closeAllKebabs(); openDeskEdit('${dataAttr}')"><i class="ph ph-gear"></i> Настроить</div>
                             <div class="kebab-item" onclick="closeAllKebabs(); openDeskEdit('${dataAttr}', true)"><i class="ph ph-lock-key"></i> Изменить пароль</div>
@@ -920,18 +920,15 @@
         btn.querySelector('i').className = isPass ? 'ph ph-eye-slash' : 'ph ph-eye';
     }
 
-    function toggleDeskKebab(event, id) {
+    function toggleDeskKebab(event, id, total, idx) {
         event.stopPropagation();
         const menu = document.getElementById('desk-kebab-' + id);
         if (!menu) return;
         const isOpen = menu.classList.contains('open');
         closeAllKebabs();
         if (!isOpen) {
-            // Умное позиционирование: открываем вверх если внизу мало места
-            const btn = event.currentTarget;
-            const btnRect = btn.getBoundingClientRect();
-            const spaceBelow = window.innerHeight - btnRect.bottom;
-            menu.classList.toggle('drop-up', spaceBelow < 160);
+            const forceUp = (total !== undefined && idx !== undefined) ? (idx >= total - 2) : false;
+            menu.classList.toggle('drop-up', forceUp);
             menu.classList.add('open');
         }
     }
