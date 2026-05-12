@@ -1,18 +1,20 @@
 import os
 import numpy as np
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Body
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Body, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
-from app.models import Employee, Card, Transaction, WorkDay, RoleSetting
+from app.models import Employee, Card, Transaction, WorkDay, RoleSetting, LivenessSession
 from app.cv_utils import get_face_embedding
-from app.security import verify_password, create_access_token, get_current_admin
+from app.security import verify_password, create_access_token, get_current_admin, SECRET_KEY, ALGORITHM
+from jose import jwt, JWTError
 from pydantic import BaseModel
 from datetime import date, timedelta
 from typing import List, Optional
 
 router = APIRouter()
-PHOTOS_DIR = "/app/static/photos"
+PHOTOS_DIR = "/app/private_photos"
 
 
 class LoginRequest(BaseModel):
@@ -261,3 +263,40 @@ def get_info(card_uid: str, db: Session = Depends(get_db)):
         "role": emp.role,
         "has_face": emp.face_embedding_json is not None,
     }
+
+
+@router.get("/photos/{filename}")
+def get_photo(
+    filename: str,
+    token: Optional[str] = Query(None),
+    session_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Отдаёт фото из private_photos.
+    Доступ: admin JWT (token=) ИЛИ валидная liveness-сессия совпадающая по card_uid (session_id=).
+    """
+    authorized = False
+
+    # Вариант 1: admin JWT
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            authorized = payload.get("sub") is not None
+        except JWTError:
+            pass
+
+    # Вариант 2: сессия — для терминала оплаты (session_id совпадает с uid файла)
+    if not authorized and session_id:
+        sess = db.query(LivenessSession).filter(LivenessSession.id == session_id).first()
+        if sess:
+            uid_from_file = filename.replace(".jpg", "").strip()
+            authorized = sess.card_uid.strip() == uid_from_file
+
+    if not authorized:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    path = os.path.join(PHOTOS_DIR, filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Photo not found")
+    return FileResponse(path, media_type="image/jpeg")

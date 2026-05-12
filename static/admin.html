@@ -475,6 +475,12 @@
 </div>
 
 <script>
+    // Формирует URL фото через защищённый endpoint с JWT-токеном
+    function photoUrl(filename) {
+        const token = encodeURIComponent(localStorage.getItem('admin_token') || '');
+        return `/api/photos/${filename}?token=${token}&t=${Date.now()}`;
+    }
+
     let allEmployees = [], filteredEmployees = [], rolesData = [], currentEmpId = null, currentUid = null;
     let viewDate = new Date(), workDays = [], currentPage = 1, itemsPerPage = 10, revenueChartInstance = null;
     let empSortCol = null, empSortDir = 0; // 'id' | 'name' | null
@@ -702,7 +708,7 @@
         const img = document.getElementById('editEmpPhoto');
         const ph  = document.getElementById('editEmpPhotoPlaceholder');
         if (e.has_face) {
-            img.src = `/static/photos/${e.card_uid}.jpg?t=${Date.now()}`;
+            img.src = photoUrl(`${e.card_uid}.jpg`);
             img.style.display = 'block';
             ph.style.display = 'none';
         } else {
@@ -1068,7 +1074,7 @@
         document.getElementById('cashiersTableBody').innerHTML = cashiers.length
             ? cashiers.map(c => {
                 const photo = c.photo_path
-                    ? `<img class="cashier-thumb" src="/static/photos/${c.photo_path}?t=${Date.now()}" alt="">`
+                    ? `<img class="cashier-thumb" src="${photoUrl(c.photo_path)}" alt="">`
                     : `<div class="cashier-thumb-ph"><i class="ph ph-user"></i></div>`;
                 return `<tr>
                     <td>${photo}</td>
@@ -1252,7 +1258,7 @@
         // Обновляем превью в любом случае (фото сохраняется на диск до проверки лица)
         const updatePreview = () => {
             const img = document.getElementById('editEmpPhoto');
-            if (img) { img.src = `/static/photos/${currentUid}.jpg?t=${Date.now()}`; img.style.display = ''; }
+            if (img) { img.src = photoUrl(`${currentUid}.jpg`); img.style.display = ''; }
             const ph = document.getElementById('editEmpPhotoPlaceholder');
             if (ph) ph.style.display = 'none';
         };

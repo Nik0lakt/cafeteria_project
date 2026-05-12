@@ -6,7 +6,7 @@ from app import cashiers_db
 
 router = APIRouter()
 
-PHOTOS_DIR = "/app/static/photos"
+PHOTOS_DIR = "/app/private_photos"
 
 
 class CashierCreate(BaseModel):

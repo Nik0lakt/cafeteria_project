@@ -1,4 +1,5 @@
 import os
+import shutil
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -69,6 +70,13 @@ def update_db_schema():
             ))
             conn.commit()
 
+        # embedding_json — кэш вектора в сессии (без повторных запросов на каждый кадр)
+        if not _col_exists(conn, "liveness_sessions", "embedding_json"):
+            conn.execute(text(
+                "ALTER TABLE liveness_sessions ADD COLUMN embedding_json JSON"
+            ))
+            conn.commit()
+
         # last_seen — время последнего пинга с кассы (для online/offline статуса)
         if not _col_exists(conn, "cash_desks", "last_seen"):
             conn.execute(text(
@@ -91,9 +99,28 @@ def update_db_schema():
             conn.commit()
 
 
+PRIVATE_PHOTOS_DIR = "/app/private_photos"
+OLD_PHOTOS_DIR = "/app/static/photos"
+
+
+def migrate_photos():
+    """Переносим фото из static/photos в private_photos (однократно при первом запуске)."""
+    os.makedirs(PRIVATE_PHOTOS_DIR, exist_ok=True)
+    if not os.path.isdir(OLD_PHOTOS_DIR):
+        return
+    for fname in os.listdir(OLD_PHOTOS_DIR):
+        if fname.startswith("."):
+            continue
+        src = os.path.join(OLD_PHOTOS_DIR, fname)
+        dst = os.path.join(PRIVATE_PHOTOS_DIR, fname)
+        if os.path.isfile(src) and not os.path.exists(dst):
+            shutil.move(src, dst)
+
+
 update_db_schema()
 Base.metadata.create_all(bind=engine)
 cashiers_db.init_db()
+migrate_photos()
 
 app = FastAPI(title="Cafeteria")
 

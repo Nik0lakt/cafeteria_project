@@ -64,6 +64,7 @@ class LivenessSession(Base):
     card_uid = Column(String)
     timestamp = Column(DateTime, default=datetime.now)
     passed = Column(Boolean, default=False, nullable=False)
+    embedding_json = Column(JSON, nullable=True)  # кэш вектора — чтобы не читать Employee на каждый кадр
 
 
 class CashDesk(Base):

@@ -441,7 +441,7 @@
         function openManual() {
             document.getElementById('mainUI').style.display = 'none';
             document.getElementById('comparison').style.display = 'block';
-            document.getElementById('dbPhoto').src = `static/photos/${currentUid}.jpg?t=${new Date().getTime()}`;
+            document.getElementById('dbPhoto').src = `/api/photos/${currentUid}.jpg?session_id=${encodeURIComponent(currentSid)}&t=${Date.now()}`;
             const ctx = document.getElementById('snapCanvas').getContext('2d');
             ctx.drawImage(video, 0, 0, 640, 480, 0, 0, 140, 140);
         }

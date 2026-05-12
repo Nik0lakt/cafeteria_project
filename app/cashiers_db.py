@@ -4,7 +4,7 @@ from typing import List, Optional
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cashiers.db")
 
-PHOTOS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "photos")
+PHOTOS_DIR = "/app/private_photos"
 
 
 def _connect():

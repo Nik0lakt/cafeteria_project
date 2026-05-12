@@ -238,7 +238,7 @@ def pay(data: PaymentRequest, db: Session = Depends(get_db)):
         send_tg_msg(emp.telegram_id, user_receipt)
 
     if data.is_manual and data.live_frame_base64:
-        db_photo = f"/app/static/photos/{sess.card_uid}.jpg"
+        db_photo = f"/app/private_photos/{sess.card_uid}.jpg"
         if os.path.exists(db_photo):
             admin_caption = (
                 f"⚠️ <b>РУЧНАЯ ОПЛАТА</b>\n"
