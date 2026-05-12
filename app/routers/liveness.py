@@ -69,6 +69,10 @@ async def liveness_frame(session_id: str = Form(...), file: UploadFile = File(..
             target_embedding = np.array(emp.face_embedding_json)
             if compare_faces(target_embedding, frame_embedding):
                 sess["passed"] = True
+                db.query(LivenessSession).filter(
+                    LivenessSession.id == session_id
+                ).update({"passed": True})
+                db.commit()
                 return {"status": "finished"}
 
         sess["frames_processed"] += 1

@@ -62,6 +62,13 @@ def update_db_schema():
             ))
             conn.commit()
 
+        # passed — флаг успешного прохождения liveness (защита от обхода оплаты)
+        if not _col_exists(conn, "liveness_sessions", "passed"):
+            conn.execute(text(
+                "ALTER TABLE liveness_sessions ADD COLUMN passed BOOLEAN NOT NULL DEFAULT FALSE"
+            ))
+            conn.commit()
+
         # last_seen — время последнего пинга с кассы (для online/offline статуса)
         if not _col_exists(conn, "cash_desks", "last_seen"):
             conn.execute(text(

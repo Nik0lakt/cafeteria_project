@@ -165,6 +165,11 @@ def pay(data: PaymentRequest, db: Session = Depends(get_db)):
     sess = db.query(LivenessSession).filter(LivenessSession.id == data.session_id).first()
     if not sess:
         raise HTTPException(404, "Сессия не найдена")
+    # Автоматическая оплата — только если liveness прошёл на сервере.
+    # Ручное подтверждение кассиром (is_manual=True) разрешено без liveness,
+    # но логируется отдельно и уходит алерт в Telegram.
+    if not data.is_manual and not sess.passed:
+        raise HTTPException(403, "Лицо не распознано. Попросите кассира подтвердить оплату.")
     card = db.query(Card).filter(Card.uid == sess.card_uid.strip()).first()
     if not card:
         raise HTTPException(404, "Карта не найдена")

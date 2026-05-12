@@ -63,6 +63,7 @@ class LivenessSession(Base):
     id = Column(String, primary_key=True, index=True)
     card_uid = Column(String)
     timestamp = Column(DateTime, default=datetime.now)
+    passed = Column(Boolean, default=False, nullable=False)
 
 
 class CashDesk(Base):
