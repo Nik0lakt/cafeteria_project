@@ -330,6 +330,18 @@
         const status = document.getElementById('status');
         let currentSid = null; let currentUid = null;
 
+        // --- Anti-spoofing + таймаут ---
+        const MAX_FRAMES      = 25;   // ~15 сек при 600мс интервале
+        const MOTION_THRESHOLD = 3.5;  // средняя разница пикселей между кадрами
+        const MIN_MOTION_FRAMES = 3;   // минимум кадров с движением для подтверждения живости
+        let frameCount = 0;
+        let motionFrames = 0;
+        let prevImageData = null;
+
+        function resetLivenessState() {
+            frameCount = 0; motionFrames = 0; prevImageData = null;
+        }
+
         // Запуск камеры
         navigator.mediaDevices.getUserMedia({video:true}).then(s => video.srcObject = s);
 
@@ -418,24 +430,75 @@
                 currentSid = sData.session_id;
                 document.getElementById('manualBtn').style.display = 'block';
                 status.innerText = "Смотрите в камеру...";
+                resetLivenessState();
                 runLiveness();
             } catch (e) { status.innerText = "Ошибка сети"; }
         }
 
         async function runLiveness() {
-            if(!currentSid) return;
+            if (!currentSid) return;
+
+            // Таймаут: слишком много кадров без успеха
+            frameCount++;
+            if (frameCount > MAX_FRAMES) {
+                currentSid = null;
+                status.innerHTML = 'Лицо не распознано.<br><small>Обратитесь к кассиру для ручного подтверждения.</small>';
+                return;
+            }
+
+            // Захватываем кадр (320×240 достаточно для проверки движения)
             const canvas = document.createElement('canvas');
-            canvas.width = 640; canvas.height = 480;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            canvas.toBlob(async (blob) => {
+            canvas.width = 320; canvas.height = 240;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, 320, 240);
+            const imageData = ctx.getImageData(0, 0, 320, 240);
+
+            // Anti-spoofing: проверка движения между кадрами
+            let isLive = false;
+            if (prevImageData) {
+                let diff = 0;
+                const d1 = imageData.data, d2 = prevImageData.data;
+                for (let i = 0; i < d1.length; i += 4) {
+                    diff += Math.abs(d1[i] - d2[i]) +
+                            Math.abs(d1[i+1] - d2[i+1]) +
+                            Math.abs(d1[i+2] - d2[i+2]);
+                }
+                const avgDiff = diff / (d1.length / 4 * 3);
+                if (avgDiff >= MOTION_THRESHOLD) motionFrames++;
+            }
+            prevImageData = imageData;
+
+            // Требуем минимум MIN_MOTION_FRAMES кадров с реальным движением
+            if (motionFrames < MIN_MOTION_FRAMES) {
+                status.innerText = motionFrames === 0
+                    ? 'Смотрите в камеру...'
+                    : `Смотрите в камеру... (${motionFrames}/${MIN_MOTION_FRAMES})`;
+                if (currentSid) setTimeout(runLiveness, 600);
+                return;
+            }
+
+            // Отправляем кадр на сервер для распознавания
+            // Отправляем в 640×480 для лучшей точности face_recognition
+            const hqCanvas = document.createElement('canvas');
+            hqCanvas.width = 640; hqCanvas.height = 480;
+            hqCanvas.getContext('2d').drawImage(video, 0, 0);
+            hqCanvas.toBlob(async (blob) => {
                 try {
-                    const fd = new FormData(); fd.append('session_id', currentSid); fd.append('file', blob);
+                    const fd = new FormData();
+                    fd.append('session_id', currentSid);
+                    fd.append('file', blob);
                     const r = await fetch('/api/liveness_frame', {method:'POST', body:fd});
                     const d = await r.json();
-                    if(d.status === 'finished') finalize(false);
-                    else if(currentSid) setTimeout(runLiveness, 600);
-                } catch (e) { if(currentSid) setTimeout(runLiveness, 600); }
-            }, 'image/jpeg');
+                    if (d.status === 'finished') {
+                        finalize(false);
+                    } else {
+                        status.innerText = 'Идёт распознавание...';
+                        if (currentSid) setTimeout(runLiveness, 600);
+                    }
+                } catch (e) {
+                    if (currentSid) setTimeout(runLiveness, 600);
+                }
+            }, 'image/jpeg', 0.92);
         }
 
         function openManual() {
