@@ -23,11 +23,12 @@ def get_face_embedding(image_bytes):
         print(f"CV Error: {e}")
         return None
 
-def compare_faces(embedding1, embedding2, tolerance=0.6):
+def compare_faces(embedding1, embedding2, tolerance=0.45):
     try:
-        # Сравниваем два вектора лиц
-        results = face_recognition.compare_faces([embedding1], embedding2, tolerance=tolerance)
-        return results[0] if len(results) > 0 else False
+        dist = face_recognition.face_distance([embedding1], embedding2)[0]
+        result = bool(dist <= tolerance)
+        print(f"[FACE] distance={dist:.4f}  tolerance={tolerance}  match={result}")
+        return result
     except Exception as e:
         print(f"Comparison Error: {e}")
         return False
