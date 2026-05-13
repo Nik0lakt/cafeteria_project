@@ -255,35 +255,68 @@
     <!-- ── Настройки ── -->
     <div id="tab-settings" style="display: none;">
         <div class="header"><h1>Настройки</h1></div>
-        <div class="main-layout">
-            <div class="box" style="width: 400px;">
-                <h3><i class="ph-bold ph-plugs"></i> RFID-считыватель</h3>
-                <div style="margin: 16px 0; padding: 16px; background: #FAFAFA; border-radius: 8px; border: 1px solid #E5E7EB;">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
-                        <span id="serialStatusIcon" style="width: 10px; height: 10px; background: #EF4444; border-radius: 50%; flex-shrink:0;"></span>
-                        <span id="serialStatusText" style="font-weight: 600; font-size:14px;">Сканер не подключён</span>
+        <div class="main-layout" style="align-items: flex-start;">
+
+            <!-- ── Левая колонка: две независимые карточки ── -->
+            <div style="flex: 0 0 420px; display: flex; flex-direction: column;">
+
+                <!-- Карточка 1: RFID-считыватель -->
+                <div class="box">
+                    <h3><i class="ph-bold ph-plugs"></i> RFID-считыватель</h3>
+
+                    <div class="setting-status-block">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+                            <span id="serialStatusIcon" class="status-dot status-dot--off"></span>
+                            <span id="serialStatusText" style="font-weight: 600; font-size: 14px; color: var(--t1);">Сканер не подключён</span>
+                        </div>
+                        <button id="connectBtn" class="btn" onclick="initSerial()">Подключить сканер</button>
                     </div>
-                    <button id="connectBtn" class="btn" onclick="initSerial()">Подключить сканер</button>
+
+                    <label style="margin-top: 20px; display: block;">Тест сканера</label>
+                    <input type="text" id="testCardInput"
+                        placeholder="Приложите карту — UID появится здесь" readonly
+                        style="background: var(--border-lt); border: 1.5px dashed var(--border); font-family: monospace; font-size: 15px; text-align: center; color: var(--t2); letter-spacing: 0.5px;">
                 </div>
 
-                <h3><i class="ph-bold ph-magnifying-glass"></i> Тест сканера</h3>
-                <label>Поле для тестирования</label>
-                <input type="text" id="testCardInput" placeholder="Приложите карту — UID появится здесь" readonly
-                    style="background:#fff; border: 1.5px dashed #E5E7EB; font-family: monospace; font-size: 16px; text-align: center; color:#374151;">
+                <!-- Карточка 2: Политика списания средств -->
+                <div class="box">
+                    <h3><i class="ph-bold ph-scales"></i> Политика списания средств</h3>
+
+                    <div class="setting-row" style="border-top: none; margin-top: 0; padding-top: 0;">
+                        <div class="setting-row-label">
+                            <strong>Использовать дотацию при ручном подтверждении</strong>
+                            <span>При включении ручное подтверждение личности кассиром позволяет задействовать доступную дневную дотацию. При выключении дотация остаётся нетронутой — списание производится исключительно с основного лимита сотрудника.</span>
+                        </div>
+                        <label class="adm-switch">
+                            <input type="checkbox" id="manualSubsidyToggle" onchange="saveAppSetting('manual_payment_use_subsidy', this)">
+                            <span class="adm-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
             </div>
 
+            <!-- ── Правая колонка: инструкция ── -->
             <div class="box" style="flex: 1;">
-                <h3>Как подключить считыватель</h3>
-                <p style="font-size: 14px; line-height: 1.7; color: #6B7280;">
-                    1. Подключите RFID-считыватель к компьютеру через USB.<br>
-                    2. Нажмите <b>«Подключить сканер»</b> и в диалоге браузера выберите COM-порт Arduino.<br>
-                    3. После подключения индикатор станет <b style="color:#22C55E">зелёным</b>.<br><br>
-                    При активном подключении UID карты автоматически подставляются в поля при регистрации и редактировании сотрудников.
-                </p>
+                <h3><i class="ph-bold ph-article"></i> Инструкция по подключению</h3>
+                <ol class="settings-guide">
+                    <li>Подключите RFID-считыватель к компьютеру через USB.</li>
+                    <li>Нажмите <b>«Подключить сканер»</b> и выберите COM-порт Arduino в диалоге браузера.</li>
+                    <li>После успешного подключения индикатор статуса изменится на активный.</li>
+                    <li>При активном соединении UID карты автоматически подставляются в поля регистрации и редактирования сотрудников.</li>
+                </ol>
+
+                <div class="settings-note" style="margin-top: 20px;">
+                    <i class="ph ph-warning"></i>
+                    Web Serial API поддерживается только в браузерах на базе Chromium (Google Chrome, Microsoft Edge). Firefox и Safari не поддерживаются.
+                </div>
             </div>
+
         </div>
     </div>
 </div>
+
+<div id="settingsToast" class="settings-toast">✓ Настройка сохранена</div>
 
 <!-- ── Модал: Редактирование кассы ── -->
 <div id="editDeskModal" class="modal">
@@ -511,7 +544,8 @@
         try {
             port = await navigator.serial.requestPort();
             await port.open({ baudRate: 9600 });
-            document.getElementById('serialStatusIcon').style.background = "#10B981";
+            const icon = document.getElementById('serialStatusIcon');
+            icon.classList.remove('status-dot--off'); icon.classList.add('status-dot--on');
             document.getElementById('serialStatusText').innerText = "Сканер подключён";
             document.getElementById('connectBtn').style.display = "none";
             keepReading = true;
@@ -541,7 +575,8 @@
                 }
             }
         } catch (error) {
-            document.getElementById('serialStatusIcon').style.background = "#dc3545";
+            const icon2 = document.getElementById('serialStatusIcon');
+            icon2.classList.remove('status-dot--on'); icon2.classList.add('status-dot--off');
             document.getElementById('connectBtn').style.display = "block";
         } finally { reader.releaseLock(); }
     }
@@ -561,8 +596,9 @@
         document.getElementById('tab-' + id).style.display = 'block';
         document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
         el.classList.add('active');
-        if (id === 'stat')  setTimeout(buildChart, 50);
-        if (id === 'cash') { loadCashDesks(); loadCashiers(); }
+        if (id === 'stat')     setTimeout(buildChart, 50);
+        if (id === 'cash')     { loadCashDesks(); loadCashiers(); }
+        if (id === 'settings') loadAppSettings();
     }
 
     async function load() {
@@ -746,8 +782,9 @@
             <div class="role-item">
                 <b>${r.role_name}</b>
                 <div class="role-input-wrap">
-                    <input type="number" value="${r.subsidy_rub}" onchange="updateRole('${r.role_name}', this.value)">
+                    <input type="number" value="${r.subsidy_rub}" onchange="updateRole('${r.role_name}', this)">
                     <span>₽</span>
+                    <span class="save-ok">✓ Сохранено</span>
                     <button class="btn-delete" onclick="deleteRole('${r.role_name}')">×</button>
                 </div>
             </div>
@@ -770,12 +807,24 @@
         }
     }
 
-    async function updateRole(n, v) {
+    async function updateRole(n, inputEl) {
+        const v = typeof inputEl === 'string' ? inputEl : inputEl.value;
         await authFetch('/api/role_settings', {
             method:'PUT',
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({role_name: n, subsidy_rub: parseFloat(v)})
         });
+        if (inputEl && inputEl.style) {
+            inputEl.style.borderColor = '#10B981';
+            inputEl.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.15)';
+            const ok = inputEl.parentElement.querySelector('.save-ok');
+            if (ok) ok.classList.add('visible');
+            setTimeout(() => {
+                inputEl.style.borderColor = '';
+                inputEl.style.boxShadow = '';
+                if (ok) ok.classList.remove('visible');
+            }, 1800);
+        }
         load();
     }
 
@@ -784,6 +833,37 @@
             await authFetch(`/api/role_settings/${n}`, {method:'DELETE'});
             openRoles(); load();
         }
+    }
+
+    async function loadAppSettings() {
+        try {
+            const res = await fetch('/api/app_settings');
+            if (!res.ok) return;
+            const s = await res.json();
+            const el = document.getElementById('manualSubsidyToggle');
+            if (el) el.checked = s.manual_payment_use_subsidy !== 'false';
+        } catch(e) {}
+    }
+
+    async function saveAppSetting(key, checkboxEl) {
+        const newVal = checkboxEl.checked;
+        const res = await authFetch(`/api/app_settings/${key}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({value: newVal ? 'true' : 'false'})
+        });
+        const toast = document.getElementById('settingsToast');
+        if (res && res.ok) {
+            toast.textContent = 'Настройка сохранена';
+            toast.style.background = '#111827';
+        } else {
+            // Откатываем тумблер к предыдущему значению
+            checkboxEl.checked = !newVal;
+            toast.textContent = 'Ошибка сохранения. Проверьте сессию.';
+            toast.style.background = '#EF4444';
+        }
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
     }
 
     function openGlobal() { document.getElementById('globalModal').style.display = 'flex'; }
@@ -1443,6 +1523,7 @@
         load();
         loadCashDesks();
         loadCashiers();
+        loadAppSettings();
         startDeskStatusPolling();
     };
 </script>

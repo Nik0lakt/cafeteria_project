@@ -400,6 +400,14 @@ tbody tr:hover td { background: var(--violet-lt); }
 .role-item .role-input-wrap { display: flex; align-items: center; gap: 6px; }
 .role-item input { width: 80px !important; margin: 0 !important; padding: 6px 8px !important; text-align: center; }
 
+.role-item .save-ok {
+  font-size: 11.5px; font-weight: 700; color: #10B981;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  white-space: nowrap;
+}
+.role-item .save-ok.visible { opacity: 1; visibility: visible; }
+
 .role-item .btn-delete {
   background: var(--red-lt); color: var(--red);
   border: 1.5px solid #FECACA; padding: 5px 10px;
@@ -757,4 +765,68 @@ th.th-sortable.sort-active { color: var(--violet); }
 .modal-footer-row {
   display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px;
 }
+
+/* ── Settings page ────────────────────────────────────────────────────── */
+.setting-status-block {
+  padding: 16px; background: var(--border-lt);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  margin-bottom: 0;
+}
+
+.status-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  transition: background 0.2s;
+}
+.status-dot--off  { background: var(--red); }
+.status-dot--on   { background: #22C55E; }
+
+.settings-guide {
+  margin: 0; padding-left: 18px;
+  font-size: 14px; line-height: 1.85; color: var(--t2);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.settings-guide li { padding-left: 4px; }
+.settings-guide b  { color: var(--t1); font-weight: 600; }
+
+.settings-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 12px 14px; border-radius: var(--r-sm);
+  background: #FFFBEB; border: 1px solid #FDE68A;
+  font-size: 13px; color: #92400E; line-height: 1.5;
+}
+.settings-note i { flex-shrink: 0; margin-top: 1px; font-size: 15px; }
+
+/* ── Settings toggle ──────────────────────────────────────────────────── */
+.setting-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 0; border-top: 1px solid var(--border); margin-top: 16px; gap: 16px;
+}
+.setting-row-label { flex: 1; }
+.setting-row-label strong { font-size: 14px; font-weight: 600; color: var(--t1); display: block; margin-bottom: 3px; }
+.setting-row-label span { font-size: 12px; color: var(--t3); line-height: 1.4; }
+.adm-switch { position: relative; width: 48px; height: 28px; flex-shrink: 0; }
+.adm-switch input { opacity: 0; width: 0; height: 0; }
+.adm-slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: #D1D5DB; border-radius: 34px; transition: .25s;
+}
+.adm-slider:before {
+  position: absolute; content: "";
+  height: 22px; width: 22px; left: 3px; bottom: 3px;
+  background: #fff; border-radius: 50%; transition: .25s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+}
+.adm-switch input:checked + .adm-slider { background: var(--violet); }
+.adm-switch input:checked + .adm-slider:before { transform: translateX(20px); }
+
+/* Settings saved toast */
+.settings-toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  background: #111827; color: #fff;
+  padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 600;
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+}
+.settings-toast.show { opacity: 1; transform: translateY(0); }
 
