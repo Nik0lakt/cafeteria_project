@@ -2,15 +2,15 @@ import uuid
 import numpy as np
 from datetime import datetime, timedelta
 from fastapi import APIRouter, File, UploadFile, HTTPException, Form
-from app.cv_utils import get_face_embedding_and_ear, compare_faces, EAR_CLOSE_THRESHOLD, EAR_OPEN_THRESHOLD
+from app.cv_utils import get_face_embedding, compare_faces
 from app.database import SessionLocal
 from app.models import Employee, Card, LivenessSession
 
 router = APIRouter()
 
 SESSION_TTL_MINUTES = 10
-FACE_MATCHES_NEEDED = 3   # кадров с совпадением лица для подтверждения личности
-BLINKS_NEEDED       = 1   # моргание для подтверждения живого человека
+MATCHES_NEEDED   = 10    # кадров с совпадением для накопления статистики
+VARIANCE_NEEDED  = 0.08  # разброс дистанций: живое лицо >0.10, статичное фото <0.03
 
 
 @router.post("/start_liveness")
@@ -62,51 +62,51 @@ async def liveness_frame(session_id: str = Form(...), file: UploadFile = File(..
             raise HTTPException(status_code=400, detail="No face enrolled")
 
         content = await file.read()
-        frame_embedding, ear = get_face_embedding_and_ear(content)
+        frame_embedding = get_face_embedding(content)
 
-        # ── Совпадение лица ───────────────────────────────────────────────────
         face_match = False
+        dist = 1.0
         if frame_embedding is not None:
             target_embedding = np.array(sess.embedding_json)
-            face_match = compare_faces(target_embedding, frame_embedding)
+            face_match, dist = compare_faces(target_embedding, frame_embedding)
         else:
             print(f"[FACE] no face in frame (session={session_id[:8]})")
 
-        # Накапливаем совпадения в blink_count (временно), используем last_ear как face_match_count
-        face_match_count = int(sess.last_ear or 0)
+        # ── Variance-based liveness ───────────────────────────────────────────
+        # Живое лицо чуть двигается → дистанции скачут (диапазон >0.08).
+        # Статичное фото → дистанции одинаковые (диапазон <0.03).
+        # Поля last_ear / min_ear_closed переиспользуются как max_dist / min_dist.
         if face_match:
-            face_match_count += 1
-            sess.last_ear = float(face_match_count)
-            print(f"[MATCH] face confirmed {face_match_count}/{FACE_MATCHES_NEEDED}")
+            match_count = (sess.blink_count or 0) + 1
+            sess.blink_count = match_count
 
-        face_confirmed = face_match_count >= FACE_MATCHES_NEEDED
+            cur_max = sess.last_ear if sess.last_ear is not None else dist
+            cur_min = sess.min_ear_closed if sess.min_ear_closed is not None else dist
+            new_max = max(cur_max, dist)
+            new_min = min(cur_min, dist)
+            sess.last_ear = new_max
+            sess.min_ear_closed = new_min
 
-        # ── EAR бликинг: open → close → open = 1 моргание ────────────────────
-        # Глубина закрытия НЕ проверяется: в пик моргания face_recognition теряет
-        # лицо (кадры "no face"), поэтому min_ear фиксируется только на входе в закрытие.
-        blink_count = sess.blink_count or 0
-        if ear is not None:
-            print(f"[EAR] ear={ear:.4f}  closed={sess.eye_closed}  blinks={blink_count}")
-            if not sess.eye_closed and ear < EAR_CLOSE_THRESHOLD:
-                sess.eye_closed = True
-            elif sess.eye_closed and ear > EAR_OPEN_THRESHOLD:
-                blink_count += 1
-                sess.blink_count = blink_count
-                sess.eye_closed = False
-                print(f"[BLINK] засчитано #{blink_count}")
+            variance = new_max - new_min
+            print(f"[LIVE] match={match_count}/{MATCHES_NEEDED}  dist={dist:.4f}  range={variance:.4f}/{VARIANCE_NEEDED}")
 
-        # ── Условие прохождения: личность + живой человек ────────────────────
-        if face_confirmed and blink_count >= BLINKS_NEEDED:
-            sess.passed = True
-            db.commit()
-            return {"status": "finished"}
+            if match_count >= MATCHES_NEEDED and variance >= VARIANCE_NEEDED:
+                sess.passed = True
+                db.commit()
+                return {"status": "finished"}
 
         db.commit()
+
+        match_count = sess.blink_count or 0
+        cur_max = sess.last_ear or 0.0
+        cur_min = sess.min_ear_closed or 0.0
+        variance = (cur_max - cur_min) if match_count > 1 else 0.0
+
         return {
             "status": "processing",
             "face_found": frame_embedding is not None,
-            "face_confirmed": face_confirmed,
-            "blink_count": blink_count,
+            "match_count": match_count,
+            "progress": min(int(match_count / MATCHES_NEEDED * 100), 99),
         }
     finally:
         db.close()

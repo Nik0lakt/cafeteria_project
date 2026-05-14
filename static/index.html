@@ -534,12 +534,9 @@
 
                 if (!d.face_found) {
                     setStatus('Смотрите прямо в камеру...');
-                } else if (!d.face_confirmed) {
-                    setStatus('Подтверждаем личность...');
-                } else if ((d.blink_count || 0) === 0) {
-                    setStatus('Моргните один раз');
                 } else {
-                    setStatus('Распознаём...');
+                    const pct = d.progress || 0;
+                    setStatus('Подтверждаем личность... ' + pct + '%');
                 }
             } catch (e) {
                 // сетевая ошибка — молча повторим попытку
