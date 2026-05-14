@@ -3,9 +3,8 @@ import face_recognition
 import numpy as np
 import cv2
 
-EAR_CLOSE_THRESHOLD = 0.22   # начало фазы «глаз закрывается»
-EAR_OPEN_THRESHOLD  = 0.27   # конец фазы — глаз открылся снова
-EAR_MIN_BLINK       = 0.18   # реальное моргание на веб-камере: 0.05–0.18; наклон фото: 0.19–0.22 → не засчитается
+EAR_CLOSE_THRESHOLD = 0.22   # EAR ниже этого — начало закрытия
+EAR_OPEN_THRESHOLD  = 0.24   # EAR выше этого — глаз открылся снова (ниже 0.27 чтобы поймать кадры сразу после потери лица)
 
 # Чем выше — тем мягче проверка. 0.6 — дефолт face_recognition, 0.45 — очень строго.
 FACE_TOLERANCE = float(os.getenv('FACE_RECOGNITION_TOLERANCE', '0.55'))

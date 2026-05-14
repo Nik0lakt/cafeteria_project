@@ -2,7 +2,7 @@ import uuid
 import numpy as np
 from datetime import datetime, timedelta
 from fastapi import APIRouter, File, UploadFile, HTTPException, Form
-from app.cv_utils import get_face_embedding_and_ear, compare_faces, EAR_CLOSE_THRESHOLD, EAR_OPEN_THRESHOLD, EAR_MIN_BLINK
+from app.cv_utils import get_face_embedding_and_ear, compare_faces, EAR_CLOSE_THRESHOLD, EAR_OPEN_THRESHOLD
 from app.database import SessionLocal
 from app.models import Employee, Card, LivenessSession
 
@@ -82,25 +82,18 @@ async def liveness_frame(session_id: str = Form(...), file: UploadFile = File(..
         face_confirmed = face_match_count >= FACE_MATCHES_NEEDED
 
         # ── EAR бликинг: open → close → open = 1 моргание ────────────────────
+        # Глубина закрытия НЕ проверяется: в пик моргания face_recognition теряет
+        # лицо (кадры "no face"), поэтому min_ear фиксируется только на входе в закрытие.
         blink_count = sess.blink_count or 0
         if ear is not None:
-            print(f"[EAR] ear={ear:.4f}  closed={sess.eye_closed}  min={sess.min_ear_closed}  blinks={blink_count}")
+            print(f"[EAR] ear={ear:.4f}  closed={sess.eye_closed}  blinks={blink_count}")
             if not sess.eye_closed and ear < EAR_CLOSE_THRESHOLD:
                 sess.eye_closed = True
-                sess.min_ear_closed = ear
-            elif sess.eye_closed:
-                if ear < (sess.min_ear_closed or ear):
-                    sess.min_ear_closed = ear
-                if ear > EAR_OPEN_THRESHOLD:
-                    min_reached = sess.min_ear_closed or 1.0
-                    if min_reached < EAR_MIN_BLINK:
-                        blink_count += 1
-                        sess.blink_count = blink_count
-                        print(f"[BLINK] засчитано #{blink_count}, min_ear={min_reached:.4f}")
-                    else:
-                        print(f"[BLINK] слишком мелкое, min_ear={min_reached:.4f} (нужно < {EAR_MIN_BLINK})")
-                    sess.eye_closed = False
-                    sess.min_ear_closed = None
+            elif sess.eye_closed and ear > EAR_OPEN_THRESHOLD:
+                blink_count += 1
+                sess.blink_count = blink_count
+                sess.eye_closed = False
+                print(f"[BLINK] засчитано #{blink_count}")
 
         # ── Условие прохождения: личность + живой человек ────────────────────
         if face_confirmed and blink_count >= BLINKS_NEEDED:
