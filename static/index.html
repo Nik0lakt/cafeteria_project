@@ -533,13 +533,13 @@
                 }
 
                 if (!d.face_found) {
-                    setStatus('Смотрите в камеру...');
-                } else if ((d.match_count || 0) === 0) {
-                    setStatus('Лицо найдено, проверяем...');
-                } else if (d.match_count === 1) {
-                    setStatus('Проверяем личность...');
+                    setStatus('Смотрите прямо в камеру...');
+                } else if (!d.face_confirmed) {
+                    setStatus('Подтверждаем личность...');
+                } else if ((d.blink_count || 0) === 0) {
+                    setStatus('Моргните один раз');
                 } else {
-                    setStatus('Почти готово...');
+                    setStatus('Распознаём...');
                 }
             } catch (e) {
                 // сетевая ошибка — молча повторим попытку
