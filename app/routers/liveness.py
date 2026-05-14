@@ -2,13 +2,14 @@ import uuid
 import numpy as np
 from datetime import datetime, timedelta
 from fastapi import APIRouter, File, UploadFile, HTTPException, Form
-from app.cv_utils import get_face_embedding_and_ear, compare_faces, EAR_CLOSE_THRESHOLD, EAR_OPEN_THRESHOLD, EAR_MIN_BLINK
+from app.cv_utils import get_face_embedding_and_ear, compare_faces
 from app.database import SessionLocal
 from app.models import Employee, Card, LivenessSession
 
 router = APIRouter()
 
 SESSION_TTL_MINUTES = 10
+MATCHES_NEEDED = 3  # сколько кадров с совпадением нужно накопить
 
 
 @router.post("/start_liveness")
@@ -64,40 +65,20 @@ async def liveness_frame(session_id: str = Form(...), file: UploadFile = File(..
             raise HTTPException(status_code=400, detail="No face enrolled")
 
         content = await file.read()
-        frame_embedding, ear = get_face_embedding_and_ear(content)
+        frame_embedding, _ = get_face_embedding_and_ear(content)
 
-        # Face match check
         face_match = False
         if frame_embedding is not None:
             target_embedding = np.array(sess.embedding_json)
             face_match = compare_faces(target_embedding, frame_embedding)
         else:
-            print(f"[FACE] no face detected in frame (session={session_id[:8]})")
+            print(f"[FACE] no face in frame (session={session_id[:8]})")
 
-        # EAR blink tracking: open→close→open = 1 blink, засчитывается только если min EAR < EAR_MIN_BLINK
-        if ear is not None:
-            print(f"[EAR] ear={ear:.4f}  closed={sess.eye_closed}  min_closed={sess.min_ear_closed}  blinks={sess.blink_count}")
-            if not sess.eye_closed and ear < EAR_CLOSE_THRESHOLD:
-                # Начало фазы закрытия
-                sess.eye_closed = True
-                sess.min_ear_closed = ear
-            elif sess.eye_closed:
-                # Обновляем минимум пока глаз закрыт
-                if ear < (sess.min_ear_closed or ear):
-                    sess.min_ear_closed = ear
-                if ear > EAR_OPEN_THRESHOLD:
-                    # Глаз открылся — проверяем глубину закрытия
-                    min_reached = sess.min_ear_closed or 1.0
-                    if min_reached < EAR_MIN_BLINK:
-                        sess.blink_count = (sess.blink_count or 0) + 1
-                        print(f"[BLINK] засчитано #{sess.blink_count}, min_ear={min_reached:.4f}")
-                    else:
-                        print(f"[BLINK] отклонено (неглубокое), min_ear={min_reached:.4f}")
-                    sess.eye_closed = False
-                    sess.min_ear_closed = None
-            sess.last_ear = ear
+        if face_match:
+            sess.blink_count = (sess.blink_count or 0) + 1
+            print(f"[MATCH] {sess.blink_count}/{MATCHES_NEEDED}")
 
-        if face_match and sess.blink_count >= 2:
+        if sess.blink_count >= MATCHES_NEEDED:
             sess.passed = True
             db.commit()
             return {"status": "finished"}
@@ -106,7 +87,7 @@ async def liveness_frame(session_id: str = Form(...), file: UploadFile = File(..
         return {
             "status": "processing",
             "face_found": frame_embedding is not None,
-            "blink_count": sess.blink_count or 0,
+            "match_count": sess.blink_count or 0,
         }
     finally:
         db.close()
