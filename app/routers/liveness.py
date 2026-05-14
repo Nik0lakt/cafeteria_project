@@ -71,6 +71,8 @@ async def liveness_frame(session_id: str = Form(...), file: UploadFile = File(..
         if frame_embedding is not None:
             target_embedding = np.array(sess.embedding_json)
             face_match = compare_faces(target_embedding, frame_embedding)
+        else:
+            print(f"[FACE] no face detected in frame (session={session_id[:8]})")
 
         # EAR blink tracking: open→close→open = 1 blink, засчитывается только если min EAR < EAR_MIN_BLINK
         if ear is not None:

@@ -372,11 +372,29 @@
         }
 
         // --- Liveness: таймаут + EAR blink detection на сервере ---
-        const MAX_FRAMES = 50;  // ~30 сек при 600мс интервале
+        const MAX_FRAMES = 60;  // ~40 сек при 400–700мс цикле
+        const FRAME_INTERVAL = 400; // мс между отправками кадров
         let frameCount = 0;
+        let isProcessing = false; // не допускает параллельных запросов
 
         function resetLivenessState() {
             frameCount = 0;
+            isProcessing = false;
+        }
+
+        // Обновляем статус только если текст изменился — исключаем лишние перерисовки DOM
+        function setStatus(text) {
+            if (status.innerText !== text) status.innerText = text;
+        }
+
+        // Захват кадра с видео → Blob (без блокировки главного потока)
+        function captureFrame() {
+            return new Promise(resolve => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 640; canvas.height = 480;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                canvas.toBlob(resolve, 'image/jpeg', 0.80);
+            });
         }
 
         function showBackBtn(visible) {
@@ -486,44 +504,49 @@
         }
 
         async function runLiveness() {
-            if (!currentSid) return;
+            if (!currentSid || isProcessing) return;
 
             frameCount++;
             if (frameCount > MAX_FRAMES) {
                 currentSid = null;
-                status.innerHTML = 'Лицо не распознано.<br><small>Обратитесь к кассиру для ручного подтверждения.</small>';
+                setStatus('Лицо не распознано.\nОбратитесь к кассиру для ручного подтверждения.');
                 return;
             }
 
-            const canvas = document.createElement('canvas');
-            canvas.width = 640; canvas.height = 480;
-            canvas.getContext('2d').drawImage(video, 0, 0);
+            isProcessing = true;
+            let shouldRetry = true;
 
-            canvas.toBlob(async (blob) => {
-                try {
-                    const fd = new FormData();
-                    fd.append('session_id', currentSid);
-                    fd.append('file', blob);
-                    const r = await fetch('/api/liveness_frame', {method:'POST', body:fd});
-                    const d = await r.json();
-                    if (d.status === 'finished') {
-                        finalize(false);
-                    } else {
-                        if (!d.face_found) {
-                            status.innerText = 'Смотрите в камеру...';
-                        } else if (d.blink_count === 0) {
-                            status.innerText = 'Пожалуйста, моргните...';
-                        } else if (d.blink_count === 1) {
-                            status.innerText = 'Хорошо! Моргните ещё раз...';
-                        } else {
-                            status.innerText = 'Распознаём...';
-                        }
-                        if (currentSid) setTimeout(runLiveness, 600);
-                    }
-                } catch (e) {
-                    if (currentSid) setTimeout(runLiveness, 600);
+            try {
+                const blob = await captureFrame();
+                if (!blob || !currentSid) { shouldRetry = false; return; }
+
+                const fd = new FormData();
+                fd.append('session_id', currentSid);
+                fd.append('file', blob);
+                const r = await fetch('/api/liveness_frame', {method:'POST', body:fd});
+                const d = await r.json();
+
+                if (d.status === 'finished') {
+                    shouldRetry = false;
+                    finalize(false);
+                    return;
                 }
-            }, 'image/jpeg', 0.92);
+
+                if (!d.face_found) {
+                    setStatus('Смотрите в камеру...');
+                } else if (d.blink_count === 0) {
+                    setStatus('Пожалуйста, моргните...');
+                } else if (d.blink_count === 1) {
+                    setStatus('Хорошо! Моргните ещё раз...');
+                } else {
+                    setStatus('Распознаём...');
+                }
+            } catch (e) {
+                // сетевая ошибка — молча повторим попытку
+            } finally {
+                isProcessing = false;
+                if (currentSid && shouldRetry) setTimeout(runLiveness, FRAME_INTERVAL);
+            }
         }
 
         async function openManual() {

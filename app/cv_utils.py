@@ -1,3 +1,4 @@
+import os
 import face_recognition
 import numpy as np
 import cv2
@@ -5,6 +6,9 @@ import cv2
 EAR_CLOSE_THRESHOLD = 0.20   # начало фазы «глаз закрывается»
 EAR_OPEN_THRESHOLD  = 0.25   # конец фазы — глаз открылся снова
 EAR_MIN_BLINK       = 0.12   # минимум EAR за всю фазу закрытия; настоящее моргание ~0.05–0.12, наклон фото не достигает
+
+# Чем выше — тем мягче проверка. 0.6 — дефолт face_recognition, 0.45 — очень строго.
+FACE_TOLERANCE = float(os.getenv('FACE_RECOGNITION_TOLERANCE', '0.55'))
 
 
 def _compute_ear(eye):
@@ -47,7 +51,9 @@ def get_face_embedding(image_bytes):
     return embedding
 
 
-def compare_faces(embedding1, embedding2, tolerance=0.45):
+def compare_faces(embedding1, embedding2, tolerance=None):
+    if tolerance is None:
+        tolerance = FACE_TOLERANCE
     try:
         dist = face_recognition.face_distance([embedding1], embedding2)[0]
         result = bool(dist <= tolerance)
