@@ -234,9 +234,9 @@
                 <div class="filter-group">
                     <div class="filter-group-label">Способ оплаты</div>
                     <div class="filter-checks">
-                        <label class="filter-check"><input type="checkbox" value="bank_card" class="stat-pay-cb" checked onchange="buildChart()"><span>Карта</span></label>
-                        <label class="filter-check"><input type="checkbox" value="cash" class="stat-pay-cb" checked onchange="buildChart()"><span>Наличные</span></label>
-                        <label class="filter-check"><input type="checkbox" value="internal" class="stat-pay-cb" checked onchange="buildChart()"><span>Дотация</span></label>
+                        <label class="filter-check"><input type="checkbox" value="bank_card" class="stat-pay-cb" checked onchange="toggleMultiFilter('stat-pay-cb')"><span>Карта</span></label>
+                        <label class="filter-check"><input type="checkbox" value="cash" class="stat-pay-cb" checked onchange="toggleMultiFilter('stat-pay-cb')"><span>Наличные</span></label>
+                        <label class="filter-check"><input type="checkbox" value="internal" class="stat-pay-cb" checked onchange="toggleMultiFilter('stat-pay-cb')"><span>Дотация</span></label>
                     </div>
                 </div>
             </div>
@@ -481,7 +481,7 @@
             <button class="action-btn" style="flex:1; background:#4F46E5 !important; color:#fff !important;" onclick="promptCustomPreset()">Свой режим</button>
         </div>
         <button class="btn" style="background:#FEF2F2; color:#EF4444; border:1.5px solid #FECACA; margin-top:15px;" onclick="resetCal()">Сбросить расписание</button>
-        <button class="btn" style="background:#F3F4F6; color:#374151; margin-top:10px;" onclick="closeModals()">Закрыть</button>
+        <button class="btn" style="background:#F3F4F6; color:#374151; margin-top:10px;" onclick="closeCal()">Закрыть</button>
     </div>
 </div>
 
@@ -809,8 +809,22 @@
             role: document.getElementById('editRole').value,
             limit_reset_day: parseInt(document.getElementById('editLimitDay').value) || 28
         };
-        await authFetch(`/api/employees/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
-        closeModals(); load();
+        const saveBtn = document.querySelector('#editModal .emp-modal-footer .btn:not(.btn-ghost)');
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Сохранение...'; }
+        const res = await authFetch(`/api/employees/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
+        if (res && res.ok) {
+            const idx = allEmployees.findIndex(e => e.id === parseInt(id));
+            if (idx !== -1) Object.assign(allEmployees[idx], p);
+            handleSearch();
+            showToast('Данные сохранены', 'success');
+            if (saveBtn) {
+                saveBtn.textContent = 'Сохранено!';
+                setTimeout(() => { saveBtn.textContent = 'Сохранить изменения'; saveBtn.disabled = false; }, 2000);
+            }
+        } else {
+            showToast('Ошибка сохранения', 'error');
+            if (saveBtn) { saveBtn.textContent = 'Сохранить изменения'; saveBtn.disabled = false; }
+        }
     }
 
     async function openRoles() {
@@ -912,8 +926,12 @@
             action_type: document.getElementById('gAction').value,
             target_role: document.getElementById('gTarget').value
         };
-        await authFetch('/api/schedule/global_action', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
-        closeModals(); load();
+        const res = await authFetch('/api/schedule/global_action', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
+        if (res && res.ok) {
+            showToast('Расписание обновлено', 'success');
+        } else {
+            showToast('Ошибка обновления расписания', 'error');
+        }
     }
 
     // --- SUB-TABS (Терминалы) ---
@@ -944,7 +962,7 @@
 
         // Обновляем фильтр вкладки Статистика
         document.getElementById('cashDesksContainer').innerHTML = desks.map(d =>
-            `<label class="filter-check"><input type="checkbox" value="${d.login}" class="stat-desk-cb" checked onchange="buildChart()"><span>${d.login}</span></label>`
+            `<label class="filter-check"><input type="checkbox" value="${d.login}" class="stat-desk-cb" checked onchange="toggleMultiFilter('stat-desk-cb')"><span>${d.login}</span></label>`
         ).join('');
     }
 
@@ -1066,6 +1084,7 @@
     }
 
     async function pollDeskStatuses() {
+        if (document.hidden) return;
         try {
             const statuses = await fetch('/api/terminals/status').then(r => r.json());
             let onlineCount = 0;
@@ -1427,7 +1446,7 @@
         document.querySelectorAll('.stat-pay-cb:checked').forEach(cb => params.append('payment_methods', cb.value));
 
         try {
-            const res = await fetch(`/api/statistics/chart?${params.toString()}`);
+            const res = await authFetch(`/api/statistics/chart?${params.toString()}`);
             if (!res.ok) return;
             const data = await res.json();
 
@@ -1455,7 +1474,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: { legend: { display: (data.datasets || []).length > 1, labels: { boxWidth: 12, font: { size: 12 } } } },
                     scales: {
                         x: {
                             ticks: {
@@ -1501,8 +1520,16 @@
         setTimeout(() => toast.remove(), 4000);
     }
 
-    function downloadCSV() {
-        window.location.href = `/api/statistics/export?start_date=${document.getElementById('exportStartDate').value}&end_date=${document.getElementById('exportEndDate').value}`;
+    async function downloadCSV() {
+        const start = document.getElementById('exportStartDate').value;
+        const end = document.getElementById('exportEndDate').value;
+        const res = await authFetch(`/api/statistics/export?start_date=${start}&end_date=${end}`);
+        if (!res.ok) { showToast('Ошибка экспорта', 'error'); return; }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'report.csv'; a.click();
+        URL.revokeObjectURL(url);
     }
 
     function toggleKebab(event, id) {
@@ -1544,6 +1571,18 @@
 
     document.addEventListener('click', closeAllKebabs);
 
+    function closeCal() {
+        document.getElementById('calModal').style.display = 'none';
+    }
+
+    function toggleMultiFilter(groupClass) {
+        const all = [...document.querySelectorAll('.' + groupClass)];
+        if (!all.some(cb => cb.checked)) {
+            all.forEach(cb => { cb.checked = true; });
+        }
+        buildChart();
+    }
+
     function closeModals() {
         document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
         if (video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
@@ -1557,12 +1596,27 @@
         _deskStatusInterval = setInterval(pollDeskStatuses, 30000);
     }
 
+    async function pollEmployeesInBackground() {
+        if (document.hidden) return;
+        const modalOpen = [...document.querySelectorAll('.modal')].some(m => m.style.display === 'flex');
+        const searchFocused = document.activeElement === document.getElementById('empSearch');
+        if (modalOpen || searchFocused) return;
+        try {
+            const res = await authFetch('/api/employees');
+            if (res && res.ok) {
+                allEmployees = await res.json();
+                handleSearch();
+            }
+        } catch(e) {}
+    }
+
     window.onload = () => {
         load();
         loadCashDesks();
         loadCashiers();
         loadAppSettings();
         startDeskStatusPolling();
+        setInterval(pollEmployeesInBackground, 45000);
     };
 </script>
 </body>

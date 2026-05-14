@@ -6,7 +6,7 @@ load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import text
+from sqlalchemy import text, inspect as sa_inspect
 
 from app.database import engine, Base, SessionLocal
 from app.routers import auth, payment, liveness, bot, cashiers
@@ -14,11 +14,11 @@ from app import cashiers_db
 
 
 def _col_exists(conn, table: str, column: str) -> bool:
-    res = conn.execute(text(
-        "SELECT column_name FROM information_schema.columns "
-        "WHERE table_name = :t AND column_name = :c"
-    ), {"t": table, "c": column})
-    return bool(res.fetchone())
+    try:
+        insp = sa_inspect(conn)
+        return column in [c["name"] for c in insp.get_columns(table)]
+    except Exception:
+        return False
 
 
 def update_db_schema():

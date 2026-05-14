@@ -4,8 +4,6 @@ import json
 import base64
 import csv
 import io
-import random
-import string
 from datetime import date, datetime, time, timedelta
 from typing import List, Optional
 
@@ -20,7 +18,7 @@ from app.models import (
     CashDesk, Employee, Category, Product, Card,
     Transaction, WorkDay, RoleSetting, LivenessSession, CashDeskProduct, AppSetting,
 )
-from app.security import hash_password, verify_password
+from app.security import hash_password, verify_password, get_current_admin
 
 router = APIRouter()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -46,10 +44,6 @@ class PaymentRequest(BaseModel):
     is_manual: bool = False
     live_frame_base64: Optional[str] = None
     cash_desk_id: Optional[str] = "unknown"
-
-
-class AdminLoginRequest(BaseModel):
-    password: str
 
 
 class UserLoginRequest(BaseModel):
@@ -209,6 +203,7 @@ def pay(data: PaymentRequest, db: Session = Depends(get_db)):
     if emp.month_limit_kopecks < withdraw_kopecks:
         raise HTTPException(status_code=400, detail="Недостаточно средств")
 
+    sess_card_uid = sess.card_uid
     new_tx = Transaction(
         employee_id=emp.id,
         amount_total_kopecks=total_bill_kop,
@@ -243,7 +238,7 @@ def pay(data: PaymentRequest, db: Session = Depends(get_db)):
         send_tg_msg(emp.telegram_id, user_receipt)
 
     if data.is_manual and data.live_frame_base64:
-        db_photo = f"/app/private_photos/{sess.card_uid}.jpg"
+        db_photo = f"/app/private_photos/{sess_card_uid}.jpg"
         if os.path.exists(db_photo):
             admin_caption = (
                 f"⚠️ <b>РУЧНАЯ ОПЛАТА</b>\n"
@@ -334,7 +329,7 @@ def get_terminals_status(db: Session = Depends(get_db)):
     ]
 
 
-@router.post("/cash_desks")
+@router.post("/cash_desks", dependencies=[Depends(get_current_admin)])
 def add_cash_desk(data: dict, db: Session = Depends(get_db)):
     raw_password = data.get("password", "")
     db.add(CashDesk(
@@ -346,7 +341,7 @@ def add_cash_desk(data: dict, db: Session = Depends(get_db)):
     return {"status": "success"}
 
 
-@router.put("/cash_desks/{desk_id}")
+@router.put("/cash_desks/{desk_id}", dependencies=[Depends(get_current_admin)])
 def update_cash_desk(desk_id: int, data: dict, db: Session = Depends(get_db)):
     desk = db.query(CashDesk).filter(CashDesk.id == desk_id).first()
     if not desk:
@@ -363,7 +358,7 @@ def update_cash_desk(desk_id: int, data: dict, db: Session = Depends(get_db)):
     return {"status": "success"}
 
 
-@router.delete("/cash_desks/{desk_id}")
+@router.delete("/cash_desks/{desk_id}", dependencies=[Depends(get_current_admin)])
 def delete_cash_desk(desk_id: int, db: Session = Depends(get_db)):
     desk = db.query(CashDesk).filter(CashDesk.id == desk_id).first()
     if desk:
@@ -485,19 +480,9 @@ def verify_desk_password(data: dict, db: Session = Depends(get_db)):
     raise HTTPException(403, "Неверный пароль")
 
 
-# --- АВТОРИЗАЦИЯ ТЕРМИНАЛА ---
-
-@router.post("/login")
-async def admin_login(data: AdminLoginRequest):
-    admin_password = os.getenv("ADMIN_PASSWORD", "")
-    if admin_password and data.password == admin_password:
-        return {"success": True}
-    return {"success": False}
-
-
 # --- СТАТИСТИКА И ЭКСПОРТ ---
 
-@router.get("/statistics/chart")
+@router.get("/statistics/chart", dependencies=[Depends(get_current_admin)])
 def get_chart_data(
     start_date: date = Query(...),
     end_date: date = Query(...),
@@ -541,7 +526,7 @@ def get_chart_data(
     return {"labels": labels, "datasets": datasets, "total_count": len(transactions)}
 
 
-@router.get("/statistics/export")
+@router.get("/statistics/export", dependencies=[Depends(get_current_admin)])
 def export_statistics_csv(
     start_date: date = Query(...), end_date: date = Query(...), db: Session = Depends(get_db)
 ):
@@ -694,13 +679,3 @@ def get_user_info(emp_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/user/history/{emp_id}")
-def get_user_history(emp_id: int, db: Session = Depends(get_db)):
-    txs = (
-        db.query(Transaction)
-        .filter(Transaction.employee_id == emp_id)
-        .order_by(Transaction.created_at.desc())
-        .limit(20)
-        .all()
-    )
-    return txs
