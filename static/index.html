@@ -534,6 +534,8 @@
 
                 if (!d.face_found) {
                     setStatus('Смотрите прямо в камеру...');
+                } else if (!d.face_matched) {
+                    setStatus('Лицо не распознано');
                 } else {
                     const dots = ['', '.', '..', '...'];
                     setStatus('Идёт распознавание' + dots[frameCount % 4]);

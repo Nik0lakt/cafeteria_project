@@ -9,8 +9,8 @@ from app.models import Employee, Card, LivenessSession
 router = APIRouter()
 
 SESSION_TTL_MINUTES = 10
-MATCHES_NEEDED   = 5     # кадров с совпадением (~2 сек при 400мс интервале)
-VARIANCE_NEEDED  = 0.06  # разброс дистанций: живое лицо >0.08, статичное фото <0.03
+MATCHES_NEEDED   = 4     # кадров с совпадением (~2-3 сек)
+VARIANCE_NEEDED  = 0.02  # разброс: у вас 0.023 на 4-м кадре; статичное фото <0.01
 
 
 @router.post("/start_liveness")
@@ -105,8 +105,8 @@ async def liveness_frame(session_id: str = Form(...), file: UploadFile = File(..
         return {
             "status": "processing",
             "face_found": frame_embedding is not None,
+            "face_matched": face_match,
             "match_count": match_count,
-            "progress": min(int(match_count / MATCHES_NEEDED * 100), 99),
         }
     finally:
         db.close()
