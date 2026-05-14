@@ -221,7 +221,14 @@
             min-height: 20px;
         }
 
-        .error-text { color: var(--red); font-weight: 700; }
+        .error-text {
+            display: block;
+            color: var(--red);
+            font-weight: 700;
+            text-align: center;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
 
         /* ── Photo comparison ── */
         #comparison {
@@ -250,9 +257,32 @@
             background: var(--border-lt);
             display: block;
         }
+        #backBtn {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #fff;
+            border: 1px solid var(--border);
+            color: var(--t2);
+            border-radius: 10px;
+            padding: 9px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            z-index: 100;
+            font-family: inherit;
+        }
+        #backBtn:hover { background: var(--border-lt); }
     </style>
 </head>
 <body>
+    <button id="backBtn" onclick="cancelPayment()">
+        <i class="ph ph-arrow-left"></i> Назад
+    </button>
     <div class="brand-bar">
         <div class="brand-logo"><i class="ph-bold ph-fork-knife"></i></div>
         <span class="brand-name">Cafeteria</span>
@@ -292,7 +322,7 @@
                 <button class="btn-primary" onclick="startProcess()">
                     <i class="ph-bold ph-identification-card"></i> Подтвердить карту
                 </button>
-                <button id="manualBtn" onclick="openManual()">
+                <button id="manualBtn" onclick="openManual()" style="display:none">
                     <i class="ph ph-pencil-simple"></i> Подтвердить вручную
                 </button>
             </div>
@@ -308,6 +338,8 @@
                         <canvas id="snapCanvas" width="140" height="140"></canvas>
                     </div>
                 </div>
+                <div id="manualSubsidyNote" style="margin: 14px 0 6px; padding: 9px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; line-height: 1.45; border: 1px solid #E5E7EB; background: #F9FAFB; color: #6B7280;"></div>
+
                 <button class="btn-confirm" onclick="finalize(true)">
                     <i class="ph-bold ph-check-circle"></i> Подтвердить личность
                 </button>
@@ -330,16 +362,34 @@
         const status = document.getElementById('status');
         let currentSid = null; let currentUid = null;
 
-        // --- Anti-spoofing + таймаут ---
-        const MAX_FRAMES      = 25;   // ~15 сек при 600мс интервале
-        const MOTION_THRESHOLD = 3.5;  // средняя разница пикселей между кадрами
-        const MIN_MOTION_FRAMES = 3;   // минимум кадров с движением для подтверждения живости
+        async function fetchManualSubsidySetting() {
+            try {
+                const r = await fetch('/api/app_settings');
+                if (!r.ok) return true;
+                const s = await r.json();
+                return s.manual_payment_use_subsidy !== 'false';
+            } catch(e) { return true; }
+        }
+
+        // --- Liveness: таймаут + EAR blink detection на сервере ---
+        const MAX_FRAMES = 50;  // ~30 сек при 600мс интервале
         let frameCount = 0;
-        let motionFrames = 0;
-        let prevImageData = null;
 
         function resetLivenessState() {
-            frameCount = 0; motionFrames = 0; prevImageData = null;
+            frameCount = 0;
+        }
+
+        function showBackBtn(visible) {
+            document.getElementById('backBtn').style.display = visible ? 'flex' : 'none';
+        }
+
+        function cancelPayment() {
+            currentSid = null;
+            currentUid = null;
+            resetLivenessState();
+            showBackBtn(false);
+            const cashDeskId = localStorage.getItem('cashDeskId') || '';
+            window.location.href = 'canteen.html' + (cashDeskId ? '?desk=' + cashDeskId : '');
         }
 
         // Запуск камеры
@@ -438,7 +488,6 @@
         async function runLiveness() {
             if (!currentSid) return;
 
-            // Таймаут: слишком много кадров без успеха
             frameCount++;
             if (frameCount > MAX_FRAMES) {
                 currentSid = null;
@@ -446,43 +495,11 @@
                 return;
             }
 
-            // Захватываем кадр (320×240 достаточно для проверки движения)
             const canvas = document.createElement('canvas');
-            canvas.width = 320; canvas.height = 240;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, 320, 240);
-            const imageData = ctx.getImageData(0, 0, 320, 240);
+            canvas.width = 640; canvas.height = 480;
+            canvas.getContext('2d').drawImage(video, 0, 0);
 
-            // Anti-spoofing: проверка движения между кадрами
-            let isLive = false;
-            if (prevImageData) {
-                let diff = 0;
-                const d1 = imageData.data, d2 = prevImageData.data;
-                for (let i = 0; i < d1.length; i += 4) {
-                    diff += Math.abs(d1[i] - d2[i]) +
-                            Math.abs(d1[i+1] - d2[i+1]) +
-                            Math.abs(d1[i+2] - d2[i+2]);
-                }
-                const avgDiff = diff / (d1.length / 4 * 3);
-                if (avgDiff >= MOTION_THRESHOLD) motionFrames++;
-            }
-            prevImageData = imageData;
-
-            // Требуем минимум MIN_MOTION_FRAMES кадров с реальным движением
-            if (motionFrames < MIN_MOTION_FRAMES) {
-                status.innerText = motionFrames === 0
-                    ? 'Смотрите в камеру...'
-                    : `Смотрите в камеру... (${motionFrames}/${MIN_MOTION_FRAMES})`;
-                if (currentSid) setTimeout(runLiveness, 600);
-                return;
-            }
-
-            // Отправляем кадр на сервер для распознавания
-            // Отправляем в 640×480 для лучшей точности face_recognition
-            const hqCanvas = document.createElement('canvas');
-            hqCanvas.width = 640; hqCanvas.height = 480;
-            hqCanvas.getContext('2d').drawImage(video, 0, 0);
-            hqCanvas.toBlob(async (blob) => {
+            canvas.toBlob(async (blob) => {
                 try {
                     const fd = new FormData();
                     fd.append('session_id', currentSid);
@@ -492,7 +509,15 @@
                     if (d.status === 'finished') {
                         finalize(false);
                     } else {
-                        status.innerText = 'Идёт распознавание...';
+                        if (!d.face_found) {
+                            status.innerText = 'Смотрите в камеру...';
+                        } else if (d.blink_count === 0) {
+                            status.innerText = 'Пожалуйста, моргните...';
+                        } else if (d.blink_count === 1) {
+                            status.innerText = 'Хорошо! Моргните ещё раз...';
+                        } else {
+                            status.innerText = 'Распознаём...';
+                        }
                         if (currentSid) setTimeout(runLiveness, 600);
                     }
                 } catch (e) {
@@ -501,12 +526,26 @@
             }, 'image/jpeg', 0.92);
         }
 
-        function openManual() {
+        async function openManual() {
             document.getElementById('mainUI').style.display = 'none';
             document.getElementById('comparison').style.display = 'block';
             document.getElementById('dbPhoto').src = `/api/photos/${currentUid}.jpg?session_id=${encodeURIComponent(currentSid)}&t=${Date.now()}`;
             const ctx = document.getElementById('snapCanvas').getContext('2d');
             ctx.drawImage(video, 0, 0, 640, 480, 0, 0, 140, 140);
+
+            const subsidyOn = await fetchManualSubsidySetting();
+            const note = document.getElementById('manualSubsidyNote');
+            if (subsidyOn) {
+                note.style.background = '#EFF6FF';
+                note.style.borderColor = '#BFDBFE';
+                note.style.color = '#1E40AF';
+                note.textContent = 'Будет использована дневная дотация.';
+            } else {
+                note.style.background = '#F9FAFB';
+                note.style.borderColor = '#E5E7EB';
+                note.style.color = '#6B7280';
+                note.textContent = 'Дотация не используется. Списание средств только с основного лимита.';
+            }
         }
 
 	async function finalize(isManual) {
@@ -542,13 +581,10 @@
 
         	if (res.ok) {
             	    status.innerText = "Оплата прошла успешно!";
-
-            	// Очищаем черновики, чтобы не оплатить дважды
             	    localStorage.removeItem('pendingCart');
            	    localStorage.removeItem('pendingAmount');
-
-            	     currentSid = null;
-		     setTimeout(() => { location.href = 'canteen.html?desk=' + cashDeskId; }, 1500);
+            	    currentSid = null;
+		    setTimeout(() => { location.href = 'canteen.html?desk=' + cashDeskId; }, 1500);
                 } else {
             	    status.innerHTML = `<span class="error-text">ОТКАЗ: ${data.detail}</span>`;
             	    currentSid = null;

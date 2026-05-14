@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
-from app.models import Employee, Card, Transaction, WorkDay, RoleSetting, LivenessSession
+from app.models import Employee, Card, Transaction, WorkDay, RoleSetting, LivenessSession, AppSetting
 from app.cv_utils import get_face_embedding
 from app.security import verify_password, create_access_token, get_current_admin, SECRET_KEY, ALGORITHM
 from jose import jwt, JWTError
@@ -300,3 +300,27 @@ def get_photo(
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Photo not found")
     return FileResponse(path, media_type="image/jpeg")
+
+
+# ── App Settings ──────────────────────────────────────────────────────────────
+
+class AppSettingUpdate(BaseModel):
+    value: str
+
+
+@router.get("/app_settings")
+def get_app_settings(db: Session = Depends(get_db)):
+    """Публичный эндпоинт — возвращает глобальные настройки системы."""
+    settings = db.query(AppSetting).all()
+    return {s.key: s.value for s in settings}
+
+
+@router.put("/app_settings/{key}", dependencies=[Depends(get_current_admin)])
+def update_app_setting(key: str, data: AppSettingUpdate, db: Session = Depends(get_db)):
+    setting = db.query(AppSetting).filter(AppSetting.key == key).first()
+    if setting:
+        setting.value = data.value
+    else:
+        db.add(AppSetting(key=key, value=data.value))
+    db.commit()
+    return {"key": key, "value": data.value}

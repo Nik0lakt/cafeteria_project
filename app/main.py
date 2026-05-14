@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
-from app.database import engine, Base
+from app.database import engine, Base, SessionLocal
 from app.routers import auth, payment, liveness, bot, cashiers
 from app import cashiers_db
 
@@ -84,6 +84,28 @@ def update_db_schema():
             ))
             conn.commit()
 
+        # blink_count, eye_closed, last_ear — EAR-based liveness (anti-spoofing)
+        if not _col_exists(conn, "liveness_sessions", "blink_count"):
+            conn.execute(text(
+                "ALTER TABLE liveness_sessions ADD COLUMN blink_count INTEGER NOT NULL DEFAULT 0"
+            ))
+            conn.commit()
+        if not _col_exists(conn, "liveness_sessions", "eye_closed"):
+            conn.execute(text(
+                "ALTER TABLE liveness_sessions ADD COLUMN eye_closed BOOLEAN NOT NULL DEFAULT FALSE"
+            ))
+            conn.commit()
+        if not _col_exists(conn, "liveness_sessions", "last_ear"):
+            conn.execute(text(
+                "ALTER TABLE liveness_sessions ADD COLUMN last_ear FLOAT"
+            ))
+            conn.commit()
+        if not _col_exists(conn, "liveness_sessions", "min_ear_closed"):
+            conn.execute(text(
+                "ALTER TABLE liveness_sessions ADD COLUMN min_ear_closed FLOAT"
+            ))
+            conn.commit()
+
         # assigned_cashier_logins — список кассиров (JSON-массив логинов)
         if not _col_exists(conn, "cash_desks", "assigned_cashier_logins"):
             conn.execute(text(
@@ -121,6 +143,22 @@ update_db_schema()
 Base.metadata.create_all(bind=engine)
 cashiers_db.init_db()
 migrate_photos()
+
+
+def seed_defaults():
+    from app.models import AppSetting
+    db = SessionLocal()
+    try:
+        defaults = {"manual_payment_use_subsidy": "true"}
+        for key, val in defaults.items():
+            if not db.query(AppSetting).filter(AppSetting.key == key).first():
+                db.add(AppSetting(key=key, value=val))
+        db.commit()
+    finally:
+        db.close()
+
+
+seed_defaults()
 
 app = FastAPI(title="Cafeteria")
 

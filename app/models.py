@@ -64,7 +64,11 @@ class LivenessSession(Base):
     card_uid = Column(String)
     timestamp = Column(DateTime, default=datetime.now)
     passed = Column(Boolean, default=False, nullable=False)
-    embedding_json = Column(JSON, nullable=True)  # кэш вектора — чтобы не читать Employee на каждый кадр
+    embedding_json = Column(JSON, nullable=True)
+    blink_count = Column(Integer, default=0, nullable=False)
+    eye_closed = Column(Boolean, default=False, nullable=False)
+    last_ear = Column(Float, nullable=True)
+    min_ear_closed = Column(Float, nullable=True)  # минимум EAR за время текущего закрытия — отсеивает неглубокие ложные морганя
 
 
 class CashDesk(Base):
@@ -101,6 +105,12 @@ class CashDeskProduct(Base):
     price = Column(Integer, nullable=False, default=0)
     cash_desk = relationship("CashDesk", back_populates="products_association")
     product = relationship("Product", back_populates="cash_desks_association")
+
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+    key = Column(String, primary_key=True)
+    value = Column(String, nullable=False)
 
 
 class AuditLog(Base):

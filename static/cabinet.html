@@ -258,11 +258,46 @@
     </div>
 
     <!-- История -->
-    <div style="font-size: 18px; font-weight: 800; letter-spacing: -0.3px; margin: 20px 4px 12px;">Последние чеки</div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin: 20px 4px 10px;">
+        <div style="font-size: 18px; font-weight: 800; letter-spacing: -0.3px;">История чеков</div>
+        <div style="display:flex; align-items:center; gap:6px;">
+            <button onclick="changeHistMonth(-1)" style="background:var(--primary-light); border:none; border-radius:8px; width:32px; height:32px; cursor:pointer; color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:15px;"><i class="ph-bold ph-caret-left"></i></button>
+            <div id="histMonthLabel" style="font-size:13px; font-weight:700; color:var(--text); min-width:96px; text-align:center;"></div>
+            <button id="histNextBtn" onclick="changeHistMonth(1)" style="background:var(--primary-light); border:none; border-radius:8px; width:32px; height:32px; cursor:pointer; color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:15px;"><i class="ph-bold ph-caret-right"></i></button>
+        </div>
+    </div>
+    <div id="histMonthTotal" style="font-size:12px; color:var(--sec); margin: 0 4px 10px; font-weight:600; min-height:16px;"></div>
     <div class="card" id="historyList" style="padding: 4px 20px;"></div>
 </div>
 
 <script>
+    var histMonth, histYear, histEmpId;
+    var MONTH_NAMES = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
+    async function loadHistory() {
+        if (!histEmpId) return;
+        document.getElementById('histMonthLabel').innerText = MONTH_NAMES[histMonth] + ' ' + histYear;
+        var now = new Date();
+        var isCurrent = histMonth === now.getMonth() && histYear === now.getFullYear();
+        var nextBtn = document.getElementById('histNextBtn');
+        nextBtn.disabled = isCurrent;
+        nextBtn.style.opacity = isCurrent ? '0.35' : '1';
+        nextBtn.style.cursor = isCurrent ? 'default' : 'pointer';
+
+        var res = await fetch('/api/user/history/' + histEmpId + '?month=' + (histMonth + 1) + '&year=' + histYear);
+        var d = await res.json();
+        renderHistory(d.transactions);
+        var totalEl = document.getElementById('histMonthTotal');
+        totalEl.innerText = d.month_total > 0 ? 'Итого за ' + MONTH_NAMES[histMonth].toLowerCase() + ': ' + d.month_total + ' ₽' : '';
+    }
+
+    function changeHistMonth(dir) {
+        histMonth += dir;
+        if (histMonth < 0) { histMonth = 11; histYear--; }
+        if (histMonth > 11) { histMonth = 0; histYear++; }
+        loadHistory();
+    }
+
     async function login() {
         const uid = document.getElementById('cardUid').value.trim().toUpperCase();
         const errEl = document.getElementById('loginError');
@@ -318,15 +353,14 @@
         const sub = d.subsidy;
         const subsidyBlock = document.getElementById('subsidyBlock');
         if (sub.role_subsidy === 0) {
-            // Роль без дотации — скрываем блок полностью
             subsidyBlock.style.display = 'none';
+        } else if (!sub.is_work) {
+            subsidyBlock.innerHTML = `<div style="font-size:13px; font-weight:600; color:rgba(255,255,255,0.7); text-align:center; padding:2px 0;">Сегодня дотации нет</div>`;
         } else {
             const remaining = sub.max - sub.used;
-            if (!sub.is_work || remaining <= 0) {
-                // Дотация есть по роли, но сегодня исчерпана или выходной
-                subsidyBlock.innerHTML = `<div style="font-size:13px; font-weight:600; color:rgba(255,255,255,0.75); text-align:center; padding:2px 0;">Сегодня дотации нет</div>`;
+            if (remaining <= 0) {
+                subsidyBlock.innerHTML = `<div style="font-size:13px; font-weight:700; color:#FCA5A5; text-align:center; padding:2px 0; display:flex; align-items:center; justify-content:center; gap:6px;"><i class="ph-bold ph-warning-circle"></i> Вся дотация на сегодня потрачена</div>`;
             } else {
-                // Нормальное отображение прогресса
                 document.getElementById('subsTitle').innerText = 'Дотация сегодня';
                 document.getElementById('subsLabel').innerText = `${sub.used} / ${sub.max} ₽`;
                 const percent = sub.used / sub.max * 100;
@@ -335,7 +369,12 @@
         }
 
         renderCal(d.schedule);
-        renderHistory(d.history);
+
+        var now = new Date();
+        histMonth = now.getMonth();
+        histYear = now.getFullYear();
+        histEmpId = id;
+        loadHistory();
     }
 
     function renderCal(workDays) {

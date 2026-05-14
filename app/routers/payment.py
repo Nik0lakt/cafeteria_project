@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.models import (
     CashDesk, Employee, Category, Product, Card,
-    Transaction, WorkDay, RoleSetting, LivenessSession, CashDeskProduct,
+    Transaction, WorkDay, RoleSetting, LivenessSession, CashDeskProduct, AppSetting,
 )
 from app.security import hash_password, verify_password
 
@@ -189,8 +189,13 @@ def pay(data: PaymentRequest, db: Session = Depends(get_db)):
         int(round(role_set.subsidy_rub * 100)) if (role_set and is_work_day) else 0
     )
 
+    # Проверяем настройку: списывать ли дотацию при ручной оплате
+    setting = db.query(AppSetting).filter(AppSetting.key == "manual_payment_use_subsidy").first()
+    manual_subsidy_enabled = (setting.value == "true") if setting else True
+
     applied_subsidy_kop = 0
-    if daily_subsidy_limit_kop > 0:
+    use_subsidy = daily_subsidy_limit_kop > 0 and (not data.is_manual or manual_subsidy_enabled)
+    if use_subsidy:
         start_of_today = datetime.combine(date.today(), time.min)
         raw_used = db.query(func.sum(Transaction.subsidy_part_kopecks)).filter(
             Transaction.employee_id == emp.id,
@@ -636,6 +641,33 @@ def get_user_full_data(emp_id: int, db: Session = Depends(get_db)):
             }
             for t in txs
         ],
+    }
+
+
+@router.get("/user/history/{emp_id}")
+def get_user_history(emp_id: int, month: int = Query(...), year: int = Query(...), db: Session = Depends(get_db)):
+    emp = db.query(Employee).filter(Employee.id == emp_id).first()
+    if not emp:
+        raise HTTPException(404)
+    start = date(year, month, 1)
+    end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    txs = (
+        db.query(Transaction)
+        .filter(
+            Transaction.employee_id == emp_id,
+            func.date(Transaction.created_at) >= start,
+            func.date(Transaction.created_at) < end,
+        )
+        .order_by(Transaction.created_at.desc())
+        .all()
+    )
+    month_total = round(sum(t.amount_total_kopecks for t in txs) / 100, 2)
+    return {
+        "transactions": [
+            {"id": t.id, "date": t.created_at.strftime("%d.%m %H:%M"), "total": t.amount_total_kopecks / 100, "items": t.items}
+            for t in txs
+        ],
+        "month_total": month_total,
     }
 
 

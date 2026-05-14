@@ -2,26 +2,50 @@ import face_recognition
 import numpy as np
 import cv2
 
-def get_face_embedding(image_bytes):
+EAR_CLOSE_THRESHOLD = 0.20   # начало фазы «глаз закрывается»
+EAR_OPEN_THRESHOLD  = 0.25   # конец фазы — глаз открылся снова
+EAR_MIN_BLINK       = 0.12   # минимум EAR за всю фазу закрытия; настоящее моргание ~0.05–0.12, наклон фото не достигает
+
+
+def _compute_ear(eye):
+    a = np.linalg.norm(np.array(eye[1]) - np.array(eye[5]))
+    b = np.linalg.norm(np.array(eye[2]) - np.array(eye[4]))
+    c = np.linalg.norm(np.array(eye[0]) - np.array(eye[3]))
+    return (a + b) / (2.0 * c) if c > 1e-6 else 0.0
+
+
+def get_face_embedding_and_ear(image_bytes):
+    """Returns (embedding, ear) — detects face once, computes both."""
     try:
-        # Декодируем изображение из байтов
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img is None:
-            return None
-            
-        # Конвертируем в RGB (face_recognition работает с RGB)
+            return None, None
         rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        
-        # Ищем лица и создаем эмбеддинги
-        encodings = face_recognition.face_encodings(rgb_img)
-        
-        if len(encodings) > 0:
-            return encodings[0]
-        return None
+
+        face_locations = face_recognition.face_locations(rgb_img)
+        if not face_locations:
+            return None, None
+
+        encodings = face_recognition.face_encodings(rgb_img, known_face_locations=face_locations)
+        embedding = encodings[0] if encodings else None
+
+        ear = None
+        landmarks_list = face_recognition.face_landmarks(rgb_img, face_locations=face_locations)
+        if landmarks_list:
+            lm = landmarks_list[0]
+            ear = (_compute_ear(lm['left_eye']) + _compute_ear(lm['right_eye'])) / 2.0
+
+        return embedding, ear
     except Exception as e:
         print(f"CV Error: {e}")
-        return None
+        return None, None
+
+
+def get_face_embedding(image_bytes):
+    embedding, _ = get_face_embedding_and_ear(image_bytes)
+    return embedding
+
 
 def compare_faces(embedding1, embedding2, tolerance=0.45):
     try:

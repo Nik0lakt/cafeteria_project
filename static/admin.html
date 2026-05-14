@@ -590,6 +590,43 @@
         }
     }
 
+    // Keyboard-emulation scanner buffer: routes rapid keystrokes to editCard when modal is open
+    ;(function () {
+        var buf = '', lastTs = 0, scanTimer = null;
+        document.addEventListener('keydown', function (e) {
+            var modal = document.getElementById('editModal');
+            if (!modal || modal.style.display !== 'flex') { buf = ''; return; }
+            if (document.activeElement && document.activeElement.id === 'editCard') return;
+
+            var now = Date.now();
+            var gap = lastTs ? now - lastTs : 999;
+
+            if (e.key === 'Enter') {
+                var uid = buf.trim().toUpperCase();
+                buf = ''; lastTs = 0;
+                if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
+                if (uid.length >= 4) {
+                    e.preventDefault();
+                    document.getElementById('editCard').value = uid;
+                }
+                return;
+            }
+
+            if (e.key.length !== 1) return;
+
+            if (gap < 60) {
+                e.preventDefault();
+            } else {
+                buf = '';
+            }
+
+            buf += e.key;
+            lastTs = now;
+            if (scanTimer) clearTimeout(scanTimer);
+            scanTimer = setTimeout(function () { buf = ''; lastTs = 0; }, 300);
+        }, true);
+    })();
+
     // --- NAV ---
     function switchTab(id, el) {
         ['tab-emp', 'tab-cash', 'tab-stat', 'tab-settings'].forEach(t => document.getElementById(t).style.display = 'none');
@@ -759,6 +796,7 @@
         fb.className = 'emp-badge ' + (e.has_face ? 'emp-badge-face-ok' : 'emp-badge-face-no');
 
         document.getElementById('editModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('editCard').focus(), 50);
     }
 
     async function saveEdit() {
