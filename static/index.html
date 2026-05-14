@@ -535,8 +535,8 @@
                 if (!d.face_found) {
                     setStatus('Смотрите прямо в камеру...');
                 } else {
-                    const pct = d.progress || 0;
-                    setStatus('Подтверждаем личность... ' + pct + '%');
+                    const dots = ['', '.', '..', '...'];
+                    setStatus('Идёт распознавание' + dots[frameCount % 4]);
                 }
             } catch (e) {
                 // сетевая ошибка — молча повторим попытку

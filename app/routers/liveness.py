@@ -9,8 +9,8 @@ from app.models import Employee, Card, LivenessSession
 router = APIRouter()
 
 SESSION_TTL_MINUTES = 10
-MATCHES_NEEDED   = 10    # кадров с совпадением для накопления статистики
-VARIANCE_NEEDED  = 0.08  # разброс дистанций: живое лицо >0.10, статичное фото <0.03
+MATCHES_NEEDED   = 5     # кадров с совпадением (~2 сек при 400мс интервале)
+VARIANCE_NEEDED  = 0.06  # разброс дистанций: живое лицо >0.08, статичное фото <0.03
 
 
 @router.post("/start_liveness")
