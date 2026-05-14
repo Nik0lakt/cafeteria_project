@@ -1,6 +1,6 @@
 # Cafeteria — Corporate Canteen Management System
 
-**Navigation:** [English](#english) | [Русский](#russian)
+**Navigation:** [English](#english) | [Русский](#russian) | [Investor FAQ (EN)](#investor--technical-faq) | [FAQ для инвесторов (RU)](#faq-для-инвесторов-и-корпоративных-клиентов)
 
 ---
 
@@ -18,6 +18,7 @@
 6. [Installation and Deployment](#6-installation-and-deployment)
 7. [Environment Variables](#7-environment-variables)
 8. [Database Schema](#8-database-schema)
+9. [Investor & Technical FAQ](#9-investor--technical-faq)
 
 ---
 
@@ -386,6 +387,153 @@ Transaction row created (all amounts in kopecks)
 
 ---
 
+<a name="investor--technical-faq"></a>
+
+## 9. Investor & Technical FAQ
+
+### Q1: How does the system handle personal biometric data (GDPR / Russian Federal Law No. 152-FZ)?
+
+**A:** The system is built on Privacy-by-Design principles:
+
+| Layer | Implementation |
+|-------|---------------|
+| Storage | Only a 128-dimensional floating-point **vector** is stored — the original photograph is never persisted to disk. |
+| Encoding | The photo → vector transformation (dlib ResNet) is one-directional; reconstructing a face from a vector is computationally infeasible. |
+| Infrastructure | Fully **self-hosted** (Docker Compose, on-premise). No biometric data ever leaves the corporate network. |
+| Session retention | `liveness_sessions` rows auto-delete after 10 minutes via a background cleanup task. |
+| Right to erasure | On employee termination, a single `DELETE FROM employees WHERE id=X` removes the person's vector, name, card bindings, and financial history from the operational system. |
+
+The architecture eliminates the primary compliance risk: storing the source biometric image is prohibited under 152-FZ — we never store it.
+
+---
+
+### Q2: What happens when the internet connection is lost?
+
+**A:** The system is **local-first**. All business-critical paths function without an internet connection:
+
+| Component | Offline behaviour |
+|-----------|------------------|
+| Face recognition | Runs locally (dlib on CPU) — no cloud API call |
+| Payment processing | Writes directly to local PostgreSQL |
+| RFID reader | USB Serial — no network dependency |
+| Admin panel | Served from local static files via Caddy |
+| Telegram notifications | Queued in memory; bot retries on reconnection |
+
+The only features that degrade gracefully during a network outage are outbound Telegram messages and (if configured) remote monitoring dashboards. All financial transactions are recorded locally and are never lost.
+
+---
+
+### Q3: How is financial integrity guaranteed? (No floating-point rounding errors)
+
+**A:** Every monetary value is stored and computed in **integer kopecks** (1/100th of a ruble).
+
+The IEEE 754 problem this avoids:
+```python
+# WRONG — classic float rounding error
+0.1 + 0.2 == 0.30000000000000004
+
+# RIGHT — Cafeteria approach
+10 + 20 == 30  # kopecks, always exact integer arithmetic
+```
+
+Database-level invariants enforced on every transaction:
+- `amount_total_kopecks` (BIGINT) = Σ(price_kopecks × qty) — exact
+- `subsidy_part_kopecks` (BIGINT) = min(daily_subsidy_kopecks, total) — exact
+- `limit_part_kopecks` (BIGINT) = total − subsidy_part — exact
+
+The **only** float in the system is `RoleSetting.subsidy_rub` (a human-readable configuration field), which is immediately converted via `int(round(value * 100))` before any arithmetic. Month-end reconciliation is auditable to the kopeck.
+
+---
+
+### Q4: How does the system scale to hundreds of terminals and thousands of employees?
+
+**A:** The architecture is horizontally scalable at every layer:
+
+**Step 1 — Single Node (current default):** One Docker Compose host handles up to ~20 POS terminals and ~2,000 employees. SQLAlchemy connection pooling; Caddy handles TLS termination and HTTP/2.
+
+**Step 2 — Read Replica:** Add a PostgreSQL streaming replica for statistics queries. Route `GET /api/statistics/*` to the replica, all writes to primary. Zero application code change required.
+
+**Step 3 — Multi-Node:** Place a load balancer (Nginx, HAProxy) in front of multiple FastAPI instances. Sessions are stateless (JWT) — any node can serve any request.
+
+| Scale | Terminals | Employees | Architecture |
+|-------|-----------|-----------|-------------|
+| S | 1–5 | up to 500 | Single Docker Compose host |
+| M | 5–50 | 500–5,000 | Primary + Read Replica |
+| L | 50–500 | 5,000–50,000 | Multi-node FastAPI + PgBouncer + Read Replicas |
+
+Each scale step is additive — no data migrations or application rewrites are needed between tiers.
+
+---
+
+### Q5: What prevents fraud and payment bypass attacks?
+
+**A:** Multiple independent defence layers enforce a strict two-factor chain (card + face):
+
+```
+RFID Card tap
+    │
+    ├─► Card registered in system? ──No──► Transaction rejected immediately
+    │
+    ├─► Liveness session created (UUID, 10-min TTL)
+    │       │
+    │       ├─► Face distance variance ≥ 0.02 across 4 frames? ──No──► Session stays open
+    │       │
+    │       └─► session.passed = TRUE (written to DB atomically)
+    │
+    └─► /api/pay called with session UUID
+            │
+            ├─► session.passed == TRUE? ──No──► HTTP 403
+            │
+            ├─► session age < 10 min? ──No──► HTTP 403
+            │
+            └─► Transaction committed; session deleted immediately
+```
+
+**Attack surface analysis:**
+
+| Attack vector | Mitigation |
+|---------------|-----------|
+| Photo / printed image spoofing | Passive liveness: variance of face distance across 4 captured frames must exceed threshold — flat images produce near-zero variance |
+| Video replay attack | Same variance check; a looped video has zero variance over its duration |
+| Session UUID replay | Session is deleted from DB immediately after successful payment — reuse returns 403 |
+| Direct API call to `/pay` | `session.passed` flag must be `TRUE` in DB — it cannot be set without completing liveness |
+| RFID card cloning | Card UID alone is insufficient — liveness session must pass independently |
+| Admin privilege escalation | JWT HS256 signed with `SECRET_KEY`; admin password stored as bcrypt hash |
+
+All cashier manual-override transactions are written to `audit_logs` with the cashier's identity and a timestamp.
+
+---
+
+### Q6: Can this integrate with 1C, SAP, or other ERP systems?
+
+**A:** Yes. The system exposes a versioned RESTful JSON API; FastAPI auto-generates OpenAPI 3.0 documentation at `/docs` (interactive) and `/openapi.json` (machine-readable).
+
+**Integration options:**
+
+| Method | Use case | Effort |
+|--------|----------|--------|
+| REST API — polling | Nightly batch export of transactions to 1C / SBIS | Low — single authenticated GET |
+| REST API — push | Real-time sync: HR system pushes employee create/update events | Low — standard PUT `/api/employees/{id}` |
+| CSV Export | Finance team imports monthly report into Excel or 1C | Zero — built-in button in admin panel |
+| Database direct read | BI tools (Metabase, Tableau, Power BI) connect to PostgreSQL read replica | Low — standard PostgreSQL connector |
+
+**Example: sync a new employee from an HR system**
+```http
+PUT /api/employees/{id}
+Authorization: Bearer <admin-jwt>
+Content-Type: application/json
+
+{
+  "full_name": "Иванов Иван Иванович",
+  "role": "engineer",
+  "month_limit_rub": 5000
+}
+```
+
+The OpenAPI schema can be imported directly into Postman or Insomnia, and used to auto-generate typed client SDKs for Python, TypeScript, Java, or any language supported by `openapi-generator`.
+
+---
+
 ---
 
 <a name="russian"></a>
@@ -402,6 +550,7 @@ Transaction row created (all amounts in kopecks)
 6. [Установка и развёртывание](#6-установка-и-развёртывание)
 7. [Переменные окружения](#7-переменные-окружения)
 8. [Схема базы данных](#8-схема-базы-данных)
+9. [FAQ для инвесторов и корпоративных клиентов](#9-faq-для-инвесторов-и-корпоративных-клиентов)
 
 ---
 
@@ -767,3 +916,150 @@ docker compose logs -f web
                 v
         emp.month_limit_kopecks -= limit_part_kopecks
 ```
+
+---
+
+<a name="9-faq-для-инвесторов-и-корпоративных-клиентов"></a>
+
+## 9. FAQ для инвесторов и корпоративных клиентов
+
+### В1: Как система обрабатывает персональные биометрические данные (GDPR / 152-ФЗ)?
+
+**О:** Система построена на принципах Privacy by Design:
+
+| Уровень | Реализация |
+|---------|-----------|
+| Хранение | Хранится только 128-мерный вектор вещественных чисел — исходная фотография **никогда** не записывается на диск. |
+| Кодирование | Преобразование фото → вектор (dlib ResNet) — односторонняя операция; восстановить лицо из вектора вычислительно невозможно. |
+| Инфраструктура | Полностью **on-premise** (Docker Compose). Биометрические данные не покидают корпоративную сеть. |
+| Хранение сессий | Строки `liveness_sessions` автоматически удаляются через 10 минут фоновым заданием очистки. |
+| Право на удаление | При увольнении сотрудника один запрос `DELETE FROM employees WHERE id=X` удаляет вектор, ФИО, привязку карты и финансовую историю из операционной системы. |
+
+Архитектура устраняет главный риск 152-ФЗ: хранение исходного биометрического изображения запрещено — мы его никогда не сохраняем.
+
+---
+
+### В2: Что происходит при потере интернет-соединения?
+
+**О:** Система работает по принципу **local-first**. Все бизнес-критические операции выполняются без интернета:
+
+| Компонент | Поведение при отключении |
+|-----------|-------------------------|
+| Распознавание лиц | Работает локально (dlib на CPU) — нет обращений к облаку |
+| Проведение оплаты | Пишет напрямую в локальный PostgreSQL |
+| RFID-считыватель | USB Serial — не зависит от сети |
+| Панель администратора | Раздаётся из локальных статических файлов через Caddy |
+| Telegram-уведомления | Ставятся в очередь; бот повторяет отправку при восстановлении соединения |
+
+При отсутствии сети деградируют только исходящие сообщения Telegram и внешние дашборды мониторинга (если настроены). Все финансовые транзакции записываются локально и не теряются.
+
+---
+
+### В3: Как гарантируется финансовая точность? (Без ошибок округления с плавающей точкой)
+
+**О:** Все денежные значения хранятся и обрабатываются в **целых копейках** (1/100 рубля).
+
+Проблема IEEE 754, которую это решает:
+```python
+# НЕВЕРНО — классическая ошибка округления
+0.1 + 0.2 == 0.30000000000000004
+
+# ВЕРНО — подход Cafeteria
+10 + 20 == 30  # копейки, точная целочисленная арифметика
+```
+
+Инварианты, соблюдаемые на уровне базы данных при каждой транзакции:
+- `amount_total_kopecks` (BIGINT) = Σ(цена_копейки × кол-во) — точно
+- `subsidy_part_kopecks` (BIGINT) = min(дневная_дотация_копейки, итого) — точно
+- `limit_part_kopecks` (BIGINT) = итого − дотация — точно
+
+**Единственный** float в системе — `RoleSetting.subsidy_rub` (поле конфигурации для удобства ввода), которое немедленно преобразуется через `int(round(value * 100))` перед любыми вычислениями. Сверка данных на конец месяца аудируема с точностью до копейки.
+
+---
+
+### В4: Как система масштабируется на сотни терминалов и тысячи сотрудников?
+
+**О:** Архитектура горизонтально масштабируема на каждом уровне:
+
+**Шаг 1 — Один узел (текущий вариант по умолчанию):** Один Docker Compose хост обрабатывает до ~20 POS-терминалов и ~2 000 сотрудников. Пул соединений SQLAlchemy; Caddy выполняет TLS-терминацию и HTTP/2.
+
+**Шаг 2 — Read Replica:** Добавляется стриминговая реплика PostgreSQL для запросов статистики. Маршрутизация `GET /api/statistics/*` на реплику, все записи — на мастер. Изменений кода приложения не требуется.
+
+**Шаг 3 — Несколько узлов:** Балансировщик нагрузки (Nginx, HAProxy) перед несколькими экземплярами FastAPI. Сессии — stateless (JWT), любой узел обрабатывает любой запрос.
+
+| Масштаб | Терминалы | Сотрудники | Архитектура |
+|---------|-----------|------------|-------------|
+| S | 1–5 | до 500 | Один Docker Compose хост |
+| M | 5–50 | 500–5 000 | Мастер + Read Replica |
+| L | 50–500 | 5 000–50 000 | Мультиузловой FastAPI + PgBouncer + Read Replicas |
+
+Каждый шаг масштабирования аддитивен — между уровнями не требуются миграции данных или переписывание приложения.
+
+---
+
+### В5: Что предотвращает мошенничество и обход системы оплаты?
+
+**О:** Несколько независимых уровней защиты обеспечивают строгую двухфакторную цепочку (карта + лицо):
+
+```
+Прикладывание RFID-карты
+    │
+    ├─► Карта зарегистрирована в системе? ──Нет──► Транзакция немедленно отклонена
+    │
+    ├─► Создаётся Liveness-сессия (UUID, TTL 10 мин)
+    │       │
+    │       ├─► Дисперсия расстояния до лица ≥ 0.02 на 4 кадрах? ──Нет──► Сессия открыта
+    │       │
+    │       └─► session.passed = TRUE (атомарная запись в БД)
+    │
+    └─► /api/pay вызывается с UUID сессии
+            │
+            ├─► session.passed == TRUE? ──Нет──► HTTP 403
+            │
+            ├─► Возраст сессии < 10 мин? ──Нет──► HTTP 403
+            │
+            └─► Транзакция зафиксирована; сессия немедленно удалена
+```
+
+**Анализ вектора угроз:**
+
+| Вектор атаки | Защита |
+|--------------|--------|
+| Подмена фото / распечатки | Пассивный liveness: дисперсия расстояния до лица на 4 кадрах должна превышать порог — у плоских изображений дисперсия близка к нулю |
+| Атака воспроизведением видео | Тот же тест дисперсии; зациклённое видео даёт нулевую дисперсию за время просмотра |
+| Повторное использование UUID сессии | Сессия удаляется из БД сразу после успешной оплаты — повторное использование возвращает 403 |
+| Прямой вызов API `/pay` | Флаг `session.passed` должен быть `TRUE` в БД — нельзя установить без прохождения liveness |
+| Клонирование RFID-карты | UID карты одного недостаточно — liveness-сессия должна быть пройдена независимо |
+| Эскалация привилегий администратора | JWT HS256 подписан `SECRET_KEY`; пароль администратора хранится в виде bcrypt-хэша |
+
+Все ручные транзакции, проводимые кассирами через режим обхода, записываются в `audit_logs` с идентификатором кассира и временной меткой.
+
+---
+
+### В6: Возможна ли интеграция с 1С, SAP или другими ERP-системами?
+
+**О:** Да. Система предоставляет версионированный RESTful JSON API; FastAPI автоматически генерирует документацию OpenAPI 3.0 по адресу `/docs` (интерактивная) и `/openapi.json` (машиночитаемая).
+
+**Варианты интеграции:**
+
+| Метод | Сценарий | Трудозатраты |
+|-------|----------|-------------|
+| REST API — опрос | Ночной пакетный экспорт транзакций в 1С / СБИС | Низкие — один аутентифицированный GET |
+| REST API — push | Синхронизация в реальном времени: HR-система отправляет события создания/обновления сотрудников | Низкие — стандартный PUT `/api/employees/{id}` |
+| Экспорт CSV | Финансовый отдел импортирует ежемесячный отчёт в Excel или 1С | Нулевые — встроенная кнопка в панели администратора |
+| Прямое чтение из БД | BI-инструменты (Metabase, Tableau, Power BI) подключаются к реплике PostgreSQL | Низкие — стандартный коннектор PostgreSQL |
+
+**Пример: синхронизация нового сотрудника из HR-системы**
+```http
+PUT /api/employees/{id}
+Authorization: Bearer <admin-jwt>
+Content-Type: application/json
+
+{
+  "full_name": "Иванов Иван Иванович",
+  "role": "engineer",
+  "month_limit_rub": 5000
+}
+```
+
+Схема OpenAPI читается машинами и может быть импортирована напрямую в Postman или Insomnia, а также использована для автоматической генерации типизированных клиентских SDK на Python, TypeScript, Java или любом языке, поддерживаемом `openapi-generator`.
