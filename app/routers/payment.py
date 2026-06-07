@@ -28,7 +28,7 @@ from app.models import (
     WorkDay,
 )
 from app.security import get_current_admin, hash_password, verify_password
-from app.services.payment_service import calculate_order_total, PaymentError
+from app.services.payment_service import PaymentError, calculate_order_total
 
 router = APIRouter()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")

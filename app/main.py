@@ -5,7 +5,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI
+import time as time_module
+
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect as sa_inspect
@@ -178,6 +180,41 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     bot.start_bot()
+
+
+# --- Metrics & Health ---
+
+METRICS = {"requests_total": 0, "requests_by_status": {}, "latency_sum_ms": 0.0}
+
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    start = time_module.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (time_module.perf_counter() - start) * 1000
+    METRICS["requests_total"] += 1
+    METRICS["latency_sum_ms"] += elapsed_ms
+    status_key = str(response.status_code)
+    METRICS["requests_by_status"][status_key] = METRICS["requests_by_status"].get(status_key, 0) + 1
+    return response
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+
+@app.get("/metrics")
+def prometheus_metrics():
+    lines = [
+        '# TYPE http_requests_total counter',
+        f'http_requests_total {METRICS["requests_total"]}',
+        '# TYPE http_request_latency_ms_sum counter',
+        f'http_request_latency_ms_sum {METRICS["latency_sum_ms"]:.2f}',
+    ]
+    for code, count in METRICS["requests_by_status"].items():
+        lines.append(f'http_requests_by_status{{code="{code}"}} {count}')
+    return Response(content="\n".join(lines) + "\n", media_type="text/plain")
 
 
 app.include_router(auth.router, prefix="/api")

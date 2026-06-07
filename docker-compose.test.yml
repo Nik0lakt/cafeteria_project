@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  test:
+    build: .
+    command: python -m pytest tests/ -v --tb=short
+    environment:
+      JWT_SECRET: test-secret-key
+      DATABASE_URL: sqlite:///./test.db
+      ADMIN_PASSWORD_HASH: "$2b$12$LJ3m4sMKfXzSGqXFqXKYXe8XxYXzGqXFqXKYXe8XxYXzGqXFqXKYXe"
+    volumes:
+      - .:/app
+    working_dir: /app
