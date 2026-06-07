@@ -1,5 +1,5 @@
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import bcrypt
 from fastapi import Depends, HTTPException, status
@@ -29,7 +29,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
-    to_encode["exp"] = datetime.now(UTC) + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    to_encode["exp"] = datetime.now(timezone.utc) + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
