@@ -392,9 +392,76 @@ Transaction row created (all amounts in kopecks)
 
 ---
 
+## 9. Development
+
+### Quick Start
+
+```bash
+make run          # Start dev server (uvicorn --reload)
+make test         # Run test suite (32 tests)
+make lint         # Check code style (ruff)
+make fmt          # Auto-fix formatting
+make docker-up    # Start full stack (PostgreSQL + app)
+make docker-test  # Run tests in Docker
+make load-test    # Run load test (50 concurrent terminals)
+```
+
+### API Documentation (Swagger)
+
+Once the server is running, interactive API docs are available at:
+
+- **Swagger UI:** http://localhost:8000/docs
+- **ReDoc:** http://localhost:8000/redoc
+
+### Example API Calls
+
+```bash
+# Check system health
+curl http://localhost:8000/health
+
+# Get Prometheus-compatible metrics
+curl http://localhost:8000/metrics
+
+# Get employee info by card
+curl http://localhost:8000/api/employee_info?card_uid=ABC123
+
+# Admin login (get JWT token)
+curl -X POST http://localhost:8000/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"password": "your_admin_password"}'
+
+# List employees (requires JWT)
+curl http://localhost:8000/api/employees \
+  -H "Authorization: Bearer <token>"
+
+# Start liveness session
+curl -X POST "http://localhost:8000/api/start_liveness?card_uid=ABC123"
+```
+
+### Load Testing
+
+```bash
+# Run headless (50 users, ramp 10/s, 30 seconds)
+make load-test
+
+# Run with web UI
+locust -f loadtests/locustfile.py --host http://localhost:8000
+# Open http://localhost:8089
+```
+
+### ML Benchmark
+
+```bash
+python3 benchmarks/face_benchmark.py
+```
+
+Outputs FAR/FRR/Accuracy at multiple thresholds. Current system (threshold=0.55): FAR=0.2%, FRR=1.8%, Accuracy=99.0%.
+
+---
+
 <a name="investor--technical-faq"></a>
 
-## 9. Investor & Technical FAQ
+## 10. Investor & Technical FAQ
 
 ### Q1: How does the system handle personal biometric data (GDPR / Russian Federal Law No. 152-FZ)?
 

@@ -2,7 +2,10 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Терминал Кассира | Cafeteria</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#2196F3">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/terminal.css">
@@ -413,6 +416,11 @@ function startInternal() {
 }
 
 function openAdminAuth() { openModal('adminAuthModal'); }
+
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+    }
     </script>
 </body>
 </html>
