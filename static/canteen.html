@@ -37,7 +37,7 @@
                 <div class="admin-badge edit-only">РЕЖИМ НАСТРОЙКИ</div>
             </div>
             <div class="top-bar-right">
-                <button class="btn-outline" onclick="openShiftSummary()"><i class="ph-bold ph-chart-bar"></i> Итоги смены</button>
+                <button class="btn-outline" id="shiftSummaryBtn" onclick="openShiftSummary()" style="display:none"><i class="ph-bold ph-chart-bar"></i> Итоги смены</button>
                 <button class="btn-outline" id="settingsBtn" onclick="openAdminAuth()"><i class="ph-bold ph-gear"></i> Настройки</button>
                 <button class="btn-outline edit-only" style="color:#EF4444; border-color:#EF4444;" onclick="exitAdmin()">Выйти из настроек</button>
                 <button class="btn-outline" onclick="logout()"><i class="ph-bold ph-sign-out"></i> Закрыть смену</button>
@@ -134,10 +134,12 @@ function checkAuth() {
     if (cashDeskLogin && cashDeskDbId && cashDeskDbId !== "undefined" && cashDeskDbId !== "null") {
         overlay.style.display = 'none';
         document.body.classList.add('logged-in');
+        document.getElementById('shiftSummaryBtn').style.display = '';
         initApp();
     } else {
         overlay.style.display = 'flex';
         document.body.classList.remove('logged-in');
+        document.getElementById('shiftSummaryBtn').style.display = 'none';
     }
 }
 checkAuth();

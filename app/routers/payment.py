@@ -718,33 +718,34 @@ def shift_summary(
 @router.get("/admin/events", dependencies=[Depends(get_current_admin)])
 def admin_events(limit: int = Query(20, le=100), db: Session = Depends(get_db)):
     events = []
-    manual = db.query(Transaction).filter(
-        Transaction.payment_method == "internal",
-        Transaction.status == "COMPLETED",
-    ).order_by(Transaction.created_at.desc()).limit(limit).all()
-    for t in manual:
+    recent_txs = db.query(Transaction).order_by(
+        Transaction.created_at.desc()
+    ).limit(limit).all()
+    for t in recent_txs:
+        if t.status == "REFUNDED":
+            etype = "refund"
+            detail = f"Возврат #{t.id} / {(t.amount_total_kopecks or 0)/100:.0f} ₽"
+        elif t.payment_method == "internal":
+            etype = "manual_payment"
+            detail = f"Оплата дотацией #{t.id} / {(t.amount_total_kopecks or 0)/100:.0f} ₽"
+        else:
+            etype = "payment"
+            method_names = {"bank_card": "картой", "cash": "наличные"}
+            m = method_names.get(t.payment_method, t.payment_method or "")
+            detail = f"Оплата {m} #{t.id} / {(t.amount_total_kopecks or 0)/100:.0f} ₽"
         events.append({
-            "type": "manual_payment",
+            "type": etype,
             "ts": t.created_at.isoformat() if t.created_at else None,
-            "detail": f"Оплата через дотацию #{t.id} / {(t.amount_total_kopecks or 0)/100:.0f} ₽",
+            "detail": detail,
         })
-    refunded = db.query(Transaction).filter(
-        Transaction.status == "REFUNDED",
-    ).order_by(Transaction.created_at.desc()).limit(limit).all()
-    for t in refunded:
-        events.append({
-            "type": "refund",
-            "ts": t.created_at.isoformat() if t.created_at else None,
-            "detail": f"Возврат #{t.id} / {(t.amount_total_kopecks or 0)/100:.0f} ₽",
-        })
-    new_emps = db.query(Employee).order_by(Employee.id.desc()).limit(limit).all()
+    new_emps = db.query(Employee).order_by(Employee.id.desc()).limit(10).all()
     for e in new_emps:
         events.append({
             "type": "new_employee",
             "ts": None,
             "detail": f"Сотрудник: {e.full_name} (#{e.id})",
         })
-    events.sort(key=lambda x: x["ts"] or "", reverse=True)
+    events.sort(key=lambda x: x["ts"] or "0", reverse=True)
     return events[:limit]
 
 

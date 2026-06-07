@@ -152,7 +152,7 @@ class TestRefund:
     def test_refund_restores_balance(self, client, db, full_payment_setup):
         setup = full_payment_setup
         # Remove work day so no subsidy applies — payment hits balance only
-        from app.models import WorkDay, Transaction
+        from app.models import Transaction, WorkDay
         db.query(WorkDay).filter(WorkDay.employee_id == setup["employee"].id).delete()
         db.commit()
 

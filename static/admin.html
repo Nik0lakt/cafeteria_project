@@ -1657,9 +1657,9 @@
         const res = await authFetch('/api/admin/events?limit=30');
         if (!res.ok) return;
         const events = await res.json();
-        const icons = { manual_payment:'ph-hand-pointing', refund:'ph-arrow-u-up-left', new_employee:'ph-user-plus' };
-        const colors = { manual_payment:'#F59E0B', refund:'#EF4444', new_employee:'#10B981' };
-        const labels = { manual_payment:'Ручная оплата', refund:'Возврат', new_employee:'Новый сотрудник' };
+        const icons = { payment:'ph-credit-card', manual_payment:'ph-hand-pointing', refund:'ph-arrow-u-up-left', new_employee:'ph-user-plus' };
+        const colors = { payment:'#3B82F6', manual_payment:'#F59E0B', refund:'#EF4444', new_employee:'#10B981' };
+        const labels = { payment:'Оплата', manual_payment:'Оплата дотацией', refund:'Возврат', new_employee:'Новый сотрудник' };
         const html = events.length ? events.map(e => `
             <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--bg2,#f9fafb);border-radius:8px;border:1px solid var(--border,#e5e7eb);">
                 <i class="ph-bold ${icons[e.type]||'ph-bell'}" style="color:${colors[e.type]||'#6B7280'};font-size:18px;flex-shrink:0;margin-top:2px;"></i>
