@@ -192,6 +192,7 @@ def pay(data: PaymentRequest, db: Session = Depends(get_db)):
         raw_used = db.query(func.sum(Transaction.subsidy_part_kopecks)).filter(
             Transaction.employee_id == emp.id,
             Transaction.created_at >= start_of_today,
+            Transaction.status != "REFUNDED",
         ).scalar()
         used_today_kop = int(raw_used) if raw_used is not None else 0
         available_today_kop = max(0, daily_subsidy_limit_kop - used_today_kop)
@@ -677,3 +678,109 @@ def get_user_info(emp_id: int, db: Session = Depends(get_db)):
     }
 
 
+# --- SHIFT SUMMARY ---
+
+@router.get("/terminals/shift_summary")
+def shift_summary(
+    desk: str = Query(...),
+    since: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    since_dt = datetime.fromisoformat(since)
+    txs = db.query(Transaction).filter(
+        Transaction.cash_desk_id == desk,
+        Transaction.created_at >= since_dt,
+        Transaction.status == "COMPLETED",
+    ).all()
+    total_count = len(txs)
+    total_revenue_kop = sum(t.amount_total_kopecks or 0 for t in txs)
+    avg_kop = (total_revenue_kop // total_count) if total_count else 0
+    by_method: dict = {}
+    for t in txs:
+        m = t.payment_method or "unknown"
+        if m not in by_method:
+            by_method[m] = {"count": 0, "total_kop": 0}
+        by_method[m]["count"] += 1
+        by_method[m]["total_kop"] += t.amount_total_kopecks or 0
+    return {
+        "count": total_count,
+        "total_rub": round(total_revenue_kop / 100, 2),
+        "avg_rub": round(avg_kop / 100, 2),
+        "by_method": {
+            m: {"count": v["count"], "total_rub": round(v["total_kop"] / 100, 2)}
+            for m, v in by_method.items()
+        },
+    }
+
+
+# --- ADMIN EVENT FEED ---
+
+@router.get("/admin/events", dependencies=[Depends(get_current_admin)])
+def admin_events(limit: int = Query(20, le=100), db: Session = Depends(get_db)):
+    events = []
+    manual = db.query(Transaction).filter(
+        Transaction.payment_method == "internal",
+        Transaction.status == "COMPLETED",
+    ).order_by(Transaction.created_at.desc()).limit(limit).all()
+    for t in manual:
+        events.append({
+            "type": "manual_payment",
+            "ts": t.created_at.isoformat() if t.created_at else None,
+            "detail": f"Оплата через дотацию #{t.id} / {(t.amount_total_kopecks or 0)/100:.0f} ₽",
+        })
+    refunded = db.query(Transaction).filter(
+        Transaction.status == "REFUNDED",
+    ).order_by(Transaction.created_at.desc()).limit(limit).all()
+    for t in refunded:
+        events.append({
+            "type": "refund",
+            "ts": t.created_at.isoformat() if t.created_at else None,
+            "detail": f"Возврат #{t.id} / {(t.amount_total_kopecks or 0)/100:.0f} ₽",
+        })
+    new_emps = db.query(Employee).order_by(Employee.id.desc()).limit(limit).all()
+    for e in new_emps:
+        events.append({
+            "type": "new_employee",
+            "ts": None,
+            "detail": f"Сотрудник: {e.full_name} (#{e.id})",
+        })
+    events.sort(key=lambda x: x["ts"] or "", reverse=True)
+    return events[:limit]
+
+
+# --- RECENT TRANSACTIONS ---
+
+@router.get("/statistics/recent", dependencies=[Depends(get_current_admin)])
+def get_recent_transactions(limit: int = Query(20, le=100), db: Session = Depends(get_db)):
+    txs = db.query(Transaction).order_by(Transaction.created_at.desc()).limit(limit).all()
+    result = []
+    for t in txs:
+        emp = db.query(Employee).filter(Employee.id == t.employee_id).first() if t.employee_id else None
+        result.append({
+            "id": t.id,
+            "date": t.created_at.strftime("%d.%m %H:%M") if t.created_at else "—",
+            "employee": emp.full_name if emp else None,
+            "cash_desk": t.cash_desk_id,
+            "method": t.payment_method,
+            "total_rub": round((t.amount_total_kopecks or 0) / 100, 2),
+            "status": t.status,
+        })
+    return result
+
+
+# --- TRANSACTION REFUND ---
+
+@router.post("/transactions/{tx_id}/refund", dependencies=[Depends(get_current_admin)])
+def refund_transaction(tx_id: int, db: Session = Depends(get_db)):
+    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not tx:
+        raise HTTPException(404, "Транзакция не найдена")
+    if tx.status == "REFUNDED":
+        raise HTTPException(400, "Транзакция уже возвращена")
+    tx.status = "REFUNDED"
+    if tx.employee_id:
+        emp = db.query(Employee).filter(Employee.id == tx.employee_id).first()
+        if emp:
+            emp.month_limit_kopecks += tx.limit_part_kopecks or 0
+    db.commit()
+    return {"status": "refunded", "tx_id": tx_id}

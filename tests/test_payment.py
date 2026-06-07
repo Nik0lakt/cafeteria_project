@@ -146,3 +146,62 @@ class TestPayment:
             "cash_desk_id": setup["desk"].login,
         })
         assert resp.status_code == 200
+
+
+class TestRefund:
+    def test_refund_restores_balance(self, client, db, full_payment_setup):
+        setup = full_payment_setup
+        # Remove work day so no subsidy applies — payment hits balance only
+        from app.models import WorkDay, Transaction
+        db.query(WorkDay).filter(WorkDay.employee_id == setup["employee"].id).delete()
+        db.commit()
+
+        pay_resp = client.post("/api/pay", json={
+            "session_id": setup["session"].id,
+            "items": [{"product_id": setup["product"].id, "quantity": 1}],
+            "cash_desk_id": setup["desk"].login,
+        })
+        assert pay_resp.status_code == 200
+        tx = db.query(Transaction).order_by(Transaction.id.desc()).first()
+        balance_after = db.query(Employee).filter(
+            Employee.id == setup["employee"].id
+        ).first().month_limit_kopecks
+
+        from app.security import create_access_token
+        token = create_access_token({"sub": "admin"})
+        refund_resp = client.post(
+            f"/api/transactions/{tx.id}/refund",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert refund_resp.status_code == 200
+        emp = db.query(Employee).filter(
+            Employee.id == setup["employee"].id
+        ).first()
+        assert emp.month_limit_kopecks > balance_after
+
+    def test_double_refund_rejected(self, client, db, full_payment_setup):
+        setup = full_payment_setup
+        client.post("/api/pay", json={
+            "session_id": setup["session"].id,
+            "items": [{"product_id": setup["product"].id, "quantity": 1}],
+            "cash_desk_id": setup["desk"].login,
+        })
+        from app.models import Transaction
+        tx = db.query(Transaction).order_by(Transaction.id.desc()).first()
+        from app.security import create_access_token
+        token = create_access_token({"sub": "admin"})
+        headers = {"Authorization": f"Bearer {token}"}
+        client.post(f"/api/transactions/{tx.id}/refund", headers=headers)
+        resp2 = client.post(f"/api/transactions/{tx.id}/refund", headers=headers)
+        assert resp2.status_code == 400
+
+
+class TestShiftSummary:
+    def test_shift_summary_empty(self, client, db, sample_cash_desk):
+        resp = client.get(
+            f"/api/terminals/shift_summary?desk={sample_cash_desk.login}&since=2020-01-01T00:00:00"
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["count"] == 0
+        assert data["total_rub"] == 0

@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" href="/static/icons/icon-192.png" type="image/png">
     <title>Панель управления | Cafeteria</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -42,6 +43,9 @@
         </div>
         <div class="nav-item" onclick="switchTab('stat', this)">
             <span class="nav-icon"><i class="ph-bold ph-chart-line"></i></span><span class="nav-text">Статистика</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('events', this)">
+            <span class="nav-icon"><i class="ph-bold ph-bell"></i></span><span class="nav-text">События</span>
         </div>
         <div class="nav-item" onclick="switchTab('settings', this)">
             <span class="nav-icon"><i class="ph-bold ph-gear"></i></span><span class="nav-text">Настройки</span>
@@ -248,6 +252,28 @@
             <div style="height:400px; margin-top:30px;"><canvas id="revenueChart"></canvas></div>
             <div style="text-align:center; margin-top:20px;">
                 <button class="btn" style="background:#10B981; width:auto; padding:11px 28px;" onclick="document.getElementById('exportModal').style.display='flex'"><i class="ph-bold ph-download-simple"></i> Выгрузить в CSV</button>
+            </div>
+        </div>
+        <div class="box" style="margin-top:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <h3 style="margin:0;font-size:14px;">Последние транзакции</h3>
+                <button class="btn" style="width:auto;padding:8px 16px;" onclick="loadRecentTx()"><i class="ph-bold ph-arrows-clockwise"></i> Обновить</button>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>ID</th><th>Время</th><th>Сотрудник</th><th>Касса</th><th>Метод</th><th>Сумма</th><th>Статус</th><th></th></tr></thead>
+                    <tbody id="recentTxBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── События ── -->
+    <div id="tab-events" style="display: none;">
+        <div class="header"><h1>Лента событий</h1></div>
+        <div class="box">
+            <div id="eventsContainer" style="display:flex; flex-direction:column; gap:8px;">
+                <div style="color:#9ca3af; text-align:center; padding:24px 0;">Загрузка...</div>
             </div>
         </div>
     </div>
@@ -629,12 +655,13 @@
 
     // --- NAV ---
     function switchTab(id, el) {
-        ['tab-emp', 'tab-cash', 'tab-stat', 'tab-settings'].forEach(t => document.getElementById(t).style.display = 'none');
+        ['tab-emp', 'tab-cash', 'tab-stat', 'tab-events', 'tab-settings'].forEach(t => document.getElementById(t).style.display = 'none');
         document.getElementById('tab-' + id).style.display = 'block';
         document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
         el.classList.add('active');
-        if (id === 'stat')     setTimeout(buildChart, 50);
+        if (id === 'stat')     { setTimeout(buildChart, 50); loadRecentTx(); }
         if (id === 'cash')     { loadCashDesks(); loadCashiers(); }
+        if (id === 'events')   loadEvents();
         if (id === 'settings') loadAppSettings();
     }
 
@@ -1618,6 +1645,57 @@
         startDeskStatusPolling();
         setInterval(pollEmployeesInBackground, 45000);
     };
+
+    // --- EVENTS FEED ---
+    let eventsTimer = null;
+    async function loadEvents() {
+        clearInterval(eventsTimer);
+        await fetchEvents();
+        eventsTimer = setInterval(fetchEvents, 30000);
+    }
+    async function fetchEvents() {
+        const res = await authFetch('/api/admin/events?limit=30');
+        if (!res.ok) return;
+        const events = await res.json();
+        const icons = { manual_payment:'ph-hand-pointing', refund:'ph-arrow-u-up-left', new_employee:'ph-user-plus' };
+        const colors = { manual_payment:'#F59E0B', refund:'#EF4444', new_employee:'#10B981' };
+        const labels = { manual_payment:'Ручная оплата', refund:'Возврат', new_employee:'Новый сотрудник' };
+        const html = events.length ? events.map(e => `
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--bg2,#f9fafb);border-radius:8px;border:1px solid var(--border,#e5e7eb);">
+                <i class="ph-bold ${icons[e.type]||'ph-bell'}" style="color:${colors[e.type]||'#6B7280'};font-size:18px;flex-shrink:0;margin-top:2px;"></i>
+                <div>
+                    <div style="font-size:13px;font-weight:600;">${labels[e.type]||e.type}</div>
+                    <div style="font-size:12px;color:#6B7280;margin-top:2px;">${e.detail}</div>
+                    ${e.ts ? `<div style="font-size:11px;color:#9ca3af;margin-top:2px;">${new Date(e.ts).toLocaleString('ru')}</div>` : ''}
+                </div>
+            </div>`).join('') :
+            '<div style="color:#9ca3af;text-align:center;padding:24px 0;">Нет событий</div>';
+        document.getElementById('eventsContainer').innerHTML = html;
+    }
+
+    // --- RECENT TRANSACTIONS + REFUND ---
+    async function loadRecentTx() {
+        const res = await authFetch('/api/statistics/recent?limit=20');
+        if (!res.ok) return;
+        const txs = await res.json();
+        const methods = {bank_card:'Карта',cash:'Наличные',internal:'Дотация'};
+        let tbody = document.getElementById('recentTxBody');
+        if (!tbody) return;
+        tbody.innerHTML = txs.map(t => `
+            <tr>
+                <td>${t.id}</td><td>${t.date}</td><td>${t.employee||'—'}</td>
+                <td>${t.cash_desk||'—'}</td><td>${methods[t.method]||t.method||'—'}</td>
+                <td>${t.total_rub} ₽</td>
+                <td style="color:${t.status==='REFUNDED'?'#EF4444':'#10B981'}">${t.status==='REFUNDED'?'Возврат':'OK'}</td>
+                <td>${t.status==='COMPLETED'?`<button class="btn" style="width:auto;padding:4px 10px;background:#EF4444;font-size:12px;" onclick="refundTx(${t.id})">Вернуть</button>`:''}</td>
+            </tr>`).join('');
+    }
+    async function refundTx(id) {
+        if (!confirm('Оформить возврат транзакции #'+id+'?')) return;
+        const res = await authFetch('/api/transactions/'+id+'/refund', { method: 'POST' });
+        if (res.ok) { showToast && showToast('Возврат оформлен'); loadRecentTx(); }
+        else { const d = await res.json().catch(()=>({})); alert(d.detail || 'Ошибка'); }
+    }
 </script>
 </body>
 </html>

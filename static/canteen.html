@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/static/icons/icon-192.png" type="image/png">
     <title>Терминал Кассира | Cafeteria</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#2196F3">
@@ -36,6 +37,7 @@
                 <div class="admin-badge edit-only">РЕЖИМ НАСТРОЙКИ</div>
             </div>
             <div class="top-bar-right">
+                <button class="btn-outline" onclick="openShiftSummary()"><i class="ph-bold ph-chart-bar"></i> Итоги смены</button>
                 <button class="btn-outline" id="settingsBtn" onclick="openAdminAuth()"><i class="ph-bold ph-gear"></i> Настройки</button>
                 <button class="btn-outline edit-only" style="color:#EF4444; border-color:#EF4444;" onclick="exitAdmin()">Выйти из настроек</button>
                 <button class="btn-outline" onclick="logout()"><i class="ph-bold ph-sign-out"></i> Закрыть смену</button>
@@ -112,6 +114,14 @@
         </div>
     </div>
 
+    <div id="shiftSummaryModal" class="overlay">
+        <div class="modal-box">
+            <h3>Итоги смены</h3>
+            <div id="shiftSummaryContent" style="font-size:14px;">Загрузка...</div>
+            <button class="btn-outline" style="width:100%; margin-top:14px;" onclick="closeModal('shiftSummaryModal')">Закрыть</button>
+        </div>
+    </div>
+
     <script>
 // --- 1. АВТОРИЗАЦИЯ И ИНИЦИАЛИЗАЦИЯ ---
 let cashDeskLogin = localStorage.getItem('cashDeskId');
@@ -148,6 +158,7 @@ async function login() {
             localStorage.setItem('cashDeskId',   data.login);
             localStorage.setItem('cashDeskDbId', data.id);
             localStorage.setItem('cashierName',  data.cashier_name || '');
+            localStorage.setItem('shiftStart',   new Date().toISOString());
             location.reload();
         } else {
             const err = await res.json().catch(() => ({}));
@@ -416,6 +427,29 @@ function startInternal() {
 }
 
 function openAdminAuth() { openModal('adminAuthModal'); }
+
+async function openShiftSummary() {
+    openModal('shiftSummaryModal');
+    const since = localStorage.getItem('shiftStart') || new Date().toISOString();
+    const params = new URLSearchParams({ desk: cashDeskLogin, since });
+    try {
+        const res = await fetch(`/api/terminals/shift_summary?${params}`);
+        const d = await res.json();
+        const methodNames = { bank_card: 'Карта', cash: 'Наличные', internal: 'Дотация', unknown: 'Другое' };
+        let methods = Object.entries(d.by_method).map(([m, v]) =>
+            `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6;"><span>${methodNames[m]||m}</span><span>${v.count} оп. / ${v.total_rub} ₽</span></div>`
+        ).join('');
+        document.getElementById('shiftSummaryContent').innerHTML = `
+          <div style="display:flex;justify-content:space-between;padding:8px 0;"><span>Транзакций</span><b>${d.count}</b></div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;"><span>Выручка</span><b>${d.total_rub} ₽</b></div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;"><span>Средний чек</span><b>${d.avg_rub} ₽</b></div>
+          <hr style="border:0;border-top:1px solid #e5e7eb;margin:10px 0;">
+          <div style="font-weight:600;margin-bottom:6px;font-size:13px;">По методам оплаты:</div>
+          ${methods || '<div style="color:#9ca3af;text-align:center;">Нет данных</div>'}`;
+    } catch(e) {
+        document.getElementById('shiftSummaryContent').innerHTML = '<div style="color:#EF4444;">Ошибка загрузки</div>';
+    }
+}
 
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
