@@ -186,6 +186,10 @@ async function loadData() {
         ]);
         categories = await cRes.json();
         products = await pRes.json();
+        // Open first category by default instead of empty Favourites tab
+        if (currentCatId === 0 && categories.length > 0) {
+            currentCatId = categories[0].id;
+        }
         renderCategories();
         renderProducts();
     } catch(e) { console.error("Ошибка загрузки данных", e); }

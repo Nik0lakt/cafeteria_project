@@ -1,6 +1,10 @@
 # Cafeteria — Corporate Canteen Management System
 
+[![CI](https://github.com/Nik0lakt/cafeteria_project/actions/workflows/ci.yml/badge.svg)](https://github.com/Nik0lakt/cafeteria_project/actions)
+
 **Navigation:** [English](#english) | [Русский](#russian) | [Investor FAQ (EN)](#investor--technical-faq) | [FAQ для инвесторов (RU)](#faq-для-инвесторов-и-корпоративных-клиентов)
+
+**Documentation:** [Architecture](docs/ARCHITECTURE.md) | [Security Model](docs/SECURITY.md) | [Liveness Algorithm](docs/LIVENESS_ALGORITHM.md)
 
 ---
 
@@ -18,7 +22,8 @@
 6. [Installation and Deployment](#6-installation-and-deployment)
 7. [Environment Variables](#7-environment-variables)
 8. [Database Schema](#8-database-schema)
-9. [Investor & Technical FAQ](#9-investor--technical-faq)
+9. [Development](#9-development)
+10. [Investor & Technical FAQ](#10-investor--technical-faq)
 
 ---
 
