@@ -1,16 +1,19 @@
 import os
 import shutil
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import text, inspect as sa_inspect
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy import text
 
-from app.database import engine, Base, SessionLocal
-from app.routers import auth, payment, liveness, bot, cashiers
 from app import cashiers_db
+from app.database import Base, SessionLocal, engine
+from app.routers import auth, bot, cashiers, liveness, payment
 
 
 def _col_exists(conn, table: str, column: str) -> bool:
@@ -161,6 +164,15 @@ def seed_defaults():
 seed_defaults()
 
 app = FastAPI(title="Cafeteria")
+
+cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")

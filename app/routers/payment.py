@@ -1,24 +1,34 @@
-import os
-import urllib.request
-import json
 import base64
 import csv
 import io
+import json
+import os
+import urllib.request
 from datetime import date, datetime, time, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
-from sqlalchemy import func
 from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import (
-    CashDesk, Employee, Category, Product, Card,
-    Transaction, WorkDay, RoleSetting, LivenessSession, CashDeskProduct, AppSetting,
+    AppSetting,
+    Card,
+    CashDesk,
+    CashDeskProduct,
+    Category,
+    Employee,
+    LivenessSession,
+    Product,
+    RoleSetting,
+    Transaction,
+    WorkDay,
 )
-from app.security import hash_password, verify_password, get_current_admin
+from app.security import get_current_admin, hash_password, verify_password
+from app.services.payment_service import calculate_order_total, PaymentError
 
 router = APIRouter()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -102,23 +112,11 @@ def send_tg_report(chat_id, db_photo_path, live_photo_b64, caption):
 
 
 def calculate_secure_total(db: Session, cash_desk_login: str, items: List[OrderItem]):
-    total_kop = 0
-    detailed_items = []
-    desk = db.query(CashDesk).filter(CashDesk.login == cash_desk_login).first()
-    if not desk:
-        raise HTTPException(status_code=400, detail="Касса не найдена")
-    for item in items:
-        mapping = db.query(CashDeskProduct).filter(
-            CashDeskProduct.product_id == item.product_id,
-            CashDeskProduct.cash_desk_id == desk.id,
-        ).first()
-        product = db.query(Product).filter(Product.id == item.product_id).first()
-        if not product:
-            continue
-        price = mapping.price if mapping else product.price
-        total_kop += price * item.quantity * 100
-        detailed_items.append({"name": product.name, "price": price, "qty": item.quantity})
-    return int(total_kop), detailed_items
+    try:
+        items_dicts = [{"product_id": i.product_id, "quantity": i.quantity} for i in items]
+        return calculate_order_total(db, cash_desk_login, items_dicts)
+    except PaymentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 # --- РОУТЫ ОПЛАТЫ ---

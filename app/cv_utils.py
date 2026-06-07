@@ -1,7 +1,8 @@
 import os
+
+import cv2
 import face_recognition
 import numpy as np
-import cv2
 
 # Чем выше — тем мягче проверка. 0.6 — дефолт face_recognition, 0.45 — очень строго.
 FACE_TOLERANCE = float(os.getenv('FACE_RECOGNITION_TOLERANCE', '0.55'))

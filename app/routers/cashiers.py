@@ -1,8 +1,10 @@
 import os
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
-from app.security import get_current_admin
+
 from app import cashiers_db
+from app.security import get_current_admin
 
 router = APIRouter()
 

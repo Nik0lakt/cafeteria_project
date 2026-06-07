@@ -1,17 +1,18 @@
 import os
-import numpy as np
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Body, Query
-from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from app.database import get_db
-from app.models import Employee, Card, Transaction, WorkDay, RoleSetting, LivenessSession, AppSetting
-from app.cv_utils import get_face_embedding
-from app.security import verify_password, create_access_token, get_current_admin, SECRET_KEY, ALGORITHM
-from jose import jwt, JWTError
-from pydantic import BaseModel
 from datetime import date, timedelta
-from typing import List, Optional
+from typing import Optional
+
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
+from jose import JWTError, jwt
+from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.cv_utils import get_face_embedding
+from app.database import get_db
+from app.models import AppSetting, Card, Employee, LivenessSession, RoleSetting, Transaction, WorkDay
+from app.security import ALGORITHM, SECRET_KEY, create_access_token, get_current_admin, verify_password
 
 router = APIRouter()
 PHOTOS_DIR = "/app/private_photos"

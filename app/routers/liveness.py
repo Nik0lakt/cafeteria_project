@@ -1,10 +1,12 @@
 import uuid
-import numpy as np
 from datetime import datetime, timedelta
-from fastapi import APIRouter, File, UploadFile, HTTPException, Form
-from app.cv_utils import get_face_embedding, compare_faces
+
+import numpy as np
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+
+from app.cv_utils import compare_faces, get_face_embedding
 from app.database import SessionLocal
-from app.models import Employee, Card, LivenessSession
+from app.models import Card, Employee, LivenessSession
 
 router = APIRouter()
 
