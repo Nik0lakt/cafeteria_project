@@ -37,18 +37,27 @@ class TestSecurityEndpoints:
         assert resp.status_code == 403
 
     def test_photo_access_with_admin_token(self, client):
-        token = create_access_token({"sub": "admin"})
+        token = create_access_token({"sub": "admin", "role": "admin"})
         resp = client.get(f"/api/photos/test.jpg?token={token}")
         assert resp.status_code == 404  # authorized but file doesn't exist
 
 
 class TestPublicEndpoints:
-    """Verify that public endpoints work without auth."""
+    """Verify that intentionally public endpoints stay public."""
 
     def test_app_settings_is_public(self, client):
-        resp = client.get("/api/app_settings")
+        resp = client.get("/api/app_settings", headers={"Authorization": ""})
         assert resp.status_code == 200
 
-    def test_employee_info_is_public(self, client):
-        resp = client.get("/api/employee_info?card_uid=NONEXIST")
-        assert resp.status_code == 404  # not 401
+    def test_employee_info_requires_terminal_token(self, client):
+        anonymous = client.get("/api/employee_info?card_uid=NONEXIST", headers={"Authorization": ""})
+        assert anonymous.status_code == 401
+
+        terminal_token = create_access_token(
+            {"sub": "terminal:desk1", "role": "terminal", "desk_login": "desk1"}
+        )
+        authorized = client.get(
+            "/api/employee_info?card_uid=NONEXIST",
+            headers={"Authorization": f"Bearer {terminal_token}"},
+        )
+        assert authorized.status_code == 404

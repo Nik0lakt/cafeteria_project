@@ -2,9 +2,11 @@ import os
 import sqlite3
 from typing import List, Optional
 
+from app.config import PRIVATE_PHOTOS_DIR
+
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cashiers.db")
 
-PHOTOS_DIR = "/app/private_photos"
+PHOTOS_DIR = PRIVATE_PHOTOS_DIR
 
 
 def _connect():

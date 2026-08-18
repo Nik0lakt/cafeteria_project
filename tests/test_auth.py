@@ -25,7 +25,7 @@ class TestAuth:
         assert resp.status_code == 401
 
     def test_protected_endpoint_with_valid_token(self, client):
-        token = create_access_token({"sub": "admin"})
+        token = create_access_token({"sub": "admin", "role": "admin"})
         resp = client.get("/api/employees", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
 

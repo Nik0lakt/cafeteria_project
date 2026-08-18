@@ -355,6 +355,8 @@
         const amount = localStorage.getItem('pendingAmount') || 0;
         const pendingItems = localStorage.getItem('pendingCart') || '[]';
         const currentCashDesk = localStorage.getItem('cashDeskId') || "unknown";
+        const terminalToken = localStorage.getItem('terminal_token');
+        const terminalHeaders = {'Authorization': 'Bearer ' + terminalToken};
 
         // Отображаем сумму
         document.getElementById('amountDisp').innerText = amount + " ₽";
@@ -486,7 +488,7 @@
             if(!currentUid) return;
             status.innerText = "Поиск карты...";
             try {
-                const res = await fetch(`/api/employee_info?card_uid=${currentUid}`);
+                const res = await fetch(`/api/employee_info?card_uid=${encodeURIComponent(currentUid)}`, {headers: terminalHeaders});
                 if(!res.ok) {
                     status.innerText = "Карта не найдена";
                     document.getElementById('uidInput').value = '';
@@ -494,7 +496,7 @@
                 }
                 const user = await res.json();
                 document.getElementById('userName').innerText = user.name;
-                const sRes = await fetch(`/api/start_liveness?card_uid=${currentUid}`, {method:'POST'});
+                const sRes = await fetch(`/api/start_liveness?card_uid=${encodeURIComponent(currentUid)}`, {method:'POST', headers: terminalHeaders});
                 const sData = await sRes.json();
                 currentSid = sData.session_id;
                 document.getElementById('manualBtn').style.display = 'block';
@@ -524,7 +526,7 @@
                 const fd = new FormData();
                 fd.append('session_id', currentSid);
                 fd.append('file', blob);
-                const r = await fetch('/api/liveness_frame', {method:'POST', body:fd});
+                const r = await fetch('/api/liveness_frame', {method:'POST', headers: terminalHeaders, body:fd});
                 const d = await r.json();
 
                 if (d.status === 'finished') {
@@ -577,6 +579,7 @@
 	    // 1. Берем СВЕЖИЕ данные из памяти прямо сейчас
     	    const cartData = localStorage.getItem('pendingCart');
 	    const cashDeskId = localStorage.getItem('cashDeskId') || "unknown";
+            const terminalToken = localStorage.getItem('terminal_token');
 
             // Проверка: если в памяти пусто, ругаемся сразу
             if (!cartData || cartData === '[]') {
@@ -588,9 +591,9 @@
     	    let livePhoto = isManual ? document.getElementById('snapCanvas').toDataURL('image/jpeg', 0.8) : null;
 
     	    try {
-        	const res = await fetch('/api/pay', {
+	        const res = await fetch('/api/pay', {
             	    method: 'POST',
-            	    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + terminalToken},
              	    body: JSON.stringify({
                 	session_id: currentSid,
                 	items: JSON.parse(cartData), // Используем cartData, которую только что достали

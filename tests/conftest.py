@@ -19,6 +19,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, get_db
+from app.security import create_access_token
 
 SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_TEST_URL, connect_args={"check_same_thread": False})
@@ -53,5 +54,9 @@ def client(db):
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as c:
+        terminal_token = create_access_token(
+            {"sub": "terminal:desk1", "role": "terminal", "desk_login": "desk1"}
+        )
+        c.headers.update({"Authorization": f"Bearer {terminal_token}"})
         yield c
     app.dependency_overrides.clear()

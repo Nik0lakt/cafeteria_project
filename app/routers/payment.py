@@ -5,14 +5,15 @@ import json
 import os
 import urllib.request
 from datetime import date, datetime, time, timedelta
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.config import PRIVATE_PHOTOS_DIR
 from app.database import get_db
 from app.models import (
     AppSetting,
@@ -27,7 +28,18 @@ from app.models import (
     Transaction,
     WorkDay,
 )
-from app.security import get_current_admin, hash_password, verify_password
+from app.security import (
+    EMPLOYEE_TOKEN_EXPIRE_HOURS,
+    TERMINAL_TOKEN_EXPIRE_HOURS,
+    assert_employee_identity,
+    assert_terminal_for_desk,
+    create_access_token,
+    get_current_admin,
+    get_current_employee,
+    get_current_terminal,
+    hash_password,
+    verify_password,
+)
 from app.services.payment_service import PaymentError, calculate_order_total
 
 router = APIRouter()
@@ -38,22 +50,22 @@ ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 # --- СХЕМЫ ДАННЫХ ---
 
 class OrderItem(BaseModel):
-    product_id: int
-    quantity: int
+    product_id: int = Field(gt=0)
+    quantity: int = Field(gt=0, le=50)
 
 
 class ExternalPaymentRequest(BaseModel):
-    cash_desk_id: str
+    cash_desk_id: str = Field(min_length=1, max_length=100)
     items: List[OrderItem]
-    payment_method: str
+    payment_method: Literal["bank_card", "cash"]
 
 
 class PaymentRequest(BaseModel):
-    session_id: str
+    session_id: str = Field(min_length=1, max_length=100)
     items: List[OrderItem]
     is_manual: bool = False
     live_frame_base64: Optional[str] = None
-    cash_desk_id: Optional[str] = "unknown"
+    cash_desk_id: str = Field(min_length=1, max_length=100)
 
 
 class UserLoginRequest(BaseModel):
@@ -122,7 +134,12 @@ def calculate_secure_total(db: Session, cash_desk_login: str, items: List[OrderI
 # --- РОУТЫ ОПЛАТЫ ---
 
 @router.post("/pay_external")
-def pay_external(data: ExternalPaymentRequest, db: Session = Depends(get_db)):
+def pay_external(
+    data: ExternalPaymentRequest,
+    terminal: dict = Depends(get_current_terminal),
+    db: Session = Depends(get_db),
+):
+    assert_terminal_for_desk(terminal, data.cash_desk_id)
     total_bill_kop, detailed_items = calculate_secure_total(db, data.cash_desk_id, data.items)
     if not detailed_items or total_bill_kop <= 0:
         raise HTTPException(status_code=400, detail="Заказ пуст")
@@ -143,7 +160,12 @@ def pay_external(data: ExternalPaymentRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/user/toggle_notifications/{emp_id}")
-def toggle_notifications(emp_id: int, db: Session = Depends(get_db)):
+def toggle_notifications(
+    emp_id: int,
+    employee_token: dict = Depends(get_current_employee),
+    db: Session = Depends(get_db),
+):
+    assert_employee_identity(employee_token, emp_id)
     emp = db.query(Employee).filter(Employee.id == emp_id).first()
     if not emp:
         raise HTTPException(404)
@@ -153,10 +175,19 @@ def toggle_notifications(emp_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/pay")
-def pay(data: PaymentRequest, db: Session = Depends(get_db)):
+def pay(
+    data: PaymentRequest,
+    terminal: dict = Depends(get_current_terminal),
+    db: Session = Depends(get_db),
+):
+    assert_terminal_for_desk(terminal, data.cash_desk_id)
     sess = db.query(LivenessSession).filter(LivenessSession.id == data.session_id).first()
     if not sess:
         raise HTTPException(404, "Сессия не найдена")
+    if sess.timestamp < datetime.now() - timedelta(minutes=10):
+        db.delete(sess)
+        db.commit()
+        raise HTTPException(403, "Срок действия сессии истёк")
     # Автоматическая оплата — только если liveness прошёл на сервере.
     # Ручное подтверждение кассиром (is_manual=True) разрешено без liveness,
     # но логируется отдельно и уходит алерт в Telegram.
@@ -237,7 +268,7 @@ def pay(data: PaymentRequest, db: Session = Depends(get_db)):
         send_tg_msg(emp.telegram_id, user_receipt)
 
     if data.is_manual and data.live_frame_base64:
-        db_photo = f"/app/private_photos/{sess_card_uid}.jpg"
+        db_photo = PRIVATE_PHOTOS_DIR / f"{sess_card_uid}.jpg"
         if os.path.exists(db_photo):
             admin_caption = (
                 f"⚠️ <b>РУЧНАЯ ОПЛАТА</b>\n"
@@ -287,7 +318,7 @@ def _is_online(desk: CashDesk) -> bool:
     return desk.last_seen is not None and (datetime.utcnow() - desk.last_seen) < ONLINE_THRESHOLD
 
 
-@router.get("/cash_desks")
+@router.get("/cash_desks", dependencies=[Depends(get_current_admin)])
 def get_cash_desks(db: Session = Depends(get_db)):
     return [
         {
@@ -302,9 +333,14 @@ def get_cash_desks(db: Session = Depends(get_db)):
 
 
 @router.post("/terminals/ping")
-def terminal_ping(data: dict, db: Session = Depends(get_db)):
+def terminal_ping(
+    data: dict,
+    terminal: dict = Depends(get_current_terminal),
+    db: Session = Depends(get_db),
+):
     """Called by the cash terminal every ~60 seconds to signal it is alive."""
     desk_login = data.get("login")
+    assert_terminal_for_desk(terminal, desk_login)
     if not desk_login:
         raise HTTPException(status_code=400, detail="login required")
     desk = db.query(CashDesk).filter(CashDesk.login == desk_login).first()
@@ -315,7 +351,7 @@ def terminal_ping(data: dict, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 
-@router.get("/terminals/status")
+@router.get("/terminals/status", dependencies=[Depends(get_current_admin)])
 def get_terminals_status(db: Session = Depends(get_db)):
     """Lightweight endpoint for polling online/offline status without full desk data."""
     now = datetime.utcnow()
@@ -375,7 +411,7 @@ def get_categories(cash_desk_login: Optional[str] = None, db: Session = Depends(
     return db.query(Category).all()
 
 
-@router.post("/categories")
+@router.post("/categories", dependencies=[Depends(get_current_admin)])
 def add_category(data: dict, db: Session = Depends(get_db)):
     desk_id = data.get("cash_desk_id")
     if not desk_id:
@@ -404,7 +440,7 @@ def get_products(cash_desk_login: Optional[str] = None, db: Session = Depends(ge
     return db.query(Product).all()
 
 
-@router.post("/products")
+@router.post("/products", dependencies=[Depends(get_current_admin)])
 def add_product(data: dict, db: Session = Depends(get_db)):
     new_p = Product(
         name=data.get("name"),
@@ -421,7 +457,7 @@ def add_product(data: dict, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 
-@router.put("/products/{p_id}")
+@router.put("/products/{p_id}", dependencies=[Depends(get_current_admin)])
 def update_product(p_id: int, data: dict, db: Session = Depends(get_db)):
     product = db.query(Product).filter(Product.id == p_id).first()
     if not product:
@@ -441,7 +477,7 @@ def update_product(p_id: int, data: dict, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 
-@router.delete("/products/{p_id}")
+@router.delete("/products/{p_id}", dependencies=[Depends(get_current_admin)])
 def delete_product(p_id: int, db: Session = Depends(get_db)):
     db.query(CashDeskProduct).filter(CashDeskProduct.product_id == p_id).delete()
     db.query(Product).filter(Product.id == p_id).delete()
@@ -449,7 +485,7 @@ def delete_product(p_id: int, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 
-@router.put("/categories/{cat_id}")
+@router.put("/categories/{cat_id}", dependencies=[Depends(get_current_admin)])
 def update_category(cat_id: int, data: dict, db: Session = Depends(get_db)):
     cat = db.query(Category).filter(Category.id == cat_id).first()
     if not cat:
@@ -460,7 +496,7 @@ def update_category(cat_id: int, data: dict, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 
-@router.delete("/categories/{cat_id}")
+@router.delete("/categories/{cat_id}", dependencies=[Depends(get_current_admin)])
 def delete_category(cat_id: int, db: Session = Depends(get_db)):
     prods = db.query(Product).filter(Product.category_id == cat_id).all()
     for prod in prods:
@@ -475,7 +511,11 @@ def delete_category(cat_id: int, db: Session = Depends(get_db)):
 def verify_desk_password(data: dict, db: Session = Depends(get_db)):
     desk = db.query(CashDesk).filter(CashDesk.login == data.get("login")).first()
     if desk and desk.hashed_password and verify_password(data.get("password", ""), desk.hashed_password):
-        return {"status": "ok"}
+        token = create_access_token(
+            {"sub": f"terminal:{desk.login}", "role": "terminal", "desk_login": desk.login},
+            expires_hours=TERMINAL_TOKEN_EXPIRE_HOURS,
+        )
+        return {"status": "ok", "token": token, "expires_in_hours": TERMINAL_TOKEN_EXPIRE_HOURS}
     raise HTTPException(403, "Неверный пароль")
 
 
@@ -563,14 +603,31 @@ def export_statistics_csv(
 
 @router.post("/user/login")
 def user_login(data: UserLoginRequest, db: Session = Depends(get_db)):
-    card = db.query(Card).filter(Card.uid == data.card_uid.strip()).first()
+    card_uid = (data.card_uid or "").strip()
+    if not card_uid:
+        raise HTTPException(400, "UID карты обязателен")
+    card = db.query(Card).filter(Card.uid == card_uid).first()
     if not card:
         raise HTTPException(404, "Карта не найдена")
-    return {"status": "success", "emp_id": card.employee_id}
+    token = create_access_token(
+        {"sub": f"employee:{card.employee_id}", "role": "employee", "employee_id": card.employee_id},
+        expires_hours=EMPLOYEE_TOKEN_EXPIRE_HOURS,
+    )
+    return {
+        "status": "success",
+        "emp_id": card.employee_id,
+        "token": token,
+        "expires_in_hours": EMPLOYEE_TOKEN_EXPIRE_HOURS,
+    }
 
 
 @router.get("/user/full_data/{emp_id}")
-def get_user_full_data(emp_id: int, db: Session = Depends(get_db)):
+def get_user_full_data(
+    emp_id: int,
+    employee_token: dict = Depends(get_current_employee),
+    db: Session = Depends(get_db),
+):
+    assert_employee_identity(employee_token, emp_id)
     emp = db.query(Employee).filter(Employee.id == emp_id).first()
     if not emp:
         raise HTTPException(404)
@@ -629,7 +686,14 @@ def get_user_full_data(emp_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/user/history/{emp_id}")
-def get_user_history(emp_id: int, month: int = Query(...), year: int = Query(...), db: Session = Depends(get_db)):
+def get_user_history(
+    emp_id: int,
+    month: int = Query(...),
+    year: int = Query(...),
+    employee_token: dict = Depends(get_current_employee),
+    db: Session = Depends(get_db),
+):
+    assert_employee_identity(employee_token, emp_id)
     emp = db.query(Employee).filter(Employee.id == emp_id).first()
     if not emp:
         raise HTTPException(404)
@@ -656,7 +720,12 @@ def get_user_history(emp_id: int, month: int = Query(...), year: int = Query(...
 
 
 @router.get("/user/info/{emp_id}")
-def get_user_info(emp_id: int, db: Session = Depends(get_db)):
+def get_user_info(
+    emp_id: int,
+    employee_token: dict = Depends(get_current_employee),
+    db: Session = Depends(get_db),
+):
+    assert_employee_identity(employee_token, emp_id)
     emp = db.query(Employee).filter(Employee.id == emp_id).first()
     if not emp:
         raise HTTPException(404)
@@ -684,8 +753,10 @@ def get_user_info(emp_id: int, db: Session = Depends(get_db)):
 def shift_summary(
     desk: str = Query(...),
     since: str = Query(...),
+    terminal: dict = Depends(get_current_terminal),
     db: Session = Depends(get_db),
 ):
+    assert_terminal_for_desk(terminal, desk)
     since_dt = datetime.fromisoformat(since)
     txs = db.query(Transaction).filter(
         Transaction.cash_desk_id == desk,
