@@ -275,6 +275,13 @@
     var histMonth, histYear, histEmpId;
     var MONTH_NAMES = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
+    function employeeFetch(url, options = {}) {
+        const token = localStorage.getItem('cab_token');
+        const headers = {...(options.headers || {})};
+        if (token) headers.Authorization = 'Bearer ' + token;
+        return fetch(url, {...options, headers});
+    }
+
     async function loadHistory() {
         if (!histEmpId) return;
         document.getElementById('histMonthLabel').innerText = MONTH_NAMES[histMonth] + ' ' + histYear;
@@ -285,7 +292,7 @@
         nextBtn.style.opacity = isCurrent ? '0.35' : '1';
         nextBtn.style.cursor = isCurrent ? 'default' : 'pointer';
 
-        var res = await fetch('/api/user/history/' + histEmpId + '?month=' + (histMonth + 1) + '&year=' + histYear);
+        var res = await employeeFetch('/api/user/history/' + histEmpId + '?month=' + (histMonth + 1) + '&year=' + histYear);
         var d = await res.json();
         renderHistory(d.transactions);
         var totalEl = document.getElementById('histMonthTotal');
@@ -305,7 +312,12 @@
         errEl.style.display = 'none';
         if (!uid) { errEl.innerText = 'Введите номер карты'; errEl.style.display = 'block'; return; }
         const res = await fetch('/api/user/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({card_uid:uid})});
-        if (res.ok) { localStorage.setItem('cab_emp_id', (await res.json()).emp_id); init(); }
+        if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem('cab_emp_id', data.emp_id);
+            localStorage.setItem('cab_token', data.token);
+            init();
+        }
         else { errEl.innerText = 'Карта не найдена. Проверьте номер и попробуйте снова.'; errEl.style.display = 'block'; }
     }
 
@@ -313,7 +325,7 @@
 
     async function handleToggle() {
         const id = localStorage.getItem('cab_emp_id');
-        const res = await fetch(`/api/user/toggle_notifications/${id}`, {method:'POST'});
+        const res = await employeeFetch(`/api/user/toggle_notifications/${id}`, {method:'POST'});
         if(res.ok) {
             const d = await res.json();
             updateTgUI(d.enabled);
@@ -334,7 +346,7 @@
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('mainApp').style.display = 'block';
 
-        const res = await fetch(`/api/user/full_data/${id}`);
+        const res = await employeeFetch(`/api/user/full_data/${id}`);
         const d = await res.json();
 
         // Имя
@@ -430,7 +442,7 @@
         el.style.display = el.style.display === 'block' ? 'none' : 'block';
     }
 
-    if(localStorage.getItem('cab_emp_id')) init();
+    if(localStorage.getItem('cab_emp_id') && localStorage.getItem('cab_token')) init();
 </script>
 </body>
 </html>

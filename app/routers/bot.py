@@ -74,7 +74,7 @@ def bot_polling():
     if not token:
         print("--- BOT ERROR: TELEGRAM_BOT_TOKEN NOT FOUND IN ENV ---", file=sys.stderr)
         return
-    print(f"--- BOT POLLING STARTED WITH TOKEN: {token[:10]}... ---", file=sys.stderr)
+    print("--- BOT POLLING STARTED ---", file=sys.stderr)
     while True:
         try:
             url = f"https://api.telegram.org/bot{token}/getUpdates?offset={offset}&timeout=30"

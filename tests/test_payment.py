@@ -168,7 +168,7 @@ class TestRefund:
         ).first().month_limit_kopecks
 
         from app.security import create_access_token
-        token = create_access_token({"sub": "admin"})
+        token = create_access_token({"sub": "admin", "role": "admin"})
         refund_resp = client.post(
             f"/api/transactions/{tx.id}/refund",
             headers={"Authorization": f"Bearer {token}"},
@@ -189,7 +189,7 @@ class TestRefund:
         from app.models import Transaction
         tx = db.query(Transaction).order_by(Transaction.id.desc()).first()
         from app.security import create_access_token
-        token = create_access_token({"sub": "admin"})
+        token = create_access_token({"sub": "admin", "role": "admin"})
         headers = {"Authorization": f"Bearer {token}"}
         client.post(f"/api/transactions/{tx.id}/refund", headers=headers)
         resp2 = client.post(f"/api/transactions/{tx.id}/refund", headers=headers)

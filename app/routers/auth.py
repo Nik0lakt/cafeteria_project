@@ -9,13 +9,21 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.config import PRIVATE_PHOTOS_DIR
 from app.cv_utils import get_face_embedding
 from app.database import get_db
 from app.models import AppSetting, Card, Employee, LivenessSession, RoleSetting, Transaction, WorkDay
-from app.security import ALGORITHM, SECRET_KEY, create_access_token, get_current_admin, verify_password
+from app.security import (
+    ALGORITHM,
+    SECRET_KEY,
+    create_access_token,
+    get_current_admin,
+    get_current_terminal,
+    verify_password,
+)
 
 router = APIRouter()
-PHOTOS_DIR = "/app/private_photos"
+PHOTOS_DIR = PRIVATE_PHOTOS_DIR
 
 
 class LoginRequest(BaseModel):
@@ -62,7 +70,7 @@ async def login(data: LoginRequest = Body(...)):
     admin_hash = os.getenv("ADMIN_PASSWORD_HASH", "")
     if not admin_hash or not verify_password(data.password, admin_hash):
         return {"success": False}
-    token = create_access_token({"sub": "admin"})
+    token = create_access_token({"sub": "admin", "role": "admin"})
     return {"success": True, "token": token}
 
 
@@ -254,7 +262,11 @@ async def enroll_face(
 
 
 @router.get("/employee_info")
-def get_info(card_uid: str, db: Session = Depends(get_db)):
+def get_info(
+    card_uid: str,
+    terminal: dict = Depends(get_current_terminal),
+    db: Session = Depends(get_db),
+):
     card = db.query(Card).filter(Card.uid == card_uid.strip()).first()
     if not card:
         raise HTTPException(404, "Not found")
@@ -283,7 +295,7 @@ def get_photo(
     if token:
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            authorized = payload.get("sub") is not None
+            authorized = payload.get("sub") is not None and payload.get("role") == "admin"
         except JWTError:
             pass
 
@@ -297,7 +309,7 @@ def get_photo(
     if not authorized:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
-    path = os.path.join(PHOTOS_DIR, filename)
+    path = PHOTOS_DIR / filename
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Photo not found")
     return FileResponse(path, media_type="image/jpeg")

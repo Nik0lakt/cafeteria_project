@@ -2,11 +2,12 @@ import uuid
 from datetime import datetime, timedelta
 
 import numpy as np
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.cv_utils import compare_faces, get_face_embedding
 from app.database import SessionLocal
 from app.models import Card, Employee, LivenessSession
+from app.security import get_current_terminal
 
 router = APIRouter()
 
@@ -16,7 +17,7 @@ VARIANCE_NEEDED  = 0.02  # разброс: у вас 0.023 на 4-м кадре;
 
 
 @router.post("/start_liveness")
-def start_liveness(card_uid: str):
+def start_liveness(card_uid: str, terminal: dict = Depends(get_current_terminal)):
     db = SessionLocal()
     try:
         cutoff = datetime.now() - timedelta(minutes=SESSION_TTL_MINUTES)
@@ -52,7 +53,11 @@ def start_liveness(card_uid: str):
 
 
 @router.post("/liveness_frame")
-async def liveness_frame(session_id: str = Form(...), file: UploadFile = File(...)):
+async def liveness_frame(
+    session_id: str = Form(...),
+    file: UploadFile = File(...),
+    terminal: dict = Depends(get_current_terminal),
+):
     db = SessionLocal()
     try:
         sess = db.query(LivenessSession).filter(LivenessSession.id == session_id).first()

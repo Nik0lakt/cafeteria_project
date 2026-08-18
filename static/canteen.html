@@ -21,6 +21,7 @@
             <h3>Открыть смену</h3>
             <input type="text" id="cashierLoginInput" placeholder="Ваш логин кассира...">
             <input type="text" id="deskLoginInput" placeholder="Логин терминала...">
+            <input type="password" id="deskPasswordInput" placeholder="Пароль терминала...">
             <button class="btn-black" onclick="login()">Начать работу</button>
             <div id="loginError" style="color: #EF4444; margin-top:12px; text-align:center; display:none; font-size:14px; font-weight:600;">
                 Ошибка входа. Проверьте логины.
@@ -63,7 +64,7 @@
     <div id="adminAuthModal" class="overlay">
         <div class="modal-box">
             <h3>Вход в настройки</h3>
-            <input type="password" id="adminPassInput" placeholder="Пароль кассы">
+            <input type="password" id="adminPassInput" placeholder="Пароль администратора">
             <button class="btn-black" onclick="verifyAdmin()">Войти</button>
             <button class="btn-outline" style="width:100%; margin-top:10px;" onclick="closeModal('adminAuthModal')">Отмена</button>
         </div>
@@ -127,11 +128,32 @@
 let cashDeskLogin = localStorage.getItem('cashDeskId');
 let cashDeskDbId = localStorage.getItem('cashDeskDbId');
 let cashierName   = localStorage.getItem('cashierName');
+
+function terminalFetch(url, options = {}) {
+    const token = localStorage.getItem('terminal_token');
+    const headers = {...(options.headers || {})};
+    if (token) headers.Authorization = 'Bearer ' + token;
+    return fetch(url, {...options, headers});
+}
+
+function escapeHtml(value) {
+    const node = document.createElement('div');
+    node.textContent = String(value ?? '');
+    return node.innerHTML;
+}
+
+function adminFetch(url, options = {}) {
+    const token = localStorage.getItem('terminal_admin_token');
+    const headers = {...(options.headers || {})};
+    if (token) headers.Authorization = 'Bearer ' + token;
+    return fetch(url, {...options, headers});
+}
+
 let isAdmin = false, categories = [], products = [], currentCatId = 0, cart = [], total = 0;
 
 function checkAuth() {
     const overlay = document.getElementById('loginOverlay');
-    if (cashDeskLogin && cashDeskDbId && cashDeskDbId !== "undefined" && cashDeskDbId !== "null") {
+    if (cashDeskLogin && cashDeskDbId && localStorage.getItem('terminal_token') && cashDeskDbId !== "undefined" && cashDeskDbId !== "null") {
         overlay.style.display = 'none';
         document.body.classList.add('logged-in');
         document.getElementById('shiftSummaryBtn').style.display = '';
@@ -147,7 +169,8 @@ checkAuth();
 async function login() {
     const deskVal     = document.getElementById('deskLoginInput').value.trim();
     const cashierVal  = document.getElementById('cashierLoginInput').value.trim();
-    if (!deskVal) return;
+    const passwordVal = document.getElementById('deskPasswordInput').value;
+    if (!deskVal || !passwordVal) return;
     document.getElementById('loginError').style.display = 'none';
     try {
         const res = await fetch('/api/verify_cash_desk', {
@@ -157,9 +180,17 @@ async function login() {
         });
         if (res.ok) {
             const data = await res.json();
+            const tokenRes = await fetch('/api/verify_desk_password', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({login: deskVal, password: passwordVal})
+            });
+            if (!tokenRes.ok) throw new Error('Неверный пароль терминала');
+            const tokenData = await tokenRes.json();
             localStorage.setItem('cashDeskId',   data.login);
             localStorage.setItem('cashDeskDbId', data.id);
             localStorage.setItem('cashierName',  data.cashier_name || '');
+            localStorage.setItem('terminal_token', tokenData.token);
             localStorage.setItem('shiftStart',   new Date().toISOString());
             location.reload();
         } else {
@@ -185,9 +216,9 @@ async function initApp() {
 }
 
 function startHeartbeat() {
-    const ping = () => fetch('/api/terminals/ping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        const ping = () => terminalFetch('/api/terminals/ping', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ login: cashDeskLogin })
     }).catch(() => {});
     ping(); // immediate first ping
@@ -217,10 +248,10 @@ function renderCategories() {
     let html = `<div class="cat-tab ${currentCatId === 0 ? 'active' : ''}" onclick="selectCat(0)"><i class="ph-bold ph-star"></i> Избранное</div>`;
     categories.forEach(c => {
         html += `<div class="cat-tab ${currentCatId === c.id ? 'active' : ''}" onclick="selectCat(${c.id})">
-            ${c.name}
+            ${escapeHtml(c.name)}
             ${isAdmin ? `
                 <div style="position:absolute; top:-10px; right:-10px; display:flex; gap:2px;">
-                    <button class="delete-btn" style="background:#3B82F6; position:static;" onclick="event.stopPropagation(); openEditCat(${c.id}, '${c.name}')"><i class="ph-bold ph-pencil-simple"></i></button>
+                    <button class="delete-btn" style="background:#3B82F6; position:static;" onclick="event.stopPropagation(); openEditCat(${c.id})"><i class="ph-bold ph-pencil-simple"></i></button>
                     <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteCat(${c.id})"><i class="ph-bold ph-x"></i></button>
                 </div>` : ''}
         </div>`;
@@ -237,14 +268,14 @@ function renderProducts() {
 
     displayProducts.forEach(p => {
         const isFav = favs.includes(p.id);
-        html += `<div class="product-card" onclick="if(!isAdmin) addToCart(${p.id}, '${p.name}', ${p.price})">
+        html += `<div class="product-card" onclick="if(!isAdmin) addToCart(${p.id})">
             <button class="star-btn ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav(${p.id})"><i class="${isFav ? 'ph-fill' : 'ph'} ph-star"></i></button>
             ${isAdmin ? `
                 <div style="position:absolute; top:-5px; right:-5px; display:flex; gap:2px;">
-                    <button class="delete-btn" style="background:#3B82F6; position:static;" onclick="event.stopPropagation(); openEditProduct(${p.id}, '${p.name}', ${p.price})"><i class="ph-bold ph-pencil-simple"></i></button>
+                    <button class="delete-btn" style="background:#3B82F6; position:static;" onclick="event.stopPropagation(); openEditProduct(${p.id})"><i class="ph-bold ph-pencil-simple"></i></button>
                     <button class="delete-btn" style="position:static;" onclick="event.stopPropagation(); deleteProduct(${p.id})"><i class="ph-bold ph-x"></i></button>
                 </div>` : ''}
-            <div class="product-name">${p.name}</div>
+            <div class="product-name">${escapeHtml(p.name)}</div>
             <div class="product-price">${p.price} ₽</div>
         </div>`;
     });
@@ -257,15 +288,18 @@ function selectCat(id) { currentCatId = id; renderCategories(); renderProducts()
 // --- 3. АДМИН-ФУНКЦИИ ---
 async function verifyAdmin() {
     const pwd = document.getElementById('adminPassInput').value;
-    const res = await fetch('/api/verify_desk_password', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ login: cashDeskLogin, password: pwd })
+    const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({password: pwd})
     });
-    if (res.ok) {
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.success && data.token) {
+        localStorage.setItem('terminal_admin_token', data.token);
         isAdmin = true;
         document.body.classList.add('edit-mode');
         closeModal('adminAuthModal'); renderCategories(); renderProducts();
-    } else alert("Неверный пароль");
+    } else alert("Неверный пароль администратора");
 }
 
 function exitAdmin() {
@@ -275,7 +309,14 @@ function exitAdmin() {
 }
 
 function openAddCat() { document.getElementById('editCatId').value = ''; document.getElementById('catNameInput').value = ''; document.getElementById('catModalTitle').innerText='Новый раздел'; openModal('catModal'); }
-function openEditCat(id, name) { document.getElementById('editCatId').value = id; document.getElementById('catNameInput').value = name; document.getElementById('catModalTitle').innerText='Изменить раздел'; openModal('catModal'); }
+function openEditCat(id) {
+    const category = categories.find(item => item.id === id);
+    if (!category) return;
+    document.getElementById('editCatId').value = id;
+    document.getElementById('catNameInput').value = category.name;
+    document.getElementById('catModalTitle').innerText = 'Изменить раздел';
+    openModal('catModal');
+}
 
 async function saveCategory() {
     const id = document.getElementById('editCatId').value;
@@ -299,7 +340,7 @@ async function saveCategory() {
     };
 
     try {
-        const res = await fetch(url, {
+        const res = await adminFetch(url, {
             method: method,
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
@@ -321,10 +362,18 @@ async function saveCategory() {
     }
 }
 
-async function deleteCat(id) { if(confirm("Удалить раздел и все блюда в нём?")) { await fetch(`/api/categories/${id}`, { method: 'DELETE' }); loadData(); } }
+async function deleteCat(id) { if(confirm("Удалить раздел и все блюда в нём?")) { await adminFetch(`/api/categories/${id}`, { method: 'DELETE' }); loadData(); } }
 
 function openAddProduct() { document.getElementById('editProductId').value = ''; document.getElementById('prodName').value = ''; document.getElementById('prodPrice').value = ''; document.getElementById('productModalTitle').innerText = 'Новое блюдо'; openModal('productModal'); }
-function openEditProduct(id, name, price) { document.getElementById('editProductId').value = id; document.getElementById('prodName').value = name; document.getElementById('prodPrice').value = price; document.getElementById('productModalTitle').innerText = 'Изменить блюдо'; openModal('productModal'); }
+function openEditProduct(id) {
+    const product = products.find(item => item.id === id);
+    if (!product) return;
+    document.getElementById('editProductId').value = id;
+    document.getElementById('prodName').value = product.name;
+    document.getElementById('prodPrice').value = product.price;
+    document.getElementById('productModalTitle').innerText = 'Изменить блюдо';
+    openModal('productModal');
+}
 
 async function saveProduct() {
     const id = document.getElementById('editProductId').value;
@@ -334,18 +383,20 @@ async function saveProduct() {
     const data = { name, price, category_id: currentCatId, cash_desk_ids: [parseInt(cashDeskDbId)] };
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/api/products/${id}` : '/api/products';
-    await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+    await adminFetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
     closeModal('productModal'); loadData();
 }
-async function deleteProduct(id) { if(confirm("Удалить блюдо?")) { await fetch(`/api/products/${id}`, { method: 'DELETE' }); loadData(); } }
+async function deleteProduct(id) { if(confirm("Удалить блюдо?")) { await adminFetch(`/api/products/${id}`, { method: 'DELETE' }); loadData(); } }
 
 // --- 4. КОРЗИНА И ОПЛАТА ---
 function openModal(id) { document.getElementById(id).style.display = 'flex'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-function addToCart(id, name, price) {
+function addToCart(id) {
+    const product = products.find(item => item.id === id);
+    if (!product) return;
     let item = cart.find(i => i.id === id);
-    if (item) item.qty++; else cart.push({id, name, price, qty: 1});
+    if (item) item.qty++; else cart.push({id, name: product.name, price: product.price, qty: 1});
     renderCart();
 }
 
@@ -369,7 +420,7 @@ function renderCart() {
     cart.forEach((i, idx) => {
         total += i.price * i.qty;
         cont.innerHTML += `<div class="cart-item">
-    	    <span>${i.name} (x${i.qty})</span>
+                <span>${escapeHtml(i.name)} (x${i.qty})</span>
     	    <span>${i.price * i.qty} ₽
                 <button onclick="removeFromCart(${i.id})" style="border:none;background:none;color:#EF4444;cursor:pointer;padding:0 5px;display:inline-flex;align-items:center;"><i class="ph-bold ph-x"></i></button>
             </span>
@@ -398,7 +449,7 @@ async function processExternal(method) {
     // Шлем на сервер только product_id и количество
     const items = cart.map(i => ({ product_id: i.id, quantity: i.qty }));
     try {
-        const res = await fetch('/api/pay_external', {
+        const res = await terminalFetch('/api/pay_external', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -435,7 +486,7 @@ async function openShiftSummary() {
     const since = localStorage.getItem('shiftStart') || new Date().toISOString();
     const params = new URLSearchParams({ desk: cashDeskLogin, since });
     try {
-        const res = await fetch(`/api/terminals/shift_summary?${params}`);
+        const res = await terminalFetch(`/api/terminals/shift_summary?${params}`);
         const d = await res.json();
         const methodNames = { bank_card: 'Карта', cash: 'Наличные', internal: 'Дотация', unknown: 'Другое' };
         let methods = Object.entries(d.by_method).map(([m, v]) =>

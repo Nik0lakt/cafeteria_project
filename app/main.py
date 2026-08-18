@@ -1,5 +1,6 @@
 import os
 import shutil
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 
@@ -14,6 +15,7 @@ from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import text
 
 from app import cashiers_db
+from app.config import PRIVATE_PHOTOS_DIR, STATIC_DIR, cors_origins
 from app.database import Base, SessionLocal, engine
 from app.routers import auth, bot, cashiers, liveness, payment
 
@@ -126,8 +128,7 @@ def update_db_schema():
             conn.commit()
 
 
-PRIVATE_PHOTOS_DIR = "/app/private_photos"
-OLD_PHOTOS_DIR = "/app/static/photos"
+OLD_PHOTOS_DIR = STATIC_DIR / "photos"
 
 
 def migrate_photos():
@@ -165,21 +166,21 @@ def seed_defaults():
 
 seed_defaults()
 
-app = FastAPI(title="Cafeteria")
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    bot.start_bot()
+    yield
 
-cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+
+app = FastAPI(title="Cafeteria", lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
+    allow_origins=cors_origins(),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-async def startup_event():
-    bot.start_bot()
 
 
 # --- Metrics & Health ---

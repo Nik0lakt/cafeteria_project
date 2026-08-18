@@ -1,39 +1,45 @@
-version: '3.8'
 services:
   db:
     image: postgres:13
-    restart: always
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: cafeteria_db
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   web:
     build: .
-    ports:
-      - "8000:8000"
-    restart: always
+    restart: unless-stopped
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     expose:
       - "8000"
+    # Direct access is local only; public traffic must pass through Caddy.
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PRIVATE_PHOTOS_DIR: /app/data/private_photos
     volumes:
-      - ./app:/app/app        # Пробрасываем папку с логикой
-      - ./static:/app/static  # Пробрасываем фронтенд
+      - ./app:/app/app
+      - ./static:/app/static
+      - private_photos:/app/data/private_photos
     depends_on:
       - db
-    environment:
-      DATABASE_URL: postgresql://user:password@db:5432/cafeteria_db
 
   caddy:
     image: caddy:2
-    restart: always
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
@@ -41,5 +47,6 @@ services:
 
 volumes:
   postgres_data:
+  private_photos:
   caddy_data:
   caddy_config:

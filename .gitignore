@@ -28,6 +28,9 @@ Thumbs.db
 *.old
 *.tmp
 
+# Локальные приватные данные приложения
+data/private_photos/
+
 
 static/photos/*
 !static/photos/.gitkeep
